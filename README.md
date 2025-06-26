@@ -32,7 +32,12 @@ code can run without a Raspberry Pi. Execute the tests with:
 python3 -m unittest discover -s tests
 ```
 
-To experiment with the interface without hardware, run the `manual_hmi.py` script which uses the simulated modules from the tests. It launches the GUI so you can manually exercise the controls.
+
+## Manual GUI Testing
+
+You can experiment with the interface on any machine using simulated hardware.
+Run the `manual_hmi.py` script and interact with the GUI while all hardware
+calls are faked:
 
 ```bash
 python3 manual_hmi.py
