@@ -22,3 +22,12 @@ python3 system_control.py
 ```
 
 The GUI provides live readings and buttons for operating the solenoids.
+
+## Testing
+
+A basic test suite provides simulated versions of the hardware interfaces so the
+code can run without a Raspberry Pi. Execute the tests with:
+
+```bash
+python3 -m unittest discover -s tests
+```
