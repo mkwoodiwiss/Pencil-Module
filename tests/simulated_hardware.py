@@ -5,11 +5,16 @@ class FakeSerial:
         self.baud = baud
         self.timeout = timeout
         self._buffer = b""
+        self.writes = []
 
     def write(self, data: bytes):
+        self.writes.append(data)
         # The real system expects a 'P' command to read weight
         if data == b"P\r\n":
             self._buffer = b"+123.45 g\r\n"
+        elif data == b"Z\r\n":
+            # Zero command, no response but recorded
+            pass
 
     def read_until(self, sep: bytes = b"\r\n") -> bytes:
         response = self._buffer or b""

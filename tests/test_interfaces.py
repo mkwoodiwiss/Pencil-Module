@@ -47,6 +47,14 @@ class TestPencilModule(unittest.TestCase):
         weight = self.module.read_scale()
         self.assertEqual(weight, "+123.45 g")
 
+    def test_read_weight(self):
+        val = self.module.read_weight()
+        self.assertAlmostEqual(val, 123.45)
+
+    def test_zero_scales(self):
+        self.module.zero_scales()
+        self.assertIn(b"Z\r\n", self.module.ser.writes)
+
 
 if __name__ == "__main__":
     unittest.main()
