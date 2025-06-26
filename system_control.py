@@ -242,7 +242,8 @@ class HMI(tk.Tk):
         super().__init__()
         self.module = module
         self.title("Pencil Module")
-        self.geometry("480x320")  # fits 7" display
+        # Use the full 7" touch screen resolution
+        self.geometry("800x480")
 
         # Readout variables
         self.weight_var = tk.StringVar()
@@ -255,22 +256,24 @@ class HMI(tk.Tk):
 
         info = tk.Frame(self)
         info.pack(pady=5)
+        # Slightly smaller fonts so all data fits the screen
         tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
-        tk.Label(info, textvariable=self.weight_var, font=("Arial", 14)).grid(row=0, column=1, sticky="w")
+        tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
         tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
-        tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 14)).grid(row=1, column=1, sticky="w")
+        tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
         tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")
-        tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 14)).grid(row=2, column=1, sticky="w")
+        tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
         tk.Label(info, text="Raw Pressure:").grid(row=3, column=0, sticky="w")
-        tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 14)).grid(row=3, column=1, sticky="w")
+        tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
-        tk.Label(info, textvariable=self.temp_var, font=("Arial", 14)).grid(row=4, column=1, sticky="w")
+        tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
 
-        self.solenoid_states = [False] * 8
+        # Only five solenoids are used
+        self.solenoid_states = [False] * 5
         self.solenoid_buttons = []
         btn_frame = tk.Frame(self)
         btn_frame.pack(pady=5)
-        for i in range(8):
+        for i in range(5):
             btn = tk.Button(
                 btn_frame,
                 text=f"Sol {i+1} OFF",
@@ -285,8 +288,8 @@ class HMI(tk.Tk):
         tk.Button(control_frame, text="Prime", command=self.prime).grid(row=0, column=0, padx=5)
         tk.Button(control_frame, text="Start Test", command=self.start_test).grid(row=0, column=1, padx=5)
         tk.Button(control_frame, text="Stop Test", command=self.stop_test).grid(row=0, column=2, padx=5)
-        tk.Button(control_frame, text="Zero Scale 1", command=lambda: self.module.zero_scale(0)).grid(row=1, column=0, padx=5)
-        tk.Button(control_frame, text="Zero Scale 2", command=lambda: self.module.zero_scale(1)).grid(row=1, column=1, padx=5)
+        tk.Button(control_frame, text="Tare EFL Weight", command=lambda: self.module.zero_scale(0)).grid(row=1, column=0, padx=5)
+        tk.Button(control_frame, text="Tare BW Weight", command=lambda: self.module.zero_scale(1)).grid(row=1, column=1, padx=5)
         tk.Button(control_frame, text="Calibrate", command=self.calibrate).grid(row=1, column=2, padx=5)
 
         self.update_data()
@@ -302,7 +305,8 @@ class HMI(tk.Tk):
         self.pi1_text = self.canvas.create_text(45, 95, text="PI1: --")
 
         self.canvas.create_rectangle(20, 110, 70, 160, fill="lightgreen")
-        self.canvas.create_text(45, 100, text="Raw Tank")
+        # Renamed for clarity on the diagram
+        self.canvas.create_text(45, 100, text="INF Tank")
         self.pi2_text = self.canvas.create_text(45, 165, text="PI2: --")
 
         # Mini module
@@ -312,11 +316,11 @@ class HMI(tk.Tk):
 
         # Output destinations
         self.canvas.create_rectangle(300, 30, 350, 60, fill="lightyellow")
-        self.canvas.create_text(325, 20, text="WeightB")
+        self.canvas.create_text(325, 20, text="BW Scale")
         self.canvas.create_rectangle(300, 80, 350, 110, fill="gray90")
         self.canvas.create_text(325, 120, text="Drain")
         self.canvas.create_rectangle(300, 130, 350, 160, fill="lightyellow")
-        self.canvas.create_text(325, 170, text="WeightF")
+        self.canvas.create_text(325, 170, text="EFL Weight")
 
         # Flow lines (initially grey)
         self.lines = {}
