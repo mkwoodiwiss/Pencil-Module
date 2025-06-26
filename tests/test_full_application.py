@@ -14,6 +14,7 @@ class HeadlessHMI:
         _created_apps.append(self)
         self.module = module
         self.weight = ""
+        self.backwash_weight = ""
         self.pressure = ""
         self.temp = ""
         self.update_count = 0
@@ -24,7 +25,8 @@ class HeadlessHMI:
             callback()
 
     def update_data(self):
-        self.weight = self.module.read_scale()
+        self.weight = self.module.read_scale(0)
+        self.backwash_weight = self.module.read_scale(1)
         self.pressure = f"{self.module.read_pressure(0):.2f}"
         self.temp = f"{self.module.read_rtd(0):.2f}"
         self.update_count += 1
