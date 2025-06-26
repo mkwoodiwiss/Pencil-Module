@@ -4,10 +4,13 @@ import unittest
 
 from tests.simulated_hardware import FakeSerial, FakeRelay8, FakeMultiIO
 
-# Provide fake modules before importing the code under test
-sys.modules.setdefault('serial', types.SimpleNamespace(Serial=FakeSerial))
-sys.modules.setdefault('relay8', types.SimpleNamespace(Relay8=FakeRelay8))
-sys.modules.setdefault('multiio', types.SimpleNamespace(MultiIO=FakeMultiIO))
+# Always provide fake modules before importing the code under test so the
+# tests do not require real hardware libraries to be installed. This also
+# ensures the simulated hardware is used even when running on a Raspberry
+# Pi that may have the vendor packages installed.
+sys.modules['serial'] = types.SimpleNamespace(Serial=FakeSerial)
+sys.modules['relay8'] = types.SimpleNamespace(Relay8=FakeRelay8)
+sys.modules['multiio'] = types.SimpleNamespace(MultiIO=FakeMultiIO)
 
 from system_control import PencilModule
 
