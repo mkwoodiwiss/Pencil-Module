@@ -32,6 +32,7 @@ code can run without a Raspberry Pi. Execute the tests with:
 python3 -m unittest discover -s tests
 ```
 
+
 ## Manual GUI Testing
 
 You can experiment with the interface on any machine using simulated hardware.
