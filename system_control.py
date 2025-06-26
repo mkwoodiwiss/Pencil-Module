@@ -236,7 +236,7 @@ class FiltrationTestSystem:
         self.data_writer = None
 
 class HMI(tk.Tk):
-    """Simple Tkinter graphical interface."""
+    """Simple Tkinter graphical interface with a process diagram."""
 
     def __init__(self, module: PencilModule):
         super().__init__()
@@ -244,24 +244,32 @@ class HMI(tk.Tk):
         self.title("Pencil Module")
         self.geometry("480x320")  # fits 7" display
 
+        # Readout variables
         self.weight_var = tk.StringVar()
         self.backwash_weight_var = tk.StringVar()
-        self.pressure_var = tk.StringVar()
+        self.pressure_bw_var = tk.StringVar()
+        self.pressure_raw_var = tk.StringVar()
         self.temp_var = tk.StringVar()
 
-        tk.Label(self, text="Effluent Weight:").pack()
-        tk.Label(self, textvariable=self.weight_var, font=("Arial", 24)).pack()
-        tk.Label(self, text="Backwash Weight:").pack()
-        tk.Label(self, textvariable=self.backwash_weight_var, font=("Arial", 24)).pack()
-        tk.Label(self, text="Pressure:").pack()
-        tk.Label(self, textvariable=self.pressure_var, font=("Arial", 24)).pack()
-        tk.Label(self, text="Temperature:").pack()
-        tk.Label(self, textvariable=self.temp_var, font=("Arial", 24)).pack()
+        self._create_pfd()
+
+        info = tk.Frame(self)
+        info.pack(pady=5)
+        tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
+        tk.Label(info, textvariable=self.weight_var, font=("Arial", 14)).grid(row=0, column=1, sticky="w")
+        tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
+        tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 14)).grid(row=1, column=1, sticky="w")
+        tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")
+        tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 14)).grid(row=2, column=1, sticky="w")
+        tk.Label(info, text="Raw Pressure:").grid(row=3, column=0, sticky="w")
+        tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 14)).grid(row=3, column=1, sticky="w")
+        tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
+        tk.Label(info, textvariable=self.temp_var, font=("Arial", 14)).grid(row=4, column=1, sticky="w")
 
         self.solenoid_states = [False] * 8
         self.solenoid_buttons = []
         btn_frame = tk.Frame(self)
-        btn_frame.pack(pady=10)
+        btn_frame.pack(pady=5)
         for i in range(8):
             btn = tk.Button(
                 btn_frame,
@@ -269,11 +277,11 @@ class HMI(tk.Tk):
                 width=8,
                 command=lambda ch=i: self.toggle_solenoid(ch),
             )
-            btn.grid(row=i // 4, column=i % 4, padx=5, pady=5)
+            btn.grid(row=i // 4, column=i % 4, padx=5, pady=2)
             self.solenoid_buttons.append(btn)
 
         control_frame = tk.Frame(self)
-        control_frame.pack(pady=10)
+        control_frame.pack(pady=5)
         tk.Button(control_frame, text="Prime", command=self.prime).grid(row=0, column=0, padx=5)
         tk.Button(control_frame, text="Start Test", command=self.start_test).grid(row=0, column=1, padx=5)
         tk.Button(control_frame, text="Stop Test", command=self.stop_test).grid(row=0, column=2, padx=5)
@@ -283,12 +291,54 @@ class HMI(tk.Tk):
 
         self.update_data()
 
+    def _create_pfd(self) -> None:
+        """Draw a simple process flow diagram on a canvas."""
+        self.canvas = tk.Canvas(self, width=460, height=160, bg="white")
+        self.canvas.pack(pady=5)
+
+        # Tanks
+        self.canvas.create_rectangle(20, 40, 70, 90, fill="lightblue")
+        self.canvas.create_text(45, 30, text="BW Tank")
+        self.pi1_text = self.canvas.create_text(45, 95, text="PI1: --")
+
+        self.canvas.create_rectangle(20, 110, 70, 160, fill="lightgreen")
+        self.canvas.create_text(45, 100, text="Raw Tank")
+        self.pi2_text = self.canvas.create_text(45, 165, text="PI2: --")
+
+        # Mini module
+        self.canvas.create_rectangle(160, 70, 220, 120, fill="lightgray")
+        self.canvas.create_text(190, 60, text="Mini")
+        self.te_text = self.canvas.create_text(190, 125, text="TE: --")
+
+        # Output destinations
+        self.canvas.create_rectangle(300, 30, 350, 60, fill="lightyellow")
+        self.canvas.create_text(325, 20, text="WeightB")
+        self.canvas.create_rectangle(300, 80, 350, 110, fill="gray90")
+        self.canvas.create_text(325, 120, text="Drain")
+        self.canvas.create_rectangle(300, 130, 350, 160, fill="lightyellow")
+        self.canvas.create_text(325, 170, text="WeightF")
+
+        # Flow lines (initially grey)
+        self.lines = {}
+        self.lines[0] = self.canvas.create_line(70, 65, 160, 85, arrow="last", fill="gray", width=2)
+        self.lines[1] = self.canvas.create_line(70, 135, 160, 95, arrow="last", fill="gray", width=2)
+        self.lines[2] = self.canvas.create_line(220, 85, 300, 45, arrow="last", fill="gray", width=2)
+        self.lines[3] = self.canvas.create_line(220, 95, 300, 95, arrow="last", fill="gray", width=2)
+        self.lines[4] = self.canvas.create_line(220, 105, 300, 145, arrow="last", fill="gray", width=2)
+
+    def _update_lines(self) -> None:
+        """Color flow lines based on valve states."""
+        for idx, line_id in self.lines.items():
+            color = "green" if self.solenoid_states[idx] else "gray"
+            self.canvas.itemconfig(line_id, fill=color)
+
     def toggle_solenoid(self, channel: int) -> None:
         state = not self.solenoid_states[channel]
         self.solenoid_states[channel] = state
         self.module.set_solenoid(channel + 1, state)
         text = f"Sol {channel + 1} {'ON' if state else 'OFF'}"
         self.solenoid_buttons[channel].config(text=text)
+        self._update_lines()
 
     def prime(self) -> None:
         FiltrationTestSystem(self.module, FiltrationConfig(0, False, 0, False, 0, 0, 1, "prime")).prime()
@@ -319,8 +369,16 @@ class HMI(tk.Tk):
     def update_data(self) -> None:
         self.weight_var.set(self.module.read_scale(0))
         self.backwash_weight_var.set(self.module.read_scale(1))
-        self.pressure_var.set(f"{self.module.read_pressure(0):.2f}")
+        self.pressure_bw_var.set(f"{self.module.read_pressure(0):.2f}")
+        self.pressure_raw_var.set(f"{self.module.read_pressure(1):.2f}")
         self.temp_var.set(f"{self.module.read_rtd(0):.2f}")
+
+        # Update text on process diagram
+        self.canvas.itemconfig(self.pi1_text, text=f"PI1: {self.pressure_bw_var.get()}")
+        self.canvas.itemconfig(self.pi2_text, text=f"PI2: {self.pressure_raw_var.get()}")
+        self.canvas.itemconfig(self.te_text, text=f"TE: {self.temp_var.get()}")
+
+        self._update_lines()
         self.after(1000, self.update_data)
 
 
