@@ -352,17 +352,17 @@ class HMI(tk.Tk):
         control_frame = tk.Frame(self)
         control_frame.pack(pady=5)
         tk.Button(control_frame, text="Prime", command=self.prime).grid(row=0, column=0, padx=5)
-        tk.Button(control_frame, text="Start Test", command=self.start_test).grid(row=0, column=1, padx=5)
-        tk.Button(control_frame, text="Stop Test", command=self.stop_test).grid(row=0, column=2, padx=5)
-        tk.Button(control_frame, text="Tare EFL Weight", command=lambda: self.module.zero_scale(0)).grid(row=1, column=0, padx=5)
-        tk.Button(control_frame, text="Tare BW Weight", command=lambda: self.module.zero_scale(1)).grid(row=1, column=1, padx=5)
+        tk.Button(control_frame, text="Start", command=self.start_test).grid(row=0, column=1, padx=5)
+        tk.Button(control_frame, text="Stop", command=self.stop_test).grid(row=0, column=2, padx=5)
+        tk.Button(control_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=1, column=0, padx=5)
+        tk.Button(control_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=1, column=1, padx=5)
         tk.Button(control_frame, text="Calibrate", command=self.calibrate).grid(row=1, column=2, padx=5)
 
         self.update_data()
 
     def _create_pfd(self) -> None:
         """Draw a simple process flow diagram on a canvas."""
-        self.canvas = tk.Canvas(self, width=460, height=160, bg="white")
+        self.canvas = tk.Canvas(self, width=750, height=160, bg="white")
         self.canvas.pack(pady=5)
 
         # Tanks
