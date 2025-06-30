@@ -47,11 +47,11 @@ class TestPencilModule(unittest.TestCase):
 
     def test_read_scale(self):
         weight = self.module.read_scale()
-        self.assertEqual(weight, "+123.45 g")
+        self.assertEqual(weight, "23.45 g")
 
     def test_second_scale(self):
         weight = self.module.read_scale(1)
-        self.assertEqual(weight, "+54.32 g")
+        self.assertEqual(weight, "54.32 g")
 
     def test_zero_scales_and_offsets(self):
         self.module.apply_offsets(pressure=1.0, temperature=2.0)

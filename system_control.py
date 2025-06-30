@@ -322,7 +322,6 @@ class HMI(tk.Tk):
 
         info = tk.Frame(self)
         info.pack(pady=5)
-        # Slightly smaller fonts so all data fits the screen
         tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
         tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
         tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
@@ -334,21 +333,7 @@ class HMI(tk.Tk):
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
 
-        # Only five solenoids are used
-        self.solenoid_states = [False] * 5
-        self.solenoid_buttons = []
-        btn_frame = tk.Frame(self)
-        btn_frame.pack(pady=5)
-        for i in range(5):
-            btn = tk.Button(
-                btn_frame,
-                text=f"Sol {i+1} OFF",
-                width=8,
-                command=lambda ch=i: self.toggle_solenoid(ch),
-            )
-            btn.grid(row=i // 4, column=i % 4, padx=5, pady=2)
-            self.solenoid_buttons.append(btn)
-
+        # Control buttons
         control_frame = tk.Frame(self)
         control_frame.pack(pady=5)
         tk.Button(control_frame, text="Prime", command=self.prime).grid(row=0, column=0, padx=5)
@@ -362,74 +347,113 @@ class HMI(tk.Tk):
 
     def _create_pfd(self) -> None:
         """Draw a process flow diagram that visually resembles the reference image."""
-        self.canvas = tk.Canvas(self, width=750, height=220, bg="white")
+        self.canvas = tk.Canvas(self, width=780, height=190, bg="white")
         self.canvas.pack(pady=5)
 
         # === LEFT: BW and Influent Water Tanks ===
-        self.canvas.create_rectangle(30, 30, 80, 80, fill="lightblue")  # BW Water
-        self.canvas.create_text(55, 20, text="BW water")
-        self.pi1_text = self.canvas.create_text(55, 85, text="-- PSI")  # PI1 value
+        self.canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")  # BW Water
+        self.canvas.create_text(100, 20, text="BW water")
+        self.pi1_text = self.canvas.create_text(100, 70, text="-- PSI")  # PI1 value
 
-        self.canvas.create_rectangle(30, 110, 80, 160, fill="lightblue")  # Influent Water
-        self.canvas.create_text(55, 100, text="Influent water")
-        self.pi2_text = self.canvas.create_text(55, 155, text="-- PSI")  # PI2 value
+        self.canvas.create_rectangle(75, 110, 125, 160, fill="lightblue")  # Influent Water
+        self.canvas.create_text(100, 100, text="Influent water")
+        self.pi2_text = self.canvas.create_text(100, 150, text="-- PSI")  # PI2 value
 
         # === Mini-module in Center ===
-        self.canvas.create_rectangle(220, 65, 300, 115, fill="lightgray")  # Mini-module
-        self.canvas.create_text(260, 55, text="Mini-module")
-        self.te_text = self.canvas.create_text(260, 125, text="-- C")
+        self.canvas.create_rectangle(265, 45, 445, 65, fill="lightgray")  # Mini-module
+        self.canvas.create_rectangle(275, 65, 290, 85, fill="lightgray")
+        self.canvas.create_rectangle(420, 65, 435, 85, fill="lightgray")
+        self.canvas.create_text(355, 35, text="Mini-module")
 
         # === RIGHT: Destinations ===
         # Effluent (top right)
-        self.canvas.create_rectangle(420, 30, 470, 80, fill="lightblue")  # WeightF
-        self.canvas.create_text(445, 20, text="Effluent")
-        self.canvas.create_text(445, 85, text="-- g")
+        self.canvas.create_rectangle(565, 30, 615, 80, fill="lightblue")  # WeightF
+        self.canvas.create_text(590, 20, text="Effluent")
+        self.canvas.create_text(590, 70, text="-- g")
 
         # Backwash
-        self.canvas.create_rectangle(420, 120, 470, 170, fill="lightblue")  # WeightB
-        self.canvas.create_text(445, 110, text="Backwash")
-        self.canvas.create_text(445, 175, text="-- g")
+        self.canvas.create_rectangle(565, 120, 615, 170, fill="lightblue")  # WeightB
+        self.canvas.create_text(590, 110, text="Backwash")
+        self.canvas.create_text(590, 160, text="-- g")
 
         # Drain
-        self.canvas.create_rectangle(520, 75, 570, 125, fill="lightblue")  # Drainage
-        self.canvas.create_text(545, 65, text="Drain")
+        self.canvas.create_rectangle(665, 75, 715, 125, fill="lightblue")  # Drainage
+        self.canvas.create_text(690, 65, text="Drain")
 
         # === Flow Lines & Valves (gray initially) ===
         self.lines = {}
         self.valve_labels = {}
 
+        # Map each valve to the lines it controls
+        self.valve_to_lines = {
+            0: [0],    # V1 controls line 0
+            1: [1],    # V2 controls line 1 and the vertical line to module
+            2: [2, 'v3_vert1', 'v3_vert2'],  # V3 controls line 2 and both vertical lines
+            3: [3, 'v3_vert2'],     # V4 controls line 3 AND v3_vert2
+            4: [4],    # V5 controls line 4
+        }
+
         # From BW to Mini-module (V1)
-        self.lines[0] = self.canvas.create_line(80, 55, 220, 80, arrow="last", fill="gray", width=2)
-        self.valve_labels['V1'] = self.canvas.create_text(150, 65, text="V1")
+        self.lines[0] = self.canvas.create_line(125, 55, 265, 55, arrow="last", fill="gray", width=2)
+        self.valve_labels['V1'] = self.canvas.create_text(195, 55, text="V1")
 
         # From Influent to Mini-module (V2)
-        self.lines[1] = self.canvas.create_line(80, 125, 220, 100, arrow="last", fill="gray", width=2)
-        self.valve_labels['V2'] = self.canvas.create_text(150, 110, text="V2")
+        self.lines[1] = self.canvas.create_line(125, 125, 290, 125, fill="gray", width=2)
+        self.lines['v2_vert'] = self.canvas.create_line(282.5, 125, 282.5, 85, arrow="last", fill="gray", width=2)
+        self.valve_to_lines[1].append('v2_vert')
+        self.valve_labels['V2'] = self.canvas.create_text(195, 125, text="V2")
+        self.canvas.create_rectangle(290, 117.5, 340, 132.5, fill="white", outline="black")
+        self.te_text = self.canvas.create_text(315, 125, text="-- C")
 
-        # Mini-module to Backwash (V3) - now goes to new Backwash position
-        self.lines[2] = self.canvas.create_line(300, 105, 420, 145, arrow="last", fill="gray", width=2)
-        self.valve_labels['V3'] = self.canvas.create_text(360, 125, text="V3")
+        # Mini-module to Backwash (V3)
+        self.lines[2] = self.canvas.create_line(427.5, 145, 565, 145, arrow="last", fill="gray", width=2)
+        self.lines['v3_vert1'] = self.canvas.create_line(427.5, 100, 427.5, 145, fill="gray", width=2)
+        self.lines['v3_vert2'] = self.canvas.create_line(427.5, 85, 427.5, 100, fill="gray", width=2)
+        self.valve_to_lines[2].extend(['v3_vert1', 'v3_vert2'])
+        self.valve_labels['V3'] = self.canvas.create_text(505, 145, text="V3")
 
-        # Mini-module to Drainage (V4) - now goes to new Drain position
-        self.lines[3] = self.canvas.create_line(300, 100, 520, 100, arrow="last", fill="gray", width=2)
-        self.valve_labels['V4'] = self.canvas.create_text(375, 100, text="V4")
+        # Mini-module to Drainage (V4)
+        self.lines[3] = self.canvas.create_line(427.5, 100, 665, 100, arrow="last", fill="gray", width=2)
+        self.valve_labels['V4'] = self.canvas.create_text(505, 100, text="V4")
 
         # Mini-module to Effluent (V5)
-        self.lines[4] = self.canvas.create_line(300, 75, 420, 55, arrow="last", fill="gray", width=2)
-        self.valve_labels['V5'] = self.canvas.create_text(360, 65, text="V5")
+        self.lines[4] = self.canvas.create_line(445, 55, 565, 55, arrow="last", fill="gray", width=2)
+        self.valve_labels['V5'] = self.canvas.create_text(505, 55, text="V5")
+
+        # === Solenoid Buttons ===
+        self.solenoid_states = [False] * 5
+        self.solenoid_buttons = []
+        valve_keys = ['V1', 'V2', 'V3', 'V4', 'V5']
+        for i in range(5):
+            btn = tk.Button(
+                self.canvas,
+                text=f"V{i+1}",
+                width=3,
+                command=lambda ch=i: self.toggle_solenoid(ch),
+            )
+            x, y = self.canvas.coords(self.valve_labels[valve_keys[i]])
+            self.canvas.create_window(x, y, window=btn)
+            self.solenoid_buttons.append(btn)
 
     def _update_lines(self) -> None:
-        """Color flow lines based on valve states."""
-        for idx, line_id in self.lines.items():
-            color = "green" if self.solenoid_states[idx] else "gray"
-            self.canvas.itemconfig(line_id, fill=color)
+        # Update all lines except v3_vert2 normally
+        for idx, line_ids in self.valve_to_lines.items():
+            for lid in line_ids:
+                # Special handling for v3_vert2
+                if lid == 'v3_vert2':
+                    continue  # We'll handle this after the loop
+                color = "green" if self.solenoid_states[idx] else "gray"
+                self.canvas.itemconfig(self.lines[lid], fill=color)
+        # Now handle v3_vert2: green if V3 or V4 is ON
+        color = "green" if self.solenoid_states[2] or self.solenoid_states[3] else "gray"
+        self.canvas.itemconfig(self.lines['v3_vert2'], fill=color)
 
     def toggle_solenoid(self, channel: int) -> None:
         state = not self.solenoid_states[channel]
         self.solenoid_states[channel] = state
         self.module.set_solenoid(channel + 1, state)
-        text = f"Sol {channel + 1} {'ON' if state else 'OFF'}"
-        self.solenoid_buttons[channel].config(text=text)
+        bg = "red" if state else self.solenoid_buttons[channel].master.cget("bg")
+        self.solenoid_buttons[channel].config(bg=bg)
         self._update_lines()
 
     def prime(self) -> None:
