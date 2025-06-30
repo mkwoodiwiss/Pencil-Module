@@ -383,15 +383,15 @@ class HMI(tk.Tk):
 
         # === RIGHT: Destinations ===
         self.canvas.create_rectangle(420, 30, 470, 80, fill="lightblue")  # WeightF
-        self.canvas.create_text(445, 20, text="WeightF")
+        self.canvas.create_text(445, 20, text="Effluent")
         self.canvas.create_text(445, 85, text="-- g")
 
         self.canvas.create_rectangle(320, 90, 370, 140, fill="lightblue")  # WeightB
-        self.canvas.create_text(345, 150, text="WeightB")
+        self.canvas.create_text(345, 150, text="Backwash")
         self.canvas.create_text(345, 145, text="-- g")
 
         self.canvas.create_rectangle(420, 90, 470, 140, fill="lightblue")  # Drainage
-        self.canvas.create_text(445, 150, text="Drainage")
+        self.canvas.create_text(445, 150, text="Drain")
 
         # === Flow Lines & Valves (gray initially) ===
         self.lines = {}
