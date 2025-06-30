@@ -3,7 +3,7 @@
 This repository contains a sample Python application for running a pencil module on a Raspberry Pi 5.
 It assumes the following hardware:
 
-* Sequent Microsystems **8-Relay** hat – controls solenoid valves.
+* Sequent Microsystems **Home Automation** (or **8-Relay**) hat – controls solenoid valves.
 * Sequent Microsystems **Multi IO** hat – reads pressure and RTD sensors.
 * A weight scale connected over USB.
 * A Raspberry Pi 7 inch touch screen display used as an HMI.
@@ -14,6 +14,17 @@ Install them on the Pi with:
 ```bash
 pip install relay8 multiio
 ```
+
+The driver documentation for the Sequent Microsystems boards also provides
+installation scripts. Run them on the Raspberry Pi to fetch the latest
+drivers for the **Home Automation** and **Multi IO** hats:
+
+```bash
+curl https://raw.githubusercontent.com/SequentMicrosystems/home-automation-rpi/master/install.sh | sudo bash
+curl https://raw.githubusercontent.com/SequentMicrosystems/multiio-rpi/master/install.sh | sudo bash
+```
+For convenience this repository also includes an `install_vendor_deps.sh`
+script which wraps the above commands.
 
 Then run the controller:
 
