@@ -360,62 +360,65 @@ class HMI(tk.Tk):
 
         self.update_data()
 
-    def _create_pfd(self) -> None:
-        """Draw a process flow diagram that visually resembles the reference image."""
-        self.canvas = tk.Canvas(self, width=750, height=220, bg="white")
-        self.canvas.pack(pady=5)
+def _create_pfd(self) -> None:
+    """Draw a process flow diagram that visually resembles the reference image."""
+    self.canvas = tk.Canvas(self, width=750, height=220, bg="white")
+    self.canvas.pack(pady=5)
 
-        # === LEFT: BW and Raw Water Tanks ===
-        self.canvas.create_rectangle(30, 30, 80, 80, fill="lightblue")  # BW Water
-        self.canvas.create_text(55, 20, text="BW water")
-        self.pi1_text = self.canvas.create_text(55, 85, text="PI1: --")  # PI1 value
-        self.canvas.create_text(55, 95, text="Air")
+    # === LEFT: BW and Raw Water Tanks ===
+    self.canvas.create_rectangle(30, 30, 80, 80, fill="lightblue")  # BW Water
+    self.canvas.create_text(55, 20, text="BW water")
+    self.pi1_text = self.canvas.create_text(55, 85, text="PI1: --")  # PI1 value
+    self.canvas.create_text(55, 95, text="Air")
 
-        self.canvas.create_rectangle(30, 100, 80, 150, fill="lightblue")  # Raw Water
-        self.canvas.create_text(55, 90, text="Raw water")
-        self.pi2_text = self.canvas.create_text(55, 155, text="PI2: --")  # PI2 value
-        self.canvas.create_text(55, 165, text="Air")
+    self.canvas.create_rectangle(30, 100, 80, 150, fill="lightblue")  # Raw Water
+    self.canvas.create_text(55, 90, text="Raw water")
+    self.pi2_text = self.canvas.create_text(55, 155, text="PI2: --")  # PI2 value
+    self.canvas.create_text(55, 165, text="Air")
 
-        # === Mini-module in Center ===
-        self.canvas.create_rectangle(220, 65, 300, 115, fill="lightgray")  # Mini-module
-        self.canvas.create_text(260, 55, text="Mini-module")
-        self.te_text = self.canvas.create_text(260, 125, text="TE: --")
+    # === Mini-module in Center ===
+    self.canvas.create_rectangle(220, 65, 300, 115, fill="lightgray")  # Mini-module
+    self.canvas.create_text(260, 55, text="Mini-module")
+    self.te_text = self.canvas.create_text(260, 125, text="TE: --")
 
-        # === RIGHT: Destinations ===
-        self.canvas.create_rectangle(420, 30, 470, 80, fill="lightblue")  # WeightF
-        self.canvas.create_text(445, 20, text="Effluent")
-        self.canvas.create_text(445, 85, text="-- g")
+    # === RIGHT: Destinations (updated positions) ===
+    # Effluent (top right)
+    self.canvas.create_rectangle(420, 30, 470, 80, fill="lightblue")  # WeightF
+    self.canvas.create_text(445, 20, text="Effluent")
+    self.canvas.create_text(445, 85, text="-- g")
 
-        self.canvas.create_rectangle(320, 90, 370, 140, fill="lightblue")  # WeightB
-        self.canvas.create_text(345, 150, text="Backwash")
-        self.canvas.create_text(345, 145, text="-- g")
+    # Backwash (directly under Effluent)
+    self.canvas.create_rectangle(420, 90, 470, 140, fill="lightblue")  # WeightB
+    self.canvas.create_text(445, 150, text="Backwash")
+    self.canvas.create_text(445, 145, text="-- g")
 
-        self.canvas.create_rectangle(420, 90, 470, 140, fill="lightblue")  # Drainage
-        self.canvas.create_text(445, 150, text="Drain")
+    # Drain (move further right)
+    self.canvas.create_rectangle(520, 60, 570, 110, fill="lightblue")  # Drainage
+    self.canvas.create_text(545, 120, text="Drain")
 
-        # === Flow Lines & Valves (gray initially) ===
-        self.lines = {}
-        self.valve_labels = {}
+    # === Flow Lines & Valves (gray initially) ===
+    self.lines = {}
+    self.valve_labels = {}
 
-        # From BW to Mini-module (V1)
-        self.lines[0] = self.canvas.create_line(80, 55, 220, 80, arrow="last", fill="gray", width=2)
-        self.valve_labels['V1'] = self.canvas.create_text(150, 60, text="V1")
+    # From BW to Mini-module (V1)
+    self.lines[0] = self.canvas.create_line(80, 55, 220, 80, arrow="last", fill="gray", width=2)
+    self.valve_labels['V1'] = self.canvas.create_text(150, 60, text="V1")
 
-        # From Raw to Mini-module (V2)
-        self.lines[1] = self.canvas.create_line(80, 125, 220, 100, arrow="last", fill="gray", width=2)
-        self.valve_labels['V2'] = self.canvas.create_text(150, 110, text="V2")
+    # From Raw to Mini-module (V2)
+    self.lines[1] = self.canvas.create_line(80, 125, 220, 100, arrow="last", fill="gray", width=2)
+    self.valve_labels['V2'] = self.canvas.create_text(150, 110, text="V2")
 
-        # Mini-module to WeightB (V3)
-        self.lines[2] = self.canvas.create_line(300, 100, 320, 115, arrow="last", fill="gray", width=2)
-        self.valve_labels['V3'] = self.canvas.create_text(310, 105, text="V3")
+    # Mini-module to Backwash (V3) - now goes to new Backwash position
+    self.lines[2] = self.canvas.create_line(300, 100, 420, 115, arrow="last", fill="gray", width=2)
+    self.valve_labels['V3'] = self.canvas.create_text(360, 110, text="V3")
 
-        # Mini-module to Drainage (V4)
-        self.lines[3] = self.canvas.create_line(300, 105, 420, 115, arrow="last", fill="gray", width=2)
-        self.valve_labels['V4'] = self.canvas.create_text(360, 105, text="V4")
+    # Mini-module to Drainage (V4) - now goes to new Drain position
+    self.lines[3] = self.canvas.create_line(300, 105, 520, 85, arrow="last", fill="gray", width=2)
+    self.valve_labels['V4'] = self.canvas.create_text(410, 90, text="V4")
 
-        # Mini-module to WeightF (V5)
-        self.lines[4] = self.canvas.create_line(300, 85, 420, 55, arrow="last", fill="gray", width=2)
-        self.valve_labels['V5'] = self.canvas.create_text(360, 65, text="V5")
+    # Mini-module to Effluent (V5)
+    self.lines[4] = self.canvas.create_line(300, 85, 420, 55, arrow="last", fill="gray", width=2)
+    self.valve_labels['V5'] = self.canvas.create_text(360, 65, text="V5")
 
     def _update_lines(self) -> None:
         """Color flow lines based on valve states."""
