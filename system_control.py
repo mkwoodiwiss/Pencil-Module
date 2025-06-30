@@ -333,10 +333,16 @@ class HMI(tk.Tk):
         self.temp_var = tk.StringVar()
 
         # Configuration variables
-        self.filt_target_var = tk.DoubleVar(value=1.0)
-        self.filt_by_vol_var = tk.BooleanVar(value=False)
-        self.bw_target_var = tk.DoubleVar(value=1.0)
-        self.bw_by_vol_var = tk.BooleanVar(value=False)
+        # Filtration target settings
+        self.filt_target_weight_var = tk.DoubleVar(value=1.0)
+        self.filt_target_time_var = tk.DoubleVar(value=1.0)
+        self.filt_use_weight_var = tk.BooleanVar(value=False)
+        self.filt_use_time_var = tk.BooleanVar(value=True)
+        # Backwash target settings
+        self.bw_target_weight_var = tk.DoubleVar(value=1.0)
+        self.bw_target_time_var = tk.DoubleVar(value=1.0)
+        self.bw_use_weight_var = tk.BooleanVar(value=False)
+        self.bw_use_time_var = tk.BooleanVar(value=True)
         self.refill_time_var = tk.DoubleVar(value=0.5)
         self.repeat_count_var = tk.IntVar(value=1)
         self.sample_time_var = tk.DoubleVar(value=0.1)
@@ -351,12 +357,36 @@ class HMI(tk.Tk):
         settings.pack(side="left", fill="y", padx=5, pady=5)
 
         tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.filt_target_var, width=7).grid(row=0, column=1)
-        tk.Checkbutton(settings, text="By Vol", variable=self.filt_by_vol_var).grid(row=0, column=2, sticky="w")
+        tk.Entry(settings, textvariable=self.filt_target_weight_var, width=7).grid(row=0, column=1)
+        tk.Checkbutton(
+            settings,
+            text="g",
+            variable=self.filt_use_weight_var,
+            command=self._toggle_filt_weight,
+        ).grid(row=0, column=2, sticky="w")
+        tk.Entry(settings, textvariable=self.filt_target_time_var, width=7).grid(row=0, column=3)
+        tk.Checkbutton(
+            settings,
+            text="s",
+            variable=self.filt_use_time_var,
+            command=self._toggle_filt_time,
+        ).grid(row=0, column=4, sticky="w")
 
         tk.Label(settings, text="Backwash Target").grid(row=1, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.bw_target_var, width=7).grid(row=1, column=1)
-        tk.Checkbutton(settings, text="By Vol", variable=self.bw_by_vol_var).grid(row=1, column=2, sticky="w")
+        tk.Entry(settings, textvariable=self.bw_target_weight_var, width=7).grid(row=1, column=1)
+        tk.Checkbutton(
+            settings,
+            text="g",
+            variable=self.bw_use_weight_var,
+            command=self._toggle_bw_weight,
+        ).grid(row=1, column=2, sticky="w")
+        tk.Entry(settings, textvariable=self.bw_target_time_var, width=7).grid(row=1, column=3)
+        tk.Checkbutton(
+            settings,
+            text="s",
+            variable=self.bw_use_time_var,
+            command=self._toggle_bw_time,
+        ).grid(row=1, column=4, sticky="w")
 
         tk.Label(settings, text="Refill Time").grid(row=2, column=0, sticky="w")
         tk.Entry(settings, textvariable=self.refill_time_var, width=7).grid(row=2, column=1)
@@ -514,13 +544,52 @@ class HMI(tk.Tk):
             FiltrationConfig(0, False, 0, False, 0, 0, 1, "prime")
         ).prime()
 
+    # === Checkbox toggle helpers ===
+    def _toggle_filt_weight(self) -> None:
+        if self.filt_use_weight_var.get():
+            self.filt_use_time_var.set(False)
+        elif not self.filt_use_time_var.get():
+            self.filt_use_time_var.set(True)
+
+    def _toggle_filt_time(self) -> None:
+        if self.filt_use_time_var.get():
+            self.filt_use_weight_var.set(False)
+        elif not self.filt_use_weight_var.get():
+            self.filt_use_weight_var.set(True)
+
+    def _toggle_bw_weight(self) -> None:
+        if self.bw_use_weight_var.get():
+            self.bw_use_time_var.set(False)
+        elif not self.bw_use_time_var.get():
+            self.bw_use_time_var.set(True)
+
+    def _toggle_bw_time(self) -> None:
+        if self.bw_use_time_var.get():
+            self.bw_use_weight_var.set(False)
+        elif not self.bw_use_weight_var.get():
+            self.bw_use_weight_var.set(True)
+
     def start_test(self) -> None:
         """Begin an automated cycle using the stored configuration."""
+        if self.filt_use_weight_var.get():
+            filt_target = self.filt_target_weight_var.get()
+            filt_by_vol = True
+        else:
+            filt_target = self.filt_target_time_var.get()
+            filt_by_vol = False
+
+        if self.bw_use_weight_var.get():
+            bw_target = self.bw_target_weight_var.get()
+            bw_by_vol = True
+        else:
+            bw_target = self.bw_target_time_var.get()
+            bw_by_vol = False
+
         config = FiltrationConfig(
-            filtration_target=self.filt_target_var.get(),
-            filtration_by_volume=self.filt_by_vol_var.get(),
-            backwash_target=self.bw_target_var.get(),
-            backwash_by_volume=self.bw_by_vol_var.get(),
+            filtration_target=filt_target,
+            filtration_by_volume=filt_by_vol,
+            backwash_target=bw_target,
+            backwash_by_volume=bw_by_vol,
             refill_time=self.refill_time_var.get(),
             repeat_count=self.repeat_count_var.get(),
             sample_time=self.sample_time_var.get(),
