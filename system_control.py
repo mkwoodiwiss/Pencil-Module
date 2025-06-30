@@ -1,10 +1,28 @@
 """High level controller for the Pencil Module.
 
-This script targets a Raspberry Pi 5 equipped with:
-- Sequent Microsystems 8 Relay HAT
-- Sequent Microsystems Multi IO HAT
-- A weight scale connected via USB serial
-- A 7" Raspberry Pi touchscreen used as an HMI
+This module ties together the hardware interfaces, automation
+logic and a Tkinter based HMI for a small filtration test rig. It
+is primarily intended to run on a Raspberry Pi 5 equipped with:
+
+* Sequent Microsystems **8 Relay** HAT controlling the solenoid valves.
+* Sequent Microsystems **Multi IO** HAT providing pressure and RTD inputs.
+* Two weight scales attached via a USB serial connection.
+* A 7" Raspberry Pi touch screen which hosts the HMI.
+
+The code is structured in the following way:
+
+``PencilModule``
+    Low level wrapper around the hardware boards.
+
+``FiltrationTestSystem``
+    Runs automatic prime, filtration and backwash cycles using a
+    :class:`FiltrationConfig` data object for parameters.
+
+``HMI``
+    Tkinter based user interface that exposes manual controls and
+    buttons to launch automated tests.
+
+The :func:`main` function instantiates these pieces and starts the GUI.
 """
 
 import tkinter as tk
@@ -29,7 +47,14 @@ except ModuleNotFoundError:
 
 
 class PencilModule:
-    """Interface to the hardware boards."""
+    """Interface to the hardware boards.
+
+    This class provides a very small abstraction layer around the
+    vendor supplied libraries. It exposes methods that the rest of
+    the application can use without directly depending on the
+    external packages. When running the unit tests the same API is
+    implemented by :class:`tests.test_interfaces.SimulatedPencilModule`.
+    """
 
     def __init__(
         self,
@@ -38,20 +63,30 @@ class PencilModule:
         port: str = "/dev/ttyUSB0",
         baud: int = 9600,
     ) -> None:
+        # Serial connection to the pair of scales
         self.ser = serial.Serial(port, baud, timeout=1)
+        # Interfaces to the relay and IO boards. When the vendor modules are
+        # not installed these remain ``None`` so the rest of the code can
+        # still be imported and type checked.
         self.relay = relay8.Relay8(stack=relay_stack) if relay8 else None
         self.io = multiio.MultiIO(stack=io_stack) if multiio else None
+        # Optional calibration offsets applied to readings
         self.pressure_offset = 0.0
         self.temp_offset = 0.0
 
     def read_pressure(self, channel: int) -> float:
         """Return pressure value from ADC channel."""
+        # When running on the real hardware ``self.io`` provides the
+        # analog pressure input. The unit tests leave ``self.io`` as
+        # ``None`` and return a deterministic value instead.
         if self.io:
             return self.io.get_adc(channel) + self.pressure_offset
         return 0.0 + self.pressure_offset
 
     def read_rtd(self, channel: int) -> float:
         """Return temperature value from RTD channel."""
+        # Similar to :meth:`read_pressure` this falls back to a fixed
+        # value when no hardware is available.
         if self.io:
             return self.io.get_rtd(channel) + self.temp_offset
         return 0.0 + self.temp_offset
@@ -75,11 +110,17 @@ class PencilModule:
 
     def apply_offsets(self, pressure: float = 0.0, temperature: float = 0.0) -> None:
         """Store calibration offsets for later readings."""
+        # Offsets are added to raw sensor data to allow simple field
+        # calibration via the GUI.
         self.pressure_offset = pressure
         self.temp_offset = temperature
 
     def read_scale(self, channel: int = 0) -> str:
         """Query one of the serial scales and return the weight string."""
+        # Each scale is queried with a short command. The response is
+        # parsed and normalised into a human readable string. When no
+        # matching pattern is found ``"--"`` is returned so the GUI can
+        # display a placeholder value.
         cmd = b"P\r\n" if channel == 0 else b"S\r\n"
         self.ser.write(cmd)
         time.sleep(0.1)
@@ -93,7 +134,13 @@ class PencilModule:
 
 @dataclass
 class FiltrationConfig:
-    """Configuration for an automated filtration test."""
+    """Configuration for an automated filtration test.
+
+    All numeric values are expressed in seconds, millilitres or
+    whatever units the connected sensors report. The configuration is
+    serialised to a CSV file at the start of each test run so the
+    parameters used for data logging are preserved.
+    """
 
     filtration_target: float
     filtration_by_volume: bool
@@ -125,10 +172,12 @@ class FiltrationTestSystem:
         self.data_file: Optional[object] = None
 
     def _parse_weight(self, text: str) -> float:
+        """Extract the numeric portion from a scale string."""
         match = re.search(r"([+-]?\d+\.\d+)", text)
         return float(match.group(1)) if match else 0.0
 
     def _log_row(self) -> None:
+        """Write the current sensor readings to the data CSV."""
         if not self.data_writer:
             return
         row = [
@@ -142,23 +191,32 @@ class FiltrationTestSystem:
         self.data_writer.writerow(row)
 
     def _open(self, *valves: int) -> None:
+        """Convenience helper to open multiple solenoids."""
         for v in valves:
             self.module.set_solenoid(v, True)
 
     def _close(self, *valves: int) -> None:
+        """Convenience helper to close multiple solenoids."""
         for v in valves:
             self.module.set_solenoid(v, False)
 
     def prime(self, duration: float = 1.0) -> None:
-        """Simple priming routine."""
+        """Simple priming routine.
+
+        Opens the influent supply valve for a short time to fill the
+        lines. This can also be triggered manually from the HMI.
+        """
         self._open(self.INFLUENT_SUPPLY)
         time.sleep(duration)
         self._close(self.INFLUENT_SUPPLY)
 
     def start_test(self) -> None:
+        """Run the configured number of filtration/backwash cycles."""
+        # Create log files for both the raw data and the configuration
         os.makedirs(self.log_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         base = os.path.join(self.log_dir, f"{self.config.project_name}_{timestamp}")
+
         self.data_file = open(base + "_data.csv", "w", newline="")
         self.data_writer = csv.writer(self.data_file)
         self.data_writer.writerow(
@@ -171,6 +229,7 @@ class FiltrationTestSystem:
                 "backwash_weight",
             ]
         )
+
         with open(base + "_settings.csv", "w", newline="") as sfile:
             writer = csv.writer(sfile)
             for k, v in asdict(self.config).items():
@@ -223,6 +282,7 @@ class FiltrationTestSystem:
         self.stop_test()
 
     def stop_test(self) -> None:
+        """Stop all hardware and close any open log files."""
         self._close(
             self.INFLUENT_SUPPLY,
             self.BACKWASH_SUPPLY,
@@ -236,7 +296,13 @@ class FiltrationTestSystem:
         self.data_writer = None
 
 class HMI(tk.Tk):
-    """Simple Tkinter graphical interface with a process diagram."""
+    """Simple Tkinter graphical interface with a process diagram.
+
+    The HMI polls the :class:`PencilModule` for live data and provides
+    buttons for manual valve control as well as starting the automated
+    test sequence. It intentionally avoids advanced GUI frameworks so
+    it can run easily on the Pi's builtin touch screen.
+    """
 
     def __init__(self, module: PencilModule):
         super().__init__()
@@ -345,9 +411,14 @@ class HMI(tk.Tk):
         self._update_lines()
 
     def prime(self) -> None:
-        FiltrationTestSystem(self.module, FiltrationConfig(0, False, 0, False, 0, 0, 1, "prime")).prime()
+        """Activate the priming routine using a temporary test system."""
+        FiltrationTestSystem(
+            self.module,
+            FiltrationConfig(0, False, 0, False, 0, 0, 1, "prime")
+        ).prime()
 
     def start_test(self) -> None:
+        """Begin an automated cycle using the stored configuration."""
         if not hasattr(self, "test_system"):
             # Minimal demo configuration
             config = FiltrationConfig(
@@ -364,13 +435,16 @@ class HMI(tk.Tk):
         self.test_system.start_test()
 
     def stop_test(self) -> None:
+        """Stop the currently running test."""
         if hasattr(self, "test_system"):
             self.test_system.stop_test()
 
     def calibrate(self) -> None:
+        """Apply hard coded offsets for demonstration purposes."""
         self.module.apply_offsets(pressure=0.1, temperature=0.2)
 
     def update_data(self) -> None:
+        """Refresh all displayed sensor values."""
         self.weight_var.set(self.module.read_scale(0))
         self.backwash_weight_var.set(self.module.read_scale(1))
         self.pressure_bw_var.set(f"{self.module.read_pressure(0):.2f}")
@@ -387,6 +461,7 @@ class HMI(tk.Tk):
 
 
 def main() -> None:
+    """Entry point when running the module directly."""
     module = PencilModule()
     app = HMI(module)
     app.mainloop()
