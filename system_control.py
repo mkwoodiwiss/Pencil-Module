@@ -70,8 +70,11 @@ class PencilModule:
         # still be imported and type checked.
         self.relay = relay8.Relay8(stack=relay_stack) if relay8 else None
         self.io = multiio.MultiIO(stack=io_stack) if multiio else None
-        # Optional calibration offsets applied to readings
-        self.pressure_offset = 0.0
+        # Optional calibration offsets applied to readings. Pressure is tracked
+        # separately for each sensor so the user can calibrate the backwash and
+        # influent inputs individually.
+        self.pressure_offset_bw = 0.0
+        self.pressure_offset_in = 0.0
         self.temp_offset = 0.0
 
     def read_pressure(self, channel: int) -> float:
@@ -79,9 +82,10 @@ class PencilModule:
         # When running on the real hardware ``self.io`` provides the
         # analog pressure input. The unit tests leave ``self.io`` as
         # ``None`` and return a deterministic value instead.
+        offset = self.pressure_offset_bw if channel == 0 else self.pressure_offset_in
         if self.io:
-            return self.io.get_adc(channel) + self.pressure_offset
-        return 0.0 + self.pressure_offset
+            return self.io.get_adc(channel) + offset
+        return 0.0 + offset
 
     def read_rtd(self, channel: int) -> float:
         """Return temperature value from RTD channel."""
@@ -108,11 +112,17 @@ class PencilModule:
         cmd = b"Z\r\n" if channel == 0 else b"Q\r\n"
         self.ser.write(cmd)
 
-    def apply_offsets(self, pressure: float = 0.0, temperature: float = 0.0) -> None:
+    def apply_offsets(
+        self,
+        pressure_bw: float = 0.0,
+        pressure_in: float = 0.0,
+        temperature: float = 0.0,
+    ) -> None:
         """Store calibration offsets for later readings."""
         # Offsets are added to raw sensor data to allow simple field
         # calibration via the GUI.
-        self.pressure_offset = pressure
+        self.pressure_offset_bw = pressure_bw
+        self.pressure_offset_in = pressure_in
         self.temp_offset = temperature
 
     def read_scale(self, channel: int = 0) -> str:
@@ -235,7 +245,11 @@ class FiltrationTestSystem:
             for k, v in asdict(self.config).items():
                 writer.writerow([k, v])
 
-        self.module.apply_offsets(self.config.pressure_offset, self.config.temp_offset)
+        self.module.apply_offsets(
+            pressure_bw=self.config.pressure_offset,
+            pressure_in=self.config.pressure_offset,
+            temperature=self.config.temp_offset,
+        )
         self.module.zero_scales()
 
         for _ in range(self.config.repeat_count):
@@ -318,10 +332,48 @@ class HMI(tk.Tk):
         self.pressure_raw_var = tk.StringVar()
         self.temp_var = tk.StringVar()
 
+        # Configuration variables
+        self.filt_target_var = tk.DoubleVar(value=1.0)
+        self.filt_by_vol_var = tk.BooleanVar(value=False)
+        self.bw_target_var = tk.DoubleVar(value=1.0)
+        self.bw_by_vol_var = tk.BooleanVar(value=False)
+        self.refill_time_var = tk.DoubleVar(value=0.5)
+        self.repeat_count_var = tk.IntVar(value=1)
+        self.sample_time_var = tk.DoubleVar(value=0.1)
+        self.project_name_var = tk.StringVar(value="demo")
+
         self._create_pfd()
 
-        info = tk.Frame(self)
-        info.pack(pady=5)
+        area = tk.Frame(self)
+        area.pack(fill="both", expand=True, padx=5)
+
+        settings = tk.LabelFrame(area, text="Settings")
+        settings.pack(side="left", fill="y", padx=5, pady=5)
+
+        tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
+        tk.Entry(settings, textvariable=self.filt_target_var, width=7).grid(row=0, column=1)
+        tk.Checkbutton(settings, text="By Vol", variable=self.filt_by_vol_var).grid(row=0, column=2, sticky="w")
+
+        tk.Label(settings, text="Backwash Target").grid(row=1, column=0, sticky="w")
+        tk.Entry(settings, textvariable=self.bw_target_var, width=7).grid(row=1, column=1)
+        tk.Checkbutton(settings, text="By Vol", variable=self.bw_by_vol_var).grid(row=1, column=2, sticky="w")
+
+        tk.Label(settings, text="Refill Time").grid(row=2, column=0, sticky="w")
+        tk.Entry(settings, textvariable=self.refill_time_var, width=7).grid(row=2, column=1)
+
+        tk.Label(settings, text="Repeat Count").grid(row=3, column=0, sticky="w")
+        tk.Entry(settings, textvariable=self.repeat_count_var, width=7).grid(row=3, column=1)
+
+        tk.Label(settings, text="Sample Time").grid(row=4, column=0, sticky="w")
+        tk.Entry(settings, textvariable=self.sample_time_var, width=7).grid(row=4, column=1)
+
+        tk.Label(settings, text="Project Name").grid(row=5, column=0, sticky="w")
+        tk.Entry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
+
+        tk.Button(settings, text="Calibrate", command=self.calibrate).grid(row=6, column=0, columnspan=3, pady=4)
+
+        info = tk.LabelFrame(area, text="Sensors")
+        info.pack(side="right", fill="y", padx=5, pady=5)
         tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
         tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
         tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
@@ -333,15 +385,14 @@ class HMI(tk.Tk):
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
 
-        # Control buttons
+        # Bottom control buttons
         control_frame = tk.Frame(self)
-        control_frame.pack(pady=5)
-        tk.Button(control_frame, text="Prime", command=self.prime).grid(row=0, column=0, padx=5)
-        tk.Button(control_frame, text="Start", command=self.start_test).grid(row=0, column=1, padx=5)
-        tk.Button(control_frame, text="Stop", command=self.stop_test).grid(row=0, column=2, padx=5)
-        tk.Button(control_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=1, column=0, padx=5)
-        tk.Button(control_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=1, column=1, padx=5)
-        tk.Button(control_frame, text="Calibrate", command=self.calibrate).grid(row=1, column=2, padx=5)
+        control_frame.pack(side="bottom", pady=5)
+        tk.Button(control_frame, text="Prime", command=self.prime).pack(side="left", padx=5)
+        tk.Button(control_frame, text="Start", command=self.start_test).pack(side="left", padx=5)
+        tk.Button(control_frame, text="Stop", command=self.stop_test).pack(side="left", padx=5)
+        tk.Button(control_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).pack(side="left", padx=5)
+        tk.Button(control_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).pack(side="left", padx=5)
 
         self.update_data()
 
@@ -465,19 +516,17 @@ class HMI(tk.Tk):
 
     def start_test(self) -> None:
         """Begin an automated cycle using the stored configuration."""
-        if not hasattr(self, "test_system"):
-            # Minimal demo configuration
-            config = FiltrationConfig(
-                filtration_target=1.0,
-                filtration_by_volume=False,
-                backwash_target=1.0,
-                backwash_by_volume=False,
-                refill_time=0.5,
-                repeat_count=1,
-                sample_time=0.1,
-                project_name="demo",
-            )
-            self.test_system = FiltrationTestSystem(self.module, config)
+        config = FiltrationConfig(
+            filtration_target=self.filt_target_var.get(),
+            filtration_by_volume=self.filt_by_vol_var.get(),
+            backwash_target=self.bw_target_var.get(),
+            backwash_by_volume=self.bw_by_vol_var.get(),
+            refill_time=self.refill_time_var.get(),
+            repeat_count=self.repeat_count_var.get(),
+            sample_time=self.sample_time_var.get(),
+            project_name=self.project_name_var.get(),
+        )
+        self.test_system = FiltrationTestSystem(self.module, config)
         self.test_system.start_test()
 
     def stop_test(self) -> None:
@@ -486,8 +535,30 @@ class HMI(tk.Tk):
             self.test_system.stop_test()
 
     def calibrate(self) -> None:
-        """Apply hard coded offsets for demonstration purposes."""
-        self.module.apply_offsets(pressure=0.1, temperature=0.2)
+        """Open a small dialog to input calibration offsets."""
+        win = tk.Toplevel(self)
+        win.title("Calibration")
+
+        bw_var = tk.DoubleVar(value=self.module.pressure_offset_bw)
+        in_var = tk.DoubleVar(value=self.module.pressure_offset_in)
+        temp_var = tk.DoubleVar(value=self.module.temp_offset)
+
+        tk.Label(win, text="BW Pressure Offset").grid(row=0, column=0, sticky="w")
+        tk.Entry(win, textvariable=bw_var, width=8).grid(row=0, column=1)
+        tk.Label(win, text="Influent Pressure Offset").grid(row=1, column=0, sticky="w")
+        tk.Entry(win, textvariable=in_var, width=8).grid(row=1, column=1)
+        tk.Label(win, text="Temp Offset").grid(row=2, column=0, sticky="w")
+        tk.Entry(win, textvariable=temp_var, width=8).grid(row=2, column=1)
+
+        def apply():
+            self.module.apply_offsets(
+                pressure_bw=bw_var.get(),
+                pressure_in=in_var.get(),
+                temperature=temp_var.get(),
+            )
+            win.destroy()
+
+        tk.Button(win, text="Apply", command=apply).grid(row=3, column=0, columnspan=2, pady=5)
 
     def update_data(self) -> None:
         """Refresh all displayed sensor values."""
