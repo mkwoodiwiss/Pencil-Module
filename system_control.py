@@ -365,36 +365,34 @@ class HMI(tk.Tk):
         self.canvas = tk.Canvas(self, width=750, height=220, bg="white")
         self.canvas.pack(pady=5)
 
-        # === LEFT: BW and Raw Water Tanks ===
+        # === LEFT: BW and Influent Water Tanks ===
         self.canvas.create_rectangle(30, 30, 80, 80, fill="lightblue")  # BW Water
         self.canvas.create_text(55, 20, text="BW water")
-        self.pi1_text = self.canvas.create_text(55, 85, text="PI1: --")  # PI1 value
-        self.canvas.create_text(55, 95, text="Air")
+        self.pi1_text = self.canvas.create_text(55, 85, text="-- PSI")  # PI1 value
 
-        self.canvas.create_rectangle(30, 100, 80, 150, fill="lightblue")  # Raw Water
-        self.canvas.create_text(55, 90, text="Raw water")
-        self.pi2_text = self.canvas.create_text(55, 155, text="PI2: --")  # PI2 value
-        self.canvas.create_text(55, 165, text="Air")
+        self.canvas.create_rectangle(30, 110, 80, 160, fill="lightblue")  # Influent Water
+        self.canvas.create_text(55, 100, text="Influent water")
+        self.pi2_text = self.canvas.create_text(55, 155, text="-- PSI")  # PI2 value
 
         # === Mini-module in Center ===
         self.canvas.create_rectangle(220, 65, 300, 115, fill="lightgray")  # Mini-module
         self.canvas.create_text(260, 55, text="Mini-module")
-        self.te_text = self.canvas.create_text(260, 125, text="TE: --")
+        self.te_text = self.canvas.create_text(260, 125, text="-- C")
 
-        # === RIGHT: Destinations (updated positions) ===
+        # === RIGHT: Destinations ===
         # Effluent (top right)
         self.canvas.create_rectangle(420, 30, 470, 80, fill="lightblue")  # WeightF
         self.canvas.create_text(445, 20, text="Effluent")
         self.canvas.create_text(445, 85, text="-- g")
 
-        # Backwash (directly under Effluent)
-        self.canvas.create_rectangle(420, 90, 470, 140, fill="lightblue")  # WeightB
-        self.canvas.create_text(445, 150, text="Backwash")
-        self.canvas.create_text(445, 145, text="-- g")
+        # Backwash
+        self.canvas.create_rectangle(420, 120, 470, 170, fill="lightblue")  # WeightB
+        self.canvas.create_text(445, 110, text="Backwash")
+        self.canvas.create_text(445, 175, text="-- g")
 
-        # Drain (move further right)
-        self.canvas.create_rectangle(520, 60, 570, 110, fill="lightblue")  # Drainage
-        self.canvas.create_text(545, 120, text="Drain")
+        # Drain
+        self.canvas.create_rectangle(520, 75, 570, 125, fill="lightblue")  # Drainage
+        self.canvas.create_text(545, 65, text="Drain")
 
         # === Flow Lines & Valves (gray initially) ===
         self.lines = {}
@@ -402,22 +400,22 @@ class HMI(tk.Tk):
 
         # From BW to Mini-module (V1)
         self.lines[0] = self.canvas.create_line(80, 55, 220, 80, arrow="last", fill="gray", width=2)
-        self.valve_labels['V1'] = self.canvas.create_text(150, 60, text="V1")
+        self.valve_labels['V1'] = self.canvas.create_text(150, 65, text="V1")
 
-        # From Raw to Mini-module (V2)
+        # From Influent to Mini-module (V2)
         self.lines[1] = self.canvas.create_line(80, 125, 220, 100, arrow="last", fill="gray", width=2)
         self.valve_labels['V2'] = self.canvas.create_text(150, 110, text="V2")
 
         # Mini-module to Backwash (V3) - now goes to new Backwash position
-        self.lines[2] = self.canvas.create_line(300, 100, 420, 115, arrow="last", fill="gray", width=2)
-        self.valve_labels['V3'] = self.canvas.create_text(360, 110, text="V3")
+        self.lines[2] = self.canvas.create_line(300, 105, 420, 145, arrow="last", fill="gray", width=2)
+        self.valve_labels['V3'] = self.canvas.create_text(360, 125, text="V3")
 
         # Mini-module to Drainage (V4) - now goes to new Drain position
-        self.lines[3] = self.canvas.create_line(300, 105, 520, 85, arrow="last", fill="gray", width=2)
-        self.valve_labels['V4'] = self.canvas.create_text(410, 90, text="V4")
+        self.lines[3] = self.canvas.create_line(300, 100, 520, 100, arrow="last", fill="gray", width=2)
+        self.valve_labels['V4'] = self.canvas.create_text(375, 100, text="V4")
 
         # Mini-module to Effluent (V5)
-        self.lines[4] = self.canvas.create_line(300, 85, 420, 55, arrow="last", fill="gray", width=2)
+        self.lines[4] = self.canvas.create_line(300, 75, 420, 55, arrow="last", fill="gray", width=2)
         self.valve_labels['V5'] = self.canvas.create_text(360, 65, text="V5")
 
     def _update_lines(self) -> None:
@@ -476,9 +474,9 @@ class HMI(tk.Tk):
         self.temp_var.set(f"{self.module.read_rtd(0):.2f}")
 
         # Update text on process diagram
-        self.canvas.itemconfig(self.pi1_text, text=f"PI1: {self.pressure_bw_var.get()}")
-        self.canvas.itemconfig(self.pi2_text, text=f"PI2: {self.pressure_raw_var.get()}")
-        self.canvas.itemconfig(self.te_text, text=f"TE: {self.temp_var.get()}")
+        self.canvas.itemconfig(self.pi1_text, text=f"{self.pressure_bw_var.get()} PSI")
+        self.canvas.itemconfig(self.pi2_text, text=f"{self.pressure_raw_var.get()} PSI")
+        self.canvas.itemconfig(self.te_text, text=f"{self.temp_var.get()} C")
 
         self._update_lines()
         self.after(1000, self.update_data)
