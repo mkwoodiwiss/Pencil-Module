@@ -23,7 +23,8 @@ class SimulatedPencilModule(PencilModule):
         self.ser = FakeSerial()
         self.relay = FakeRelay8()
         self.io = FakeMultiIO()
-        self.pressure_offset = 0.0
+        self.pressure_offset_bw = 0.0
+        self.pressure_offset_in = 0.0
         self.temp_offset = 0.0
 
 
@@ -47,14 +48,14 @@ class TestPencilModule(unittest.TestCase):
 
     def test_read_scale(self):
         weight = self.module.read_scale()
-        self.assertEqual(weight, "23.45 g")
+        self.assertEqual(weight, "+123.45 g")
 
     def test_second_scale(self):
         weight = self.module.read_scale(1)
-        self.assertEqual(weight, "54.32 g")
+        self.assertEqual(weight, "+54.32 g")
 
     def test_zero_scales_and_offsets(self):
-        self.module.apply_offsets(pressure=1.0, temperature=2.0)
+        self.module.apply_offsets(pressure_bw=1.0, pressure_in=1.0, temperature=2.0)
         self.module.zero_scales()
         self.assertIn(b"Z\r\n", self.module.ser.commands)
         self.assertAlmostEqual(self.module.read_pressure(0), 4.21)
