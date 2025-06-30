@@ -329,7 +329,7 @@ class HMI(tk.Tk):
         tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
         tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")
         tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
-        tk.Label(info, text="Raw Pressure:").grid(row=3, column=0, sticky="w")
+        tk.Label(info, text="Influent Pressure:").grid(row=3, column=0, sticky="w")
         tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
