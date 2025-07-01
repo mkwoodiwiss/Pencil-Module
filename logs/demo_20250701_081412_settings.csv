@@ -1,0 +1,10 @@
+filtration_target,1.0
+filtration_by_volume,False
+backwash_target,1.0
+backwash_by_volume,False
+refill_time,0.5
+repeat_count,1
+sample_time,0.1
+project_name,demo
+pressure_offset,0.0
+temp_offset,0.0

@@ -333,12 +333,10 @@ class HMI(tk.Tk):
         self.temp_var = tk.StringVar()
 
         # Configuration variables
-        # Filtration target settings
         self.filt_target_weight_var = tk.DoubleVar(value=1.0)
         self.filt_target_time_var = tk.DoubleVar(value=1.0)
         self.filt_use_weight_var = tk.BooleanVar(value=False)
         self.filt_use_time_var = tk.BooleanVar(value=True)
-        # Backwash target settings
         self.bw_target_weight_var = tk.DoubleVar(value=1.0)
         self.bw_target_time_var = tk.DoubleVar(value=1.0)
         self.bw_use_weight_var = tk.BooleanVar(value=False)
@@ -351,7 +349,7 @@ class HMI(tk.Tk):
 
         self._create_pfd()
 
-        # Control buttons centered below the process diagram
+        # Control buttons
         ctrl = tk.Frame(self)
         ctrl.pack(pady=5)
         tk.Button(ctrl, text="Prime", command=self.prime).pack(side="left", padx=5)
@@ -361,6 +359,8 @@ class HMI(tk.Tk):
         area = tk.Frame(self)
         area.pack(fill="both", expand=True, padx=5)
 
+        # Create the settings and info panels
+        # The settings panel allows the user to configure the test parameters
         settings = tk.LabelFrame(area, text="Settings")
         settings.pack(side="left", fill="y", padx=5, pady=5)
 
@@ -408,17 +408,26 @@ class HMI(tk.Tk):
         tk.Label(settings, text="Project Name").grid(row=5, column=0, sticky="w")
         tk.Entry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
 
-        tk.Button(settings, text="Calibrate", command=self.calibrate).grid(row=6, column=0, columnspan=3, pady=4)
+        # Buttons row at the bottom
+        btn_frame = tk.Frame(settings)
+        btn_frame.grid(row=6, column=0, columnspan=5, pady=8, sticky="ew")
+        btn_frame.columnconfigure((0, 1, 2), weight=1)
+
         tk.Button(
-            settings,
+            btn_frame,
+            text="Calibrate",
+            command=self.calibrate
+        ).grid(row=0, column=0, padx=5, sticky="ew")
+        tk.Button(
+            btn_frame,
             text="Tare EFL",
             command=lambda: self.module.zero_scale(0),
-        ).grid(row=7, column=0, columnspan=3, pady=2)
+        ).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(
-            settings,
+            btn_frame,
             text="Tare BW",
             command=lambda: self.module.zero_scale(1),
-        ).grid(row=8, column=0, columnspan=3, pady=2)
+        ).grid(row=0, column=2, padx=5, sticky="ew")
 
         info = tk.LabelFrame(area, text="Sensors")
         info.pack(side="right", fill="y", padx=5, pady=5)
