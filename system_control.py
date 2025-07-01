@@ -365,6 +365,13 @@ class HMI(tk.Tk):
         right_col = tk.Frame(self.area)
         right_col.pack(side="right", fill="y", padx=5, pady=5)  # <-- changed from "left" to "right", fill="y" to keep size
 
+        # --- Background logo centered between the two frames ---
+        logo_path = os.path.join(os.path.dirname(__file__), "WaterARC Logo-Carollo-01.png")
+        self.logo_image = tk.PhotoImage(file=logo_path)
+        logo_label = tk.Label(self.area, image=self.logo_image, borderwidth=0)
+        logo_label.place(relx=0.5, rely=0.5, anchor="center")
+        logo_label.lower()
+
         # --- Sensor readout panel ---
         info = tk.LabelFrame(right_col, text="Sensors")
         info.pack(padx=5, pady=5, anchor="n")
