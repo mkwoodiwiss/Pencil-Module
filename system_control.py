@@ -325,14 +325,14 @@ class HMI(tk.Tk):
         # Use the full 7" touch screen resolution
         self.geometry("800x480")
 
-        # Readout variables
-        self.weight_var = tk.StringVar()
-        self.backwash_weight_var = tk.StringVar()
-        self.pressure_bw_var = tk.StringVar()
-        self.pressure_raw_var = tk.StringVar()
-        self.temp_var = tk.StringVar()
+        # --- Variables for live sensor readouts ---
+        self.weight_var = tk.StringVar()           # Filtrate weight
+        self.backwash_weight_var = tk.StringVar()  # Backwash weight
+        self.pressure_bw_var = tk.StringVar()      # Backwash pressure
+        self.pressure_raw_var = tk.StringVar()     # Influent pressure
+        self.temp_var = tk.StringVar()             # Temperature
 
-        # Configuration variables
+        # --- Configuration variables for test parameters ---
         self.filt_target_weight_var = tk.DoubleVar(value=1.0)
         self.filt_target_time_var = tk.DoubleVar(value=1.0)
         self.filt_use_weight_var = tk.BooleanVar(value=False)
@@ -349,21 +349,24 @@ class HMI(tk.Tk):
         self.prime_frame = None
         self.prime_stage = 0
 
+        # --- Draw the process flow diagram ---
         self._create_pfd()
 
+        # --- Main layout frames ---
         area = tk.Frame(self)
         area.pack(fill="both", expand=True, padx=5, pady=5)
 
-        # Create the settings and info panels
-        # The settings panel allows the user to configure the test parameters
+        # --- Settings panel for test configuration ---
         settings = tk.LabelFrame(area, text="Settings")
         settings.pack(side="left", fill="y", padx=5, pady=5)
 
+        # --- Center panel for start/stop button ---
         centre = tk.Frame(area)
         centre.pack(side="left", expand=True)
         self.start_btn = tk.Button(centre, text="Start", command=self._toggle_test)
         self.start_btn.pack(pady=5)
 
+        # --- Filtration and backwash target controls ---
         tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
         tk.Entry(settings, textvariable=self.filt_target_weight_var, width=7).grid(row=0, column=1)
         tk.Checkbutton(
@@ -396,6 +399,7 @@ class HMI(tk.Tk):
             command=self._toggle_bw_time,
         ).grid(row=1, column=4, sticky="w")
 
+        # --- Additional test parameters ---
         tk.Label(settings, text="Refill Time").grid(row=2, column=0, sticky="w")
         tk.Entry(settings, textvariable=self.refill_time_var, width=7).grid(row=2, column=1)
 
@@ -408,7 +412,7 @@ class HMI(tk.Tk):
         tk.Label(settings, text="Project Name").grid(row=5, column=0, sticky="w")
         tk.Entry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
 
-        # Buttons row at the bottom
+        # --- Calibration and tare buttons ---
         btn_frame = tk.Frame(settings)
         btn_frame.grid(row=6, column=0, columnspan=5, pady=8, sticky="ew")
         btn_frame.columnconfigure((0, 1, 2), weight=1)
@@ -429,6 +433,7 @@ class HMI(tk.Tk):
             command=lambda: self.module.zero_scale(1),
         ).grid(row=0, column=2, padx=5, sticky="ew")
 
+        # --- Sensor readout panel ---
         info = tk.LabelFrame(area, text="Sensors")
         info.pack(side="left", fill="y", padx=5, pady=5)
         tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
@@ -442,6 +447,7 @@ class HMI(tk.Tk):
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
 
+        # --- Start periodic sensor updates ---
         self.update_data()
 
     def _create_pfd(self) -> None:
@@ -476,7 +482,7 @@ class HMI(tk.Tk):
         self.canvas.create_text(590, 160, text="-- g")
 
         # Drain
-        self.canvas.create_rectangle(665, 75, 715, 125, fill="lightblue")  # Drainage
+        self.canvas.create_rectangle(665, 75, 715, 125, fill="lightblue")  # Drain
         self.canvas.create_text(690, 65, text="Drain")
 
         # === Flow Lines & Valves (gray initially) ===
@@ -484,6 +490,7 @@ class HMI(tk.Tk):
         self.valve_labels = {}
 
         # Map each valve to the lines it controls
+        # V3 and V4 both control v3_vert2 (vertical line segment)
         self.valve_to_lines = {
             0: [0],    # V1 controls line 0
             1: [1],    # V2 controls line 1 and the vertical line to module
@@ -534,10 +541,15 @@ class HMI(tk.Tk):
             self.canvas.create_window(x, y, window=btn)
             self.solenoid_buttons.append(btn)
 
+        # Prime button below the diagram
         self.prime_btn = tk.Button(self.canvas, text="Prime", command=self.prime)
-        self.canvas.create_window(355, 180, window=self.prime_btn)
+        self.canvas.create_window(355, 175, window=self.prime_btn)
 
     def _update_lines(self) -> None:
+        """
+        Update the color of each process line based on solenoid states.
+        Special handling for v3_vert2: it turns green if either V3 or V4 is ON.
+        """
         # Update all lines except v3_vert2 normally
         for idx, line_ids in self.valve_to_lines.items():
             for lid in line_ids:
@@ -551,6 +563,9 @@ class HMI(tk.Tk):
         self.canvas.itemconfig(self.lines['v3_vert2'], fill=color)
 
     def toggle_solenoid(self, channel: int) -> None:
+        """
+        Toggle the state of a solenoid valve and update the diagram.
+        """
         state = not self.solenoid_states[channel]
         self.solenoid_states[channel] = state
         self.module.set_solenoid(channel + 1, state)
@@ -559,7 +574,9 @@ class HMI(tk.Tk):
         self._update_lines()
 
     def _set_valves(self, state: bool, *valves: int) -> None:
-        """Set multiple valves to the given state and update the diagram."""
+        """
+        Set multiple valves to the given state and update the diagram.
+        """
         for v in valves:
             idx = v - 1
             self.solenoid_states[idx] = state
@@ -569,16 +586,22 @@ class HMI(tk.Tk):
         self._update_lines()
 
     def _open_valves(self, *valves: int) -> None:
+        """Open multiple valves."""
         self._set_valves(True, *valves)
 
     def _close_valves(self, *valves: int) -> None:
+        """Close multiple valves."""
         self._set_valves(False, *valves)
 
     def _close_all_valves(self) -> None:
+        """Close all solenoid valves."""
         self._close_valves(1, 2, 3, 4, 5)
 
     def prime(self) -> None:
-        """Open the prime confirmation menu below the process diagram."""
+        """
+        Open the prime confirmation menu below the process diagram.
+        Guides the user through a multi-step priming process.
+        """
         if self.prime_frame:
             return
         self.prime_stage = 1
@@ -589,6 +612,7 @@ class HMI(tk.Tk):
         tk.Button(self.prime_frame, text="Start", command=self._start_prime).pack(side="left", padx=5)
 
     def _cancel_prime(self) -> None:
+        """Cancel the priming process and close the menu."""
         self._close_all_valves()
         if self.prime_frame:
             self.prime_frame.destroy()
@@ -596,10 +620,12 @@ class HMI(tk.Tk):
         self.prime_stage = 0
 
     def _start_prime(self) -> None:
+        """Begin the priming steps."""
         self.prime_stage = 2
         self._show_prime_stage()
 
     def _advance_prime(self) -> None:
+        """Advance to the next priming step."""
         self.prime_stage += 1
         if self.prime_stage > 4:
             self._finish_prime()
@@ -607,6 +633,7 @@ class HMI(tk.Tk):
             self._show_prime_stage()
 
     def _show_prime_stage(self) -> None:
+        """Display the current priming step and open/close valves accordingly."""
         if not self.prime_frame:
             return
         for widget in self.prime_frame.winfo_children():
@@ -616,7 +643,7 @@ class HMI(tk.Tk):
         if self.prime_stage == 2:
             self._open_valves(2, 3, 4)
         elif self.prime_stage == 3:
-            self._open_valves(1, 2)
+            self._open_valves(1, 5)
         elif self.prime_stage == 4:
             self._open_valves(2, 4)
         tk.Label(self.prime_frame, text=step_text.get(self.prime_stage, "")).pack(side="left", padx=5)
@@ -624,6 +651,7 @@ class HMI(tk.Tk):
         tk.Button(self.prime_frame, text=btn_text, command=self._advance_prime).pack(side="left", padx=5)
 
     def _finish_prime(self) -> None:
+        """Finish the priming process and close the menu."""
         self._close_all_valves()
         if self.prime_frame:
             self.prime_frame.destroy()
@@ -632,24 +660,28 @@ class HMI(tk.Tk):
 
     # === Checkbox toggle helpers ===
     def _toggle_filt_weight(self) -> None:
+        """Ensure only one filtration target mode is active."""
         if self.filt_use_weight_var.get():
             self.filt_use_time_var.set(False)
         elif not self.filt_use_time_var.get():
             self.filt_use_time_var.set(True)
 
     def _toggle_filt_time(self) -> None:
+        """Ensure only one filtration target mode is active."""
         if self.filt_use_time_var.get():
             self.filt_use_weight_var.set(False)
         elif not self.filt_use_weight_var.get():
             self.filt_use_weight_var.set(True)
 
     def _toggle_bw_weight(self) -> None:
+        """Ensure only one backwash target mode is active."""
         if self.bw_use_weight_var.get():
             self.bw_use_time_var.set(False)
         elif not self.bw_use_time_var.get():
             self.bw_use_time_var.set(True)
 
     def _toggle_bw_time(self) -> None:
+        """Ensure only one backwash target mode is active."""
         if self.bw_use_time_var.get():
             self.bw_use_weight_var.set(False)
         elif not self.bw_use_weight_var.get():
@@ -729,7 +761,7 @@ class HMI(tk.Tk):
         tk.Button(win, text="Apply", command=apply).grid(row=3, column=0, columnspan=2, pady=5)
 
     def update_data(self) -> None:
-        """Refresh all displayed sensor values."""
+        """Refresh all displayed sensor values and update the process diagram."""
         self.weight_var.set(self.module.read_scale(0))
         self.backwash_weight_var.set(self.module.read_scale(1))
         self.pressure_bw_var.set(f"{self.module.read_pressure(0):.2f}")
