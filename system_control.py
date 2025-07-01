@@ -340,6 +340,9 @@ class HMI(tk.Tk):
         self.title("Pencil Module")
         # Use the full 7" touch screen resolution
         self.geometry("800x480")
+        # Process the geometry request immediately so winfo_geometry()
+        # returns the correct size during tests.
+        self.update_idletasks()
 
         # --- Variables for live sensor readouts ---
         self.weight_var = tk.StringVar()           # Filtrate weight
