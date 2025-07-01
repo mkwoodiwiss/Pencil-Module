@@ -11,13 +11,12 @@ def read_weight(ser: serial.Serial) -> str:
         ser.write(b"P\r\n")
         time.sleep(0.1)
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore").strip()
-        # Expecting 16 chars: sign (space or -), value, unit, spaces, <cr><lf>
-        if len(response) >= 10:
-            sign = response[0]
-            if sign == " ":
-                sign = "+"
-            value = response[1:8].strip()
-            unit = response[8]
+        # Match: sign (space or -), optional spaces, digits, dot, digits, space, unit
+        match = re.match(r"([ -])\s*(\d+\.\d+)\s*(\w)", response)
+        if match:
+            sign = "+" if match.group(1) == " " else "-"
+            value = match.group(2)
+            unit = match.group(3)
             return f"{sign}{value} {unit}"
     except Exception as e:
         logging.error("Error reading weight from scale: %s", e)
