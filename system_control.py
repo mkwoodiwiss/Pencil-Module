@@ -351,18 +351,16 @@ class HMI(tk.Tk):
 
         self._create_pfd()
 
-        # Control buttons centered below the process diagram
-        ctrl = tk.Frame(self)
-        ctrl.pack(pady=5)
-        tk.Button(ctrl, text="Prime", command=self.prime).pack(side="left", padx=5)
-        self.start_btn = tk.Button(ctrl, text="Start", command=self._toggle_test)
-        self.start_btn.pack(side="left", padx=5)
-
         area = tk.Frame(self)
-        area.pack(fill="both", expand=True, padx=5)
+        area.pack(fill="both", expand=True, padx=5, pady=5)
 
         settings = tk.LabelFrame(area, text="Settings")
         settings.pack(side="left", fill="y", padx=5, pady=5)
+
+        centre = tk.Frame(area)
+        centre.pack(side="left", expand=True)
+        self.start_btn = tk.Button(centre, text="Start", command=self._toggle_test)
+        self.start_btn.pack(pady=5)
 
         tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
         tk.Entry(settings, textvariable=self.filt_target_weight_var, width=7).grid(row=0, column=1)
@@ -421,7 +419,7 @@ class HMI(tk.Tk):
         ).grid(row=8, column=0, columnspan=3, pady=2)
 
         info = tk.LabelFrame(area, text="Sensors")
-        info.pack(side="right", fill="y", padx=5, pady=5)
+        info.pack(side="left", fill="y", padx=5, pady=5)
         tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
         tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
         tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
@@ -524,6 +522,9 @@ class HMI(tk.Tk):
             x, y = self.canvas.coords(self.valve_labels[valve_keys[i]])
             self.canvas.create_window(x, y, window=btn)
             self.solenoid_buttons.append(btn)
+
+        self.prime_btn = tk.Button(self.canvas, text="Prime", command=self.prime)
+        self.canvas.create_window(355, 180, window=self.prime_btn)
 
     def _update_lines(self) -> None:
         # Update all lines except v3_vert2 normally
