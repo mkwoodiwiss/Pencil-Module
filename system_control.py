@@ -353,16 +353,18 @@ class HMI(tk.Tk):
         self._create_pfd()
 
         # --- Main layout frames ---
-        area = tk.Frame(self)
-        area.pack(fill="both", expand=True, padx=5, pady=5)
+        self.area = tk.Frame(self)
+        self.area.pack(fill="both", expand=True, padx=5, pady=5)
 
         # --- Settings panel for test configuration ---
-        settings = tk.LabelFrame(area, text="Settings")
+        settings = tk.LabelFrame(self.area, text="Settings")
         settings.pack(side="left", padx=5, pady=5, anchor="n")
+        self.settings_frame = settings
 
         # --- Right column containing sensors and start button ---
-        right_col = tk.Frame(area)
+        right_col = tk.Frame(self.area)
         right_col.pack(side="left", fill="both", expand=True)
+        self.right_col = right_col
 
         # Start button will sit below the sensors frame
         self.start_btn = tk.Button(
@@ -617,7 +619,8 @@ class HMI(tk.Tk):
             return
         self.prime_stage = 1
         self.prime_frame = tk.Frame(self)
-        self.prime_frame.pack(pady=5)
+        # Place the prime menu between the settings and sensors frames
+        self.prime_frame.pack(pady=5, before=self.area)
         tk.Label(self.prime_frame, text="Confirm Prime").pack(side="left", padx=5)
         tk.Button(self.prime_frame, text="Cancel", command=self._cancel_prime).pack(side="left", padx=5)
         tk.Button(self.prime_frame, text="Start", command=self._start_prime).pack(side="left", padx=5)
