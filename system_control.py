@@ -346,6 +346,8 @@ class HMI(tk.Tk):
         self.sample_time_var = tk.DoubleVar(value=0.1)
         self.project_name_var = tk.StringVar(value="demo")
         self.is_running = False
+        self.prime_frame = None
+        self.prime_stage = 0
 
         self._create_pfd()
 
@@ -556,12 +558,77 @@ class HMI(tk.Tk):
         self.solenoid_buttons[channel].config(bg=bg)
         self._update_lines()
 
+    def _set_valves(self, state: bool, *valves: int) -> None:
+        """Set multiple valves to the given state and update the diagram."""
+        for v in valves:
+            idx = v - 1
+            self.solenoid_states[idx] = state
+            self.module.set_solenoid(v, state)
+            bg = "red" if state else self.solenoid_buttons[idx].master.cget("bg")
+            self.solenoid_buttons[idx].config(bg=bg)
+        self._update_lines()
+
+    def _open_valves(self, *valves: int) -> None:
+        self._set_valves(True, *valves)
+
+    def _close_valves(self, *valves: int) -> None:
+        self._set_valves(False, *valves)
+
+    def _close_all_valves(self) -> None:
+        self._close_valves(1, 2, 3, 4, 5)
+
     def prime(self) -> None:
-        """Activate the priming routine using a temporary test system."""
-        FiltrationTestSystem(
-            self.module,
-            FiltrationConfig(0, False, 0, False, 0, 0, 1, "prime")
-        ).prime()
+        """Open the prime confirmation menu below the process diagram."""
+        if self.prime_frame:
+            return
+        self.prime_stage = 1
+        self.prime_frame = tk.Frame(self)
+        self.prime_frame.pack(pady=5)
+        tk.Label(self.prime_frame, text="Confirm Prime").pack(side="left", padx=5)
+        tk.Button(self.prime_frame, text="Cancel", command=self._cancel_prime).pack(side="left", padx=5)
+        tk.Button(self.prime_frame, text="Start", command=self._start_prime).pack(side="left", padx=5)
+
+    def _cancel_prime(self) -> None:
+        self._close_all_valves()
+        if self.prime_frame:
+            self.prime_frame.destroy()
+            self.prime_frame = None
+        self.prime_stage = 0
+
+    def _start_prime(self) -> None:
+        self.prime_stage = 2
+        self._show_prime_stage()
+
+    def _advance_prime(self) -> None:
+        self.prime_stage += 1
+        if self.prime_stage > 4:
+            self._finish_prime()
+        else:
+            self._show_prime_stage()
+
+    def _show_prime_stage(self) -> None:
+        if not self.prime_frame:
+            return
+        for widget in self.prime_frame.winfo_children():
+            widget.destroy()
+        step_text = {2: "Step 1", 3: "Step 2", 4: "Step 3"}
+        self._close_all_valves()
+        if self.prime_stage == 2:
+            self._open_valves(2, 3, 4)
+        elif self.prime_stage == 3:
+            self._open_valves(1, 2)
+        elif self.prime_stage == 4:
+            self._open_valves(2, 4)
+        tk.Label(self.prime_frame, text=step_text.get(self.prime_stage, "")).pack(side="left", padx=5)
+        btn_text = "Continue" if self.prime_stage < 4 else "Finish"
+        tk.Button(self.prime_frame, text=btn_text, command=self._advance_prime).pack(side="left", padx=5)
+
+    def _finish_prime(self) -> None:
+        self._close_all_valves()
+        if self.prime_frame:
+            self.prime_frame.destroy()
+            self.prime_frame = None
+        self.prime_stage = 0
 
     # === Checkbox toggle helpers ===
     def _toggle_filt_weight(self) -> None:
