@@ -11,7 +11,7 @@ def read_weight(ser: serial.Serial) -> str:
         ser.write(b"P\r\n")
         time.sleep(0.1)
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore").strip()
-        match = re.search(r"([±+-]?)(\d+\.\d+)\s*(\w+)", response)
+        match = re.search(r"([±+-]?\d+\.\d+)\s*(\w+)", response)
         if match:
             sign = match.group(1) if match.group(1) else "+"
             value = match.group(2)
