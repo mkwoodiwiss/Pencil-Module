@@ -31,6 +31,7 @@ import serial
 import time
 import csv
 import os
+import string
 from dataclasses import dataclass, asdict
 from typing import Optional
 
@@ -105,12 +106,18 @@ class PencilModule:
 
     def zero_scales(self) -> None:
         """Issue a zeroing command for both scales."""
-        self.ser.write(b"Z\r\n")
+        try:
+            self.ser.write(b"Z\r\n")
+        except Exception:
+            pass
 
     def zero_scale(self, channel: int) -> None:
         """Zero an individual scale."""
         cmd = b"Z\r\n" if channel == 0 else b"Q\r\n"
-        self.ser.write(cmd)
+        try:
+            self.ser.write(cmd)
+        except Exception:
+            pass
 
     def apply_offsets(
         self,
@@ -129,18 +136,26 @@ class PencilModule:
         """Return the weight from one of the scales."""
         cmd = b"P\r\n" if channel == 0 else b"S\r\n"
         try:
+            try:
+                self.ser.reset_input_buffer()
+            except Exception:
+                pass
             self.ser.write(cmd)
-            response = self.ser.read_until(b"\r\n")
-            text = response.decode("ascii", errors="ignore").strip()
-            match = re.search(r"([±+-]?)(\d+\.\d+)\s*(\w)", text)
+            time.sleep(0.1)
+            response = self.ser.read_until(b"\r\n").decode("ascii", errors="ignore")
+            cleaned = ''.join(c for c in response if c in string.printable)
+            match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
             if match:
-                sign = match.group(1) if match.group(1) else "+"
-                weight = match.group(2)
+                sign = match.group(1)
+                value = match.group(2)
                 unit = match.group(3)
-                return f"{sign}{weight} {unit}"
+                if sign == " ":
+                    sign = "+"
+                return f"{sign}{value} {unit}"
         except Exception:
             pass
         return "--"
+
 
 
 @dataclass
