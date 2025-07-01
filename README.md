@@ -23,8 +23,7 @@ drivers for the **Home Automation** and **Multi IO** hats:
 curl https://raw.githubusercontent.com/SequentMicrosystems/home-automation-rpi/master/install.sh | sudo bash
 curl https://raw.githubusercontent.com/SequentMicrosystems/multiio-rpi/master/install.sh | sudo bash
 ```
-For convenience this repository also includes an `install_vendor_deps.sh`
-script which wraps the above commands.
+For convenience this repository also includes a `resources/install_vendor_deps.sh` script which wraps the above commands.
 
 Then run the controller:
 
