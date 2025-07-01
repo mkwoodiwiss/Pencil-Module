@@ -347,8 +347,16 @@ class HMI(tk.Tk):
         self.repeat_count_var = tk.IntVar(value=1)
         self.sample_time_var = tk.DoubleVar(value=0.1)
         self.project_name_var = tk.StringVar(value="demo")
+        self.is_running = False
 
         self._create_pfd()
+
+        # Control buttons centered below the process diagram
+        ctrl = tk.Frame(self)
+        ctrl.pack(pady=5)
+        tk.Button(ctrl, text="Prime", command=self.prime).pack(side="left", padx=5)
+        self.start_btn = tk.Button(ctrl, text="Start", command=self._toggle_test)
+        self.start_btn.pack(side="left", padx=5)
 
         area = tk.Frame(self)
         area.pack(fill="both", expand=True, padx=5)
@@ -401,6 +409,16 @@ class HMI(tk.Tk):
         tk.Entry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
 
         tk.Button(settings, text="Calibrate", command=self.calibrate).grid(row=6, column=0, columnspan=3, pady=4)
+        tk.Button(
+            settings,
+            text="Tare EFL",
+            command=lambda: self.module.zero_scale(0),
+        ).grid(row=7, column=0, columnspan=3, pady=2)
+        tk.Button(
+            settings,
+            text="Tare BW",
+            command=lambda: self.module.zero_scale(1),
+        ).grid(row=8, column=0, columnspan=3, pady=2)
 
         info = tk.LabelFrame(area, text="Sensors")
         info.pack(side="right", fill="y", padx=5, pady=5)
@@ -414,15 +432,6 @@ class HMI(tk.Tk):
         tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
-
-        # Bottom control buttons
-        control_frame = tk.Frame(self)
-        control_frame.pack(side="bottom", pady=5)
-        tk.Button(control_frame, text="Prime", command=self.prime).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Start", command=self.start_test).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Stop", command=self.stop_test).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).pack(side="left", padx=5)
-        tk.Button(control_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).pack(side="left", padx=5)
 
         self.update_data()
 
@@ -568,6 +577,19 @@ class HMI(tk.Tk):
             self.bw_use_weight_var.set(False)
         elif not self.bw_use_weight_var.get():
             self.bw_use_weight_var.set(True)
+
+    def _toggle_test(self) -> None:
+        """Start or stop the test depending on current state."""
+        if getattr(self, "is_running", False):
+            self.stop_test()
+            self.is_running = False
+            self.start_btn.config(text="Start")
+        else:
+            self.is_running = True
+            self.start_btn.config(text="Stop")
+            self.start_test()
+            self.is_running = False
+            self.start_btn.config(text="Start")
 
     def start_test(self) -> None:
         """Begin an automated cycle using the stored configuration."""
