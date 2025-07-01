@@ -362,7 +362,7 @@ class HMI(tk.Tk):
         self.settings_frame = settings
 
         # --- Right column containing sensors and start button ---
-        right_col = tk.Frame(area)
+        right_col = tk.Frame(self.area)
         right_col.pack(side="right", fill="y", padx=5, pady=5)  # <-- changed from "left" to "right", fill="y" to keep size
 
         # --- Sensor readout panel ---
