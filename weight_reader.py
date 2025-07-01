@@ -1,7 +1,7 @@
-import re
 import time
 import serial
 import string
+import re
 
 
 def read_weight(ser: serial.Serial) -> str:
@@ -15,22 +15,24 @@ def read_weight(ser: serial.Serial) -> str:
         print("Reading response from scale...")
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
         print(f"Raw response: {repr(response)}")
-        # Remove all non-printable characters
+        # Remove all non-printable characters except space
         cleaned = ''.join(c for c in response if c in string.printable)
         print(f"Cleaned response: {repr(cleaned)}")
-        # Always parse from the start: sign, value, unit
-        if len(cleaned) >= 10:
-            sign = cleaned[0]
-            value = cleaned[1:9].strip()
-            unit = cleaned[9]
+        # Use regex to extract sign, value, and unit
+        match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
+        if match:
+            sign = match.group(1)
+            value = match.group(2)
+            unit = match.group(3)
             if sign == " ":
                 sign = "+"
             print(f"Parsed: sign={sign}, value={value}, unit={unit}")
             return f"{sign}{value} {unit}"
-        print("Response too short or unexpected format.")
+        print("Could not parse weight from response.")
     except Exception as e:
         print(f"Error reading weight: {e}")
     return "--"
+
 
 def zero_scale(ser: serial.Serial) -> None:
     """Send the zero command to the scale."""
@@ -39,6 +41,7 @@ def zero_scale(ser: serial.Serial) -> None:
         ser.write(b"Z\r\n")
     except Exception as e:
         print(f"Error zeroing the scale: {e}")
+
 
 def main(port: str = "/dev/ttyUSB0", baud: int = 9600) -> None:
     """Interactive CLI for reading or zeroing the scale."""
