@@ -125,21 +125,30 @@ class PencilModule:
         self.pressure_offset_in = pressure_in
         self.temp_offset = temperature
 
-    def read_scale(self, channel: int = 0) -> str:
-        """Query one of the serial scales and return the weight string."""
-        # Each scale is queried with a short command. The response is
-        # parsed and normalised into a human readable string. When no
-        # matching pattern is found ``"--"`` is returned so the GUI can
-        # display a placeholder value.
-        cmd = b"P\r\n" if channel == 0 else b"S\r\n"
-        self.ser.write(cmd)
-        time.sleep(0.1)
-        response = self.ser.read_until(b"\r\n").decode("ascii", "ignore").strip()
-        match = re.search(r"([+-]?)\s*(\d+\.\d+)\s*(\w)", response)
-        if match:
-            sign, weight, unit = match.groups()
-            return f"{sign}{weight} {unit}"
-        return "--"
+    def read_scale(self, channel: int) -> str:
+        """
+        Read the weight from the serial-connected scale.
+        Ignores the channel argument (for compatibility with interface).
+        Returns a string like '+123.45 g' or '--' on error.
+        """
+        port = "/dev/ttyUSB0"
+        baud_rate = 9600
+        command = "P\r\n"
+        try:
+            with serial.Serial(port, baud_rate, timeout=1) as ser:
+                ser.write(command.encode('ascii'))
+                time.sleep(0.1)
+                response = ser.read_until(b'\r\n').decode('ascii').strip()
+                match = re.search(r'([±+-]?)\s*(\d+\.\d+)\s*(\w)', response)
+                if match:
+                    sign = match.group(1) if match.group(1) else "+"
+                    weight = match.group(2)
+                    unit = match.group(3)
+                    return f"{sign}{weight} {unit}"
+                else:
+                    return "--"
+        except Exception as e:
+            return "--"
 
 
 @dataclass
