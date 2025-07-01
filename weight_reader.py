@@ -7,15 +7,18 @@ import logging
 def read_weight(ser: serial.Serial) -> str:
     """Return the weight string from the scale or '--' on error."""
     try:
-        ser.reset_input_buffer()  # Clear any old data before sending command
+        ser.reset_input_buffer()
         ser.write(b"P\r\n")
         time.sleep(0.1)
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore").strip()
-        match = re.search(r"([±+-]?\d+\.\d+)\s*(\w+)", response)
-        if match:
-            value = match.group(1)
-            unit = match.group(2)
-            return f"{value} {unit}"
+        # Expecting 16 chars: sign (space or -), value, unit, spaces, <cr><lf>
+        if len(response) >= 10:
+            sign = response[0]
+            if sign == " ":
+                sign = "+"
+            value = response[1:8].strip()
+            unit = response[8]
+            return f"{sign}{value} {unit}"
     except Exception as e:
         logging.error("Error reading weight from scale: %s", e)
         logging.exception("Error reading weight from scale")
