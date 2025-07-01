@@ -7,6 +7,7 @@ import logging
 def read_weight(ser: serial.Serial) -> str:
     """Return the weight string from the scale or '--' on error."""
     try:
+        ser.reset_input_buffer()  # Clear any old data before sending command
         ser.write(b"P\r\n")
         time.sleep(0.1)
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore").strip()
