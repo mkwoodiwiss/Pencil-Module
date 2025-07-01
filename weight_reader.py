@@ -7,32 +7,40 @@ import logging
 def read_weight(ser: serial.Serial) -> str:
     """Return the weight string from the scale or '--' on error."""
     try:
+        print("Resetting input buffer...")
         ser.reset_input_buffer()
+        print("Sending 'P' command to scale...")
         ser.write(b"P\r\n")
         time.sleep(0.1)
+        print("Reading response from scale...")
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore").strip()
-        # Match: sign (space or -), optional spaces, digits, dot, digits, space, unit
-        match = re.match(r"([ -])\s*(\d+\.\d+)\s*(\w)", response)
-        if match:
-            sign = "+" if match.group(1) == " " else "-"
-            value = match.group(2)
-            unit = match.group(3)
+        print(f"Raw response: {repr(response)}")
+        # Expecting: sign (space or -), 7 chars for value, 1 char for unit, spaces, <cr><lf>
+        if len(response) >= 9:
+            sign = response[0]
+            value = response[1:8].strip()
+            unit = response[8]
+            if sign == " ":
+                sign = "+"
+            print(f"Parsed: sign={sign}, value={value}, unit={unit}")
             return f"{sign}{value} {unit}"
+        else:
+            print("Response too short or unexpected format.")
     except Exception as e:
-        logging.error("Error reading weight from scale: %s", e)
-        logging.exception("Error reading weight from scale")
+        print(f"Error reading weight: {e}")
     return "--"
 
 def zero_scale(ser: serial.Serial) -> None:
     """Send the zero command to the scale."""
     try:
+        print("Sending 'Z' command to zero the scale...")
         ser.write(b"Z\r\n")
     except Exception as e:
-        logging.error("Error zeroing the scale: %s", e)
-
+        print(f"Error zeroing the scale: {e}")
 
 def main(port: str = "/dev/ttyUSB0", baud: int = 9600) -> None:
     """Interactive CLI for reading or zeroing the scale."""
+    print(f"Opening serial port {port} at {baud} baud...")
     with serial.Serial(port, baud, timeout=1) as ser:
         try:
             ser.reset_input_buffer()
