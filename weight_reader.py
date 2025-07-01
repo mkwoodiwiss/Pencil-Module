@@ -48,7 +48,6 @@ def main(port: str = "/dev/ttyUSB0", baud: int = 9600) -> None:
     """
     Interactive CLI for reading or zeroing the scale.
     """
-    print(f"Opening serial port {port} at {baud} baud...")
     with serial.Serial(port, baud, timeout=1) as ser:
         try:
             ser.reset_input_buffer()
