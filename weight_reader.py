@@ -13,10 +13,9 @@ def read_weight(ser: serial.Serial) -> str:
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore").strip()
         match = re.search(r"([±+-]?\d+\.\d+)\s*(\w+)", response)
         if match:
-            sign = match.group(1) if match.group(1) else "+"
-            value = match.group(2)
-            unit = match.group(3)
-            return f"{sign}{value} {unit}"
+            value = match.group(1)
+            unit = match.group(2)
+            return f"{value} {unit}"
     except Exception as e:
         logging.error("Error reading weight from scale: %s", e)
         logging.exception("Error reading weight from scale")
