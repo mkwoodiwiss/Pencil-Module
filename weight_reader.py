@@ -18,20 +18,16 @@ def read_weight(ser: serial.Serial) -> str:
         # Remove all non-printable characters
         cleaned = ''.join(c for c in response if c in string.printable)
         print(f"Cleaned response: {repr(cleaned)}")
-        # Find the first sign (space or -)
-        for i, c in enumerate(cleaned):
-            if c == ' ' or c == '-':
-                # Try to parse from here
-                chunk = cleaned[i:i+9]
-                print(f"Parsing chunk: {repr(chunk)}")
-                sign = chunk[0]
-                value = chunk[1:8].strip()
-                unit = chunk[8] if len(chunk) > 8 else '?'
-                if sign == " ":
-                    sign = "+"
-                print(f"Parsed: sign={sign}, value={value}, unit={unit}")
-                return f"{sign}{value} {unit}"
-        print("No valid sign found in response.")
+        # Always parse from the start: sign, value, unit
+        if len(cleaned) >= 10:
+            sign = cleaned[0]
+            value = cleaned[1:9].strip()
+            unit = cleaned[9]
+            if sign == " ":
+                sign = "+"
+            print(f"Parsed: sign={sign}, value={value}, unit={unit}")
+            return f"{sign}{value} {unit}"
+        print("Response too short or unexpected format.")
     except Exception as e:
         print(f"Error reading weight: {e}")
     return "--"
