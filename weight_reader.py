@@ -1,5 +1,8 @@
 import time
-import serial
+try:
+    import serial  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover - fallback when pyserial is missing
+    from pencil import serial_stub as serial
 import string
 import re
 
