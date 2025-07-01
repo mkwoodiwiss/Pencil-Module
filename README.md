@@ -65,7 +65,7 @@ python3 manual_hmi.py
 
 ## Simple Weight Reader
 
-A lightweight script `weight_reader.py` is provided for quick testing of the USB scale. The program prints the current weight and then issues the zero (`Z`) command:
+A lightweight script `weight_reader.py` is provided for quick testing of the USB scale. When run it prompts you to either read the current weight or send the zero (`Z`) command:
 
 ```bash
 python3 weight_reader.py

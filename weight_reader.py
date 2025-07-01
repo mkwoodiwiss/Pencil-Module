@@ -30,7 +30,25 @@ def zero_scale(port="/dev/ttyUSB0", baud=9600) -> None:
         pass
 
 
+def main() -> None:
+    """Interactive CLI for reading or zeroing the scale."""
+    while True:
+        try:
+            choice = input(
+                "Enter 'r' to read weight, 'z' to zero the scale, or 'q' to quit: "
+            ).strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            print()
+            break
+
+        if choice.startswith("r"):
+            print("Weight:", read_weight())
+        elif choice.startswith("z"):
+            zero_scale()
+            print("Scale zeroed")
+        elif choice.startswith("q"):
+            break
+
+
 if __name__ == "__main__":
-    weight = read_weight()
-    print("Weight:", weight)
-    zero_scale()
+    main()
