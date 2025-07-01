@@ -51,7 +51,7 @@ class HMI(tk.Tk):
         right_col = tk.Frame(self.area)
         right_col.pack(side="right", fill="y", padx=5, pady=5)
 
-        logo_path = os.path.join(os.path.dirname(__file__), "..", "WaterARC Logo-Carollo-01.png")
+        logo_path = os.path.join(os.path.dirname(__file__), "..", "resources", "WaterARC Logo-Carollo-01.png")
         self.logo_image = tk.PhotoImage(file=logo_path)
         self.logo_image = self.logo_image.subsample(8, 8)
         logo_label = tk.Label(self.area, image=self.logo_image, borderwidth=0)
