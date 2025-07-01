@@ -358,13 +358,21 @@ class HMI(tk.Tk):
 
         # --- Settings panel for test configuration ---
         settings = tk.LabelFrame(area, text="Settings")
-        settings.pack(side="left", fill="y", padx=5, pady=5)
+        settings.pack(side="left", padx=5, pady=5, anchor="n")
 
-        # --- Center panel for start/stop button ---
-        centre = tk.Frame(area)
-        centre.pack(side="left", expand=True)
-        self.start_btn = tk.Button(centre, text="Start", command=self._toggle_test)
-        self.start_btn.pack(pady=5)
+        # --- Right column containing sensors and start button ---
+        right_col = tk.Frame(area)
+        right_col.pack(side="left", fill="both", expand=True)
+
+        # Start button will sit below the sensors frame
+        self.start_btn = tk.Button(
+            right_col,
+            text="Start",
+            command=self._toggle_test,
+            font=("Arial", 16),
+            width=10,
+            height=2,
+        )
 
         # --- Filtration and backwash target controls ---
         tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
@@ -434,8 +442,8 @@ class HMI(tk.Tk):
         ).grid(row=0, column=2, padx=5, sticky="ew")
 
         # --- Sensor readout panel ---
-        info = tk.LabelFrame(area, text="Sensors")
-        info.pack(side="left", fill="y", padx=5, pady=5)
+        info = tk.LabelFrame(right_col, text="Sensors")
+        info.pack(padx=5, pady=5, anchor="n")
         tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
         tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
         tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
@@ -446,6 +454,9 @@ class HMI(tk.Tk):
         tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
+
+        # Center the start button below the sensors
+        self.start_btn.pack(pady=10)
 
         # --- Start periodic sensor updates ---
         self.update_data()
