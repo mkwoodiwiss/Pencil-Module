@@ -362,17 +362,32 @@ class HMI(tk.Tk):
 
         # --- Right column containing sensors and start button ---
         right_col = tk.Frame(area)
-        right_col.pack(side="left", fill="both", expand=True)
+        right_col.pack(side="right", fill="y", padx=5, pady=5)  # <-- changed from "left" to "right", fill="y" to keep size
 
-        # Start button will sit below the sensors frame
+        # --- Sensor readout panel ---
+        info = tk.LabelFrame(right_col, text="Sensors")
+        info.pack(padx=5, pady=5, anchor="n")
+        tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
+        tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
+        tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")
+        tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
+        tk.Label(info, text="Influent Pressure:").grid(row=3, column=0, sticky="w")
+        tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
+        tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
+        tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
+
+        # Center the start button below the sensors
         self.start_btn = tk.Button(
             right_col,
             text="Start",
             command=self._toggle_test,
-            font=("Arial", 16),
-            width=10,
+            font=("Arial", 12),
+            width=8,
             height=2,
         )
+        self.start_btn.pack(pady=10)
 
         # --- Filtration and backwash target controls ---
         tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
@@ -440,23 +455,6 @@ class HMI(tk.Tk):
             text="Tare BW",
             command=lambda: self.module.zero_scale(1),
         ).grid(row=0, column=2, padx=5, sticky="ew")
-
-        # --- Sensor readout panel ---
-        info = tk.LabelFrame(right_col, text="Sensors")
-        info.pack(padx=5, pady=5, anchor="n")
-        tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
-        tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
-        tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
-        tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
-        tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")
-        tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
-        tk.Label(info, text="Influent Pressure:").grid(row=3, column=0, sticky="w")
-        tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
-        tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
-        tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
-
-        # Center the start button below the sensors
-        self.start_btn.pack(pady=10)
 
         # --- Start periodic sensor updates ---
         self.update_data()
