@@ -1,7 +1,7 @@
 import re
 import time
 import serial
-import logging
+import string
 
 
 def read_weight(ser: serial.Serial) -> str:
@@ -13,19 +13,25 @@ def read_weight(ser: serial.Serial) -> str:
         ser.write(b"P\r\n")
         time.sleep(0.1)
         print("Reading response from scale...")
-        response = ser.read_until(b"\r\n").decode("ascii", errors="ignore").strip()
+        response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
         print(f"Raw response: {repr(response)}")
-        # Expecting: sign (space or -), 7 chars for value, 1 char for unit, spaces, <cr><lf>
-        if len(response) >= 9:
-            sign = response[0]
-            value = response[1:8].strip()
-            unit = response[8]
-            if sign == " ":
-                sign = "+"
-            print(f"Parsed: sign={sign}, value={value}, unit={unit}")
-            return f"{sign}{value} {unit}"
-        else:
-            print("Response too short or unexpected format.")
+        # Remove all non-printable characters
+        cleaned = ''.join(c for c in response if c in string.printable)
+        print(f"Cleaned response: {repr(cleaned)}")
+        # Find the first sign (space or -)
+        for i, c in enumerate(cleaned):
+            if c == ' ' or c == '-':
+                # Try to parse from here
+                chunk = cleaned[i:i+9]
+                print(f"Parsing chunk: {repr(chunk)}")
+                sign = chunk[0]
+                value = chunk[1:8].strip()
+                unit = chunk[8] if len(chunk) > 8 else '?'
+                if sign == " ":
+                    sign = "+"
+                print(f"Parsed: sign={sign}, value={value}, unit={unit}")
+                return f"{sign}{value} {unit}"
+        print("No valid sign found in response.")
     except Exception as e:
         print(f"Error reading weight: {e}")
     return "--"
