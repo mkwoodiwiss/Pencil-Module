@@ -125,30 +125,22 @@ class PencilModule:
         self.pressure_offset_in = pressure_in
         self.temp_offset = temperature
 
-    def read_scale(self, channel: int) -> str:
-        """
-        Read the weight from the serial-connected scale.
-        Ignores the channel argument (for compatibility with interface).
-        Returns a string like '+123.45 g' or '--' on error.
-        """
-        port = "/dev/ttyUSB0"
-        baud_rate = 9600
-        command = "P\r\n"
+    def read_scale(self, channel: int = 0) -> str:
+        """Return the weight from one of the scales."""
+        cmd = b"P\r\n" if channel == 0 else b"S\r\n"
         try:
-            with serial.Serial(port, baud_rate, timeout=1) as ser:
-                ser.write(command.encode('ascii'))
-                time.sleep(0.1)
-                response = ser.read_until(b'\r\n').decode('ascii').strip()
-                match = re.search(r'([±+-]?)\s*(\d+\.\d+)\s*(\w)', response)
-                if match:
-                    sign = match.group(1) if match.group(1) else "+"
-                    weight = match.group(2)
-                    unit = match.group(3)
-                    return f"{sign}{weight} {unit}"
-                else:
-                    return "--"
-        except Exception as e:
-            return "--"
+            self.ser.write(cmd)
+            response = self.ser.read_until(b"\r\n")
+            text = response.decode("ascii", errors="ignore").strip()
+            match = re.search(r"([±+-]?)(\d+\.\d+)\s*(\w)", text)
+            if match:
+                sign = match.group(1) if match.group(1) else "+"
+                weight = match.group(2)
+                unit = match.group(3)
+                return f"{sign}{weight} {unit}"
+        except Exception:
+            pass
+        return "--"
 
 
 @dataclass
