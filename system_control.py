@@ -363,13 +363,14 @@ class HMI(tk.Tk):
 
         # --- Right column containing sensors and start button ---
         right_col = tk.Frame(self.area)
-        right_col.pack(side="right", fill="y", padx=5, pady=5)  # <-- changed from "left" to "right", fill="y" to keep size
+        right_col.pack(side="right", fill="y", padx=5, pady=5)
 
         # --- Background logo centered between the two frames ---
         logo_path = os.path.join(os.path.dirname(__file__), "WaterARC Logo-Carollo-01.png")
         self.logo_image = tk.PhotoImage(file=logo_path)
+        self.logo_image = self.logo_image.subsample(8, 8)
         logo_label = tk.Label(self.area, image=self.logo_image, borderwidth=0)
-        logo_label.place(relx=0.5, rely=0.5, anchor="center")
+        logo_label.place(relx=0.5, rely=0.5, x=40, anchor="center")
         logo_label.lower()
 
         # --- Sensor readout panel ---
@@ -489,12 +490,12 @@ class HMI(tk.Tk):
 
         # === RIGHT: Destinations ===
         # Effluent (top right)
-        self.canvas.create_rectangle(565, 30, 615, 80, fill="lightblue")  # WeightF
+        self.canvas.create_rectangle(565, 30, 615, 80, fill="lightblue")  # Effluent
         self.canvas.create_text(590, 20, text="Effluent")
         self.canvas.create_text(590, 70, text="-- g")
 
         # Backwash
-        self.canvas.create_rectangle(565, 120, 615, 170, fill="lightblue")  # WeightB
+        self.canvas.create_rectangle(565, 120, 615, 170, fill="lightblue")  # Backwash
         self.canvas.create_text(590, 110, text="Backwash")
         self.canvas.create_text(590, 160, text="-- g")
 
@@ -552,15 +553,16 @@ class HMI(tk.Tk):
                 self.canvas,
                 text=f"V{i+1}",
                 width=3,
+                bg="lightgray",
                 command=lambda ch=i: self.toggle_solenoid(ch),
             )
             x, y = self.canvas.coords(self.valve_labels[valve_keys[i]])
             self.canvas.create_window(x, y, window=btn)
             self.solenoid_buttons.append(btn)
 
-        # Prime button below the diagram
+        # Prime button below the Mini-module
         self.prime_btn = tk.Button(self.canvas, text="Prime", command=self.prime)
-        self.canvas.create_window(355, 175, window=self.prime_btn)
+        self.canvas.create_window(355, 90, window=self.prime_btn)
 
     def _update_lines(self) -> None:
         """
@@ -586,7 +588,7 @@ class HMI(tk.Tk):
         state = not self.solenoid_states[channel]
         self.solenoid_states[channel] = state
         self.module.set_solenoid(channel + 1, state)
-        bg = "red" if state else self.solenoid_buttons[channel].master.cget("bg")
+        bg = "red" if state else "lightgray"
         self.solenoid_buttons[channel].config(bg=bg)
         self._update_lines()
 
@@ -598,7 +600,7 @@ class HMI(tk.Tk):
             idx = v - 1
             self.solenoid_states[idx] = state
             self.module.set_solenoid(v, state)
-            bg = "red" if state else self.solenoid_buttons[idx].master.cget("bg")
+            bg = "red" if state else "lightgray"
             self.solenoid_buttons[idx].config(bg=bg)
         self._update_lines()
 
@@ -623,8 +625,8 @@ class HMI(tk.Tk):
             return
         self.prime_stage = 1
         self.prime_frame = tk.Frame(self)
-        # Place the prime menu between the settings and sensors frames
-        self.prime_frame.pack(pady=5, before=self.area)
+        # Place the prime menu as an overlay above the canvas, centered horizontally
+        self.prime_frame.place(relx=0.5, rely=0.35, anchor="center", y=50)
         tk.Label(self.prime_frame, text="Confirm Prime").pack(side="left", padx=5)
         tk.Button(self.prime_frame, text="Cancel", command=self._cancel_prime).pack(side="left", padx=5)
         tk.Button(self.prime_frame, text="Start", command=self._start_prime).pack(side="left", padx=5)
