@@ -43,6 +43,15 @@ code can run without a Raspberry Pi. Execute the tests with:
 python3 -m unittest discover -s tests
 ```
 
+If you have the Pi's touch screen and weight scales connected you can also run an
+integration test that uses the real devices while simulating the other hardware:
+
+```bash
+python3 -m unittest tests.test_scale_display_integration
+```
+The test automatically skips itself when no display is available, making it safe
+to include in the full suite on headless machines.
+
 
 ## Manual GUI Testing
 
