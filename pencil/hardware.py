@@ -15,23 +15,39 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for tests
 # Optional vendor libraries. These are unavailable in the test environment,
 # so the code falls back to ``None`` which tests patch as needed.
 try:
-    import relay8  # type: ignore
+    import lib8relind  # type: ignore
     import multiio  # type: ignore
 except ModuleNotFoundError:  # pragma: no cover - running without hardware
-    relay8 = None
+    lib8relind = None
     multiio = None
+
+
+class _RelayWrapper:
+    """Wrap the 8-relay hat functions with a simple object API."""
+
+    def __init__(self, stack: int) -> None:
+        self.stack = stack
+
+    def on(self, relay: int) -> None:
+        lib8relind.set(self.stack, relay, 1)
+
+    def off(self, relay: int) -> None:
+        lib8relind.set(self.stack, relay, 0)
 
 
 class PencilModule:
     """Interface to the hardware boards."""
 
-    def __init__(self, relay_stack: int = 0, io_stack: int = 0,
+    def __init__(self, relay_stack: int = 1, io_stack: int = 2,
                  port: str = "/dev/ttyUSB0", baud: int = 9600) -> None:
         # Serial connection to the pair of scales
         self.ser = serial.Serial(port, baud, timeout=1)
         # Interfaces to the relay and IO boards if available
-        self.relay = relay8.Relay8(stack=relay_stack) if relay8 else None
-        self.io = multiio.MultiIO(stack=io_stack) if multiio else None
+        if lib8relind:
+            self.relay = _RelayWrapper(relay_stack)
+        else:
+            self.relay = None
+        self.io = multiio.SMmultiio(stack=io_stack) if multiio else None
         # Calibration offsets
         self.pressure_offset_bw = 0.0
         self.pressure_offset_in = 0.0
