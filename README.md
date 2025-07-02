@@ -11,6 +11,7 @@ It assumes the following hardware:
 The application uses the vendor Python libraries (`relay8` and `multiio`).
 
 http://github.com/SequentMicrosystems/8relind-rpi
+
 https://github.com/SequentMicrosystems/multiio-rpi
 
 The driver documentation for the Sequent Microsystems boards provides
