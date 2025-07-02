@@ -51,3 +51,31 @@ class FakeMultiIO:
     def get_rtd(self, channel: int) -> float:
         # Return a deterministic temperature
         return 20.5
+
+
+class FakeLib8Relind:
+    """Simulate the lib8relind module."""
+
+    def __init__(self):
+        self.states = [0] * 8
+        self.calls = []
+
+    def set(self, stack: int, relay: int, value: int) -> None:
+        self.calls.append(("set", stack, relay, value))
+        self.states[relay - 1] = value
+
+    def set_all(self, stack: int, value: int) -> None:
+        self.calls.append(("set_all", stack, value))
+        for i in range(8):
+            self.states[i] = (value >> i) & 1
+
+    def get(self, stack: int, relay: int) -> int:
+        self.calls.append(("get", stack, relay))
+        return self.states[relay - 1]
+
+    def get_all(self, stack: int) -> int:
+        self.calls.append(("get_all", stack))
+        value = 0
+        for i, bit in enumerate(self.states):
+            value |= (bit << i)
+        return value

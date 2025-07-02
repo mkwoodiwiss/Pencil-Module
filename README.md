@@ -8,7 +8,10 @@ It assumes the following hardware:
 * Two weight scales connected over USB.
 * A Raspberry Pi 7 inch touch screen display used as an HMI.
 
-The application uses the vendor Python libraries (`relay8` and `multiio`).
+The application uses the vendor Python libraries (`lib8relind` and `multiio`).
+The 8-relay hat is controlled using the functions provided by ``lib8relind``
+while the Multi-IO hat is accessed through the ``SMmultiio`` class in the
+``multiio`` package.
 
 http://github.com/SequentMicrosystems/8relind-rpi
 

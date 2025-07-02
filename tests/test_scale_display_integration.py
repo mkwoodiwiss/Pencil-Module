@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-from tests.simulated_hardware import FakeRelay8, FakeMultiIO
+from tests.simulated_hardware import FakeRelay8, FakeMultiIO, FakeLib8Relind
 import system_control
 
 
@@ -16,8 +16,8 @@ class TestScaleDisplayIntegration(unittest.TestCase):
 
     def test_real_scales_and_display(self):
         # Patch relay and IO boards with simulated versions
-        with mock.patch.object(system_control, "relay8", mock.Mock(Relay8=FakeRelay8)), \
-             mock.patch.object(system_control, "multiio", mock.Mock(MultiIO=FakeMultiIO)), \
+        with mock.patch.object(system_control, "lib8relind", FakeLib8Relind(), create=True), \
+             mock.patch.object(system_control, "multiio", mock.Mock(SMmultiio=FakeMultiIO), create=True), \
              mock.patch.object(system_control.HMI, "after", lambda self, ms, cb: None):
             module = system_control.PencilModule()
             app = system_control.HMI(module)
