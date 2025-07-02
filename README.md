@@ -9,15 +9,13 @@ It assumes the following hardware:
 * A Raspberry Pi 7 inch touch screen display used as an HMI.
 
 The application uses the vendor Python libraries (`relay8` and `multiio`).
+
+http://github.com/SequentMicrosystems/8relind-rpi
+https://github.com/SequentMicrosystems/multiio-rpi
+
 The driver documentation for the Sequent Microsystems boards provides
 installation scripts. Run them on the Raspberry Pi to fetch the latest
-drivers for the **Home Automation** and **Multi IO** hats:
-
-```bash
-curl https://raw.githubusercontent.com/SequentMicrosystems/home-automation-rpi/master/install.sh | sudo bash
-curl https://raw.githubusercontent.com/SequentMicrosystems/multiio-rpi/master/install.sh | sudo bash
-```
-For convenience this repository also includes a `resources/install_vendor_deps.sh` script which wraps the above commands.
+drivers for the **8 Relay** and **Multi IO** hats:
 
 Then run the controller:
 
