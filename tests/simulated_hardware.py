@@ -1,20 +1,24 @@
 class FakeSerial:
     """Simple in-memory serial port simulator."""
+
     def __init__(self, port="/dev/ttyUSB0", baud=9600, timeout=1):
         self.port = port
         self.baud = baud
         self.timeout = timeout
         self._buffer = b""
         self.commands = []
+        # Determine which weight value this fake port should return
+        if port == "/dev/ttyUSB0":
+            self.weight = b"+123.45 g\r\n"
+        else:
+            self.weight = b"+54.32 g\r\n"
 
     def write(self, data: bytes):
         self.commands.append(data)
-        # The real system expects commands for each scale and zeroing
+        # When the weight query command is received return the preset value
         if data == b"P\r\n":
-            self._buffer = b"+123.45 g\r\n"
-        elif data == b"S\r\n":
-            self._buffer = b"+54.32 g\r\n"
-        elif data in (b"Z\r\n", b"Q\r\n"):
+            self._buffer = self.weight
+        elif data == b"Z\r\n":
             self._buffer = b"OK\r\n"
 
     def read_until(self, sep: bytes = b"\r\n") -> bytes:

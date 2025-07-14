@@ -127,11 +127,11 @@ class HMI(tk.Tk):
 
         self.canvas.create_rectangle(565, 30, 615, 80, fill="lightblue")
         self.canvas.create_text(590, 20, text="Effluent")
-        self.canvas.create_text(590, 70, text="-- g")
+        self.effluent_weight_text = self.canvas.create_text(590, 70, text="-- g")
 
         self.canvas.create_rectangle(565, 120, 615, 170, fill="lightblue")
         self.canvas.create_text(590, 110, text="Backwash")
-        self.canvas.create_text(590, 160, text="-- g")
+        self.backwash_weight_text = self.canvas.create_text(590, 160, text="-- g")
 
         self.canvas.create_rectangle(665, 75, 715, 125, fill="lightblue")
         self.canvas.create_text(690, 65, text="Drain")
@@ -371,6 +371,8 @@ class HMI(tk.Tk):
         self.canvas.itemconfig(self.pi1_text, text=f"{self.pressure_bw_var.get()} PSI")
         self.canvas.itemconfig(self.pi2_text, text=f"{self.pressure_raw_var.get()} PSI")
         self.canvas.itemconfig(self.te_text, text=f"{self.temp_var.get()} C")
+        self.canvas.itemconfig(self.effluent_weight_text, text=self.weight_var.get())
+        self.canvas.itemconfig(self.backwash_weight_text, text=self.backwash_weight_var.get())
 
         self._update_lines()
         self.after(1000, self.update_data)
