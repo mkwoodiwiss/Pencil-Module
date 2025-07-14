@@ -39,9 +39,12 @@ class PencilModule:
     """Interface to the hardware boards."""
 
     def __init__(self, relay_stack: int = 1, io_stack: int = 2,
-                 port: str = "/dev/ttyUSB0", baud: int = 9600) -> None:
-        # Serial connection to the pair of scales
-        self.ser = serial.Serial(port, baud, timeout=1)
+                 effluent_port: str = "/dev/ttyUSB0",
+                 backwash_port: str = "/dev/ttyUSB1", baud: int = 9600) -> None:
+        """Initialize connections to the hardware."""
+        # Individual serial connections to each scale
+        self.effluent_ser = serial.Serial(effluent_port, baud, timeout=1)
+        self.backwash_ser = serial.Serial(backwash_port, baud, timeout=1)
         # Interfaces to the relay and IO boards if available
         if lib8relind:
             self.relay = _RelayWrapper(relay_stack)
@@ -76,16 +79,15 @@ class PencilModule:
 
     def zero_scales(self) -> None:
         """Issue a zeroing command for both scales."""
-        try:
-            self.ser.write(b"Z\r\n")
-        except Exception:
-            pass
+        self.zero_scale(0)
+        self.zero_scale(1)
 
     def zero_scale(self, channel: int) -> None:
         """Zero an individual scale."""
-        cmd = b"Z\r\n" if channel == 0 else b"Q\r\n"
+        ser = self.effluent_ser if channel == 0 else self.backwash_ser
+        cmd = b"Z\r\n"
         try:
-            self.ser.write(cmd)
+            ser.write(cmd)
         except Exception:
             pass
 
@@ -98,15 +100,16 @@ class PencilModule:
 
     def read_scale(self, channel: int = 0) -> str:
         """Return the weight from one of the scales."""
-        cmd = b"P\r\n" if channel == 0 else b"S\r\n"
+        ser = self.effluent_ser if channel == 0 else self.backwash_ser
+        cmd = b"P\r\n"
         try:
             try:
-                self.ser.reset_input_buffer()
+                ser.reset_input_buffer()
             except Exception:
                 pass
-            self.ser.write(cmd)
+            ser.write(cmd)
             time.sleep(0.1)
-            response = self.ser.read_until(b"\r\n").decode("ascii", errors="ignore")
+            response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
             cleaned = ''.join(c for c in response if c in string.printable)
             match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
             if match:

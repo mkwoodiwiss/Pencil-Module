@@ -25,7 +25,8 @@ class SimulatedPencilModule(PencilModule):
 
     def __init__(self):
         # Do not call super().__init__ to avoid accessing real hardware
-        self.ser = FakeSerial()
+        self.effluent_ser = FakeSerial(port="/dev/ttyUSB0")
+        self.backwash_ser = FakeSerial(port="/dev/ttyUSB1")
         self.relay = FakeRelay8()
         self.io = FakeMultiIO()
         self.pressure_offset_bw = 0.0
@@ -62,7 +63,8 @@ class TestPencilModule(unittest.TestCase):
     def test_zero_scales_and_offsets(self):
         self.module.apply_offsets(pressure_bw=1.0, pressure_in=1.0, temperature=2.0)
         self.module.zero_scales()
-        self.assertIn(b"Z\r\n", self.module.ser.commands)
+        self.assertIn(b"Z\r\n", self.module.effluent_ser.commands)
+        self.assertIn(b"Z\r\n", self.module.backwash_ser.commands)
         self.assertAlmostEqual(self.module.read_pressure(0), 4.21)
         self.assertAlmostEqual(self.module.read_rtd(0), 22.5)
 
