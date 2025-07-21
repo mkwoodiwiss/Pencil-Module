@@ -158,12 +158,17 @@ class KeyboardEntry(tk.Entry):
 class HMI(tk.Tk):
     """Simple Tkinter graphical interface with a process diagram."""
 
-    def __init__(self, module: PencilModule) -> None:
+    def __init__(self, module: PencilModule, fullscreen: bool = False) -> None:
         super().__init__()
         self.module = module
         self.title("Pencil Module")
         self.geometry("800x480")
         self.update_idletasks()
+        if fullscreen:
+            try:
+                self.attributes("-fullscreen", True)
+            except Exception:
+                pass
 
         self.weight_var = tk.StringVar()
         self.backwash_weight_var = tk.StringVar()

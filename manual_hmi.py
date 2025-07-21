@@ -13,7 +13,7 @@ from system_control import HMI
 def main() -> None:
     """Launch the HMI with simulated hardware attached."""
     module = SimulatedPencilModule()
-    app = HMI(module)
+    app = HMI(module, fullscreen=True)
     app.mainloop()
 
 
