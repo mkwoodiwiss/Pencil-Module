@@ -46,6 +46,15 @@ class NumericKeypad(tk.Toplevel):
         self.attributes("-topmost", True)
         self.after_idle(self._grab_focus)
 
+    def _grab_focus(self) -> None:
+        """Make the keypad modal once it becomes visible."""
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except tk.TclError:
+            pass
+        self.focus_force()
+
     def _press(self, char: str) -> None:
         if char == "<-":
             self.value.set(self.value.get()[:-1])
@@ -120,6 +129,15 @@ class OnScreenKeyboard(tk.Toplevel):
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.attributes("-topmost", True)
         self.after_idle(self._grab_focus)
+
+    def _grab_focus(self) -> None:
+        """Make the keyboard modal once it becomes visible."""
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except tk.TclError:
+            pass
+        self.focus_force()
 
     def _press(self, char: str) -> None:
         if char == "<-":
