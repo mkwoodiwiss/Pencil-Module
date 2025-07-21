@@ -364,8 +364,8 @@ class HMI(tk.Tk):
     def update_data(self) -> None:
         weight = self.module.read_scale(0)
         bw_weight = self.module.read_scale(1)
-        pressure_bw = self.module.read_pressure(0)
-        pressure_raw = self.module.read_pressure(1)
+        pressure_bw = self.module.read_pressure(1)
+        pressure_raw = self.module.read_pressure(2)
         temp = self.module.read_rtd(0)
 
         print(
