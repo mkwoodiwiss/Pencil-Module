@@ -25,6 +25,27 @@ class TestAutomation(unittest.TestCase):
         files = os.listdir("logs")
         self.assertTrue(any(fname.startswith("testproj_") for fname in files))
 
+    def test_valve_callback_invoked(self):
+        mod = SimulatedPencilModule()
+        config = FiltrationConfig(
+            filtration_target=0.01,
+            filtration_by_volume=False,
+            backwash_target=0.01,
+            backwash_by_volume=False,
+            refill_time=0.01,
+            repeat_count=1,
+            sample_time=0.001,
+            project_name="cbtest",
+        )
+        calls = []
+        system = FiltrationTestSystem(
+            mod,
+            config,
+            valve_callback=lambda v, s: calls.append((v, s)),
+        )
+        system.start_test()
+        self.assertTrue(calls, "valve callback not invoked")
+
 
 if __name__ == "__main__":
     unittest.main()
