@@ -15,9 +15,9 @@ except ModuleNotFoundError as exc:  # pragma: no cover - running without drivers
     sys.exit(f"multiio driver not available: {exc}")
 
 
-def main(stack: int = 2) -> None:
+def main(stack: int = 2, i2c: int = 1) -> None:
     """Interactive command line interface for reading the sensors."""
-    io = multiio.SMmultiio(stack=stack)
+    io = multiio.SMmultiio(stack=stack, i2c=i2c)
 
     menu = (
         "Enter 'a' to read 4-20mA channels, 'r' to read RTD channels, or 'q' to quit: "
@@ -32,13 +32,13 @@ def main(stack: int = 2) -> None:
         if choice.startswith("q"):
             break
         elif choice.startswith("a"):
-            ch1 = io.get_adc(1)
-            ch2 = io.get_adc(2)
+            ch1 = io.get_i_in(1)
+            ch2 = io.get_i_in(2)
             print(f"Channel 1: {ch1:.2f} mA")
             print(f"Channel 2: {ch2:.2f} mA")
         elif choice.startswith("r"):
-            rtd1 = io.get_rtd(1)
-            rtd2 = io.get_rtd(2)
+            rtd1 = io.get_rtd_temp(1)
+            rtd2 = io.get_rtd_temp(2)
             print(f"RTD 1: {rtd1:.2f} C")
             print(f"RTD 2: {rtd2:.2f} C")
 
