@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import string
 import time
+import threading
 from typing import Optional
 
 try:
@@ -45,6 +46,8 @@ class PencilModule:
         # Individual serial connections to each scale
         self.effluent_ser = serial.Serial(effluent_port, baud, timeout=1)
         self.backwash_ser = serial.Serial(backwash_port, baud, timeout=1)
+        self.effluent_lock = threading.Lock()
+        self.backwash_lock = threading.Lock()
         # Interfaces to the relay and IO boards if available
         if lib8relind:
             self.relay = _RelayWrapper(relay_stack)
@@ -104,9 +107,11 @@ class PencilModule:
     def zero_scale(self, channel: int) -> None:
         """Zero an individual scale."""
         ser = self.effluent_ser if channel == 0 else self.backwash_ser
+        lock = self.effluent_lock if channel == 0 else self.backwash_lock
         cmd = b"Z\r\n"
         try:
-            ser.write(cmd)
+            with lock:
+                ser.write(cmd)
         except Exception:
             pass
 
@@ -120,15 +125,17 @@ class PencilModule:
     def read_scale(self, channel: int = 0) -> str:
         """Return the weight from one of the scales."""
         ser = self.effluent_ser if channel == 0 else self.backwash_ser
+        lock = self.effluent_lock if channel == 0 else self.backwash_lock
         cmd = b"P\r\n"
         try:
-            try:
-                ser.reset_input_buffer()
-            except Exception:
-                pass
-            ser.write(cmd)
-            time.sleep(0.1)
-            response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
+            with lock:
+                try:
+                    ser.reset_input_buffer()
+                except Exception:
+                    pass
+                ser.write(cmd)
+                time.sleep(0.1)
+                response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
             cleaned = ''.join(c for c in response if c in string.printable)
             match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
             if match:

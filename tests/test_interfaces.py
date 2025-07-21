@@ -1,6 +1,7 @@
 import sys
 import types
 import unittest
+import threading
 
 from tests.simulated_hardware import (
     FakeSerial,
@@ -27,6 +28,8 @@ class SimulatedPencilModule(PencilModule):
         # Do not call super().__init__ to avoid accessing real hardware
         self.effluent_ser = FakeSerial(port="/dev/ttyUSB0")
         self.backwash_ser = FakeSerial(port="/dev/ttyUSB1")
+        self.effluent_lock = threading.Lock()
+        self.backwash_lock = threading.Lock()
         self.relay = FakeRelay8()
         self.io = FakeMultiIO()
         self.pressure_offset_bw = 0.0
