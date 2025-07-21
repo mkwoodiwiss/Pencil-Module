@@ -42,11 +42,13 @@ class FiltrationTestSystem:
         config: FiltrationConfig,
         log_dir: str = "logs",
         valve_callback: Optional[Callable[[int, bool], None]] = None,
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
     ) -> None:
         self.module = module
         self.config = config
         self.log_dir = log_dir
         self.valve_callback = valve_callback
+        self.progress_callback = progress_callback
         self.data_writer: Optional[csv.writer] = None
         self.data_file: Optional[object] = None
         self._stop_event = threading.Event()
@@ -121,7 +123,9 @@ class FiltrationTestSystem:
         )
         self.module.zero_scales()
 
-        for _ in range(self.config.repeat_count):
+        for cycle in range(self.config.repeat_count):
+            if self.progress_callback:
+                self.progress_callback("refill", cycle + 1, self.config.repeat_count)
             self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
             start = time.time()
             while time.time() - start < self.config.refill_time:
@@ -131,6 +135,8 @@ class FiltrationTestSystem:
                 time.sleep(self.config.sample_time)
             self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
 
+            if self.progress_callback:
+                self.progress_callback("filter", cycle + 1, self.config.repeat_count)
             self._open(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(0))
@@ -148,6 +154,8 @@ class FiltrationTestSystem:
                 time.sleep(self.config.sample_time)
             self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
 
+            if self.progress_callback:
+                self.progress_callback("backwash", cycle + 1, self.config.repeat_count)
             self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(1))

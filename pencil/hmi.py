@@ -160,6 +160,8 @@ class HMI(tk.Tk):
         self.pressure_bw_var = tk.StringVar()
         self.pressure_raw_var = tk.StringVar()
         self.temp_var = tk.StringVar()
+        self.cycle_step_var = tk.StringVar(value="Idle")
+        self.cycle_count_var = tk.StringVar(value="")
 
         self.filt_target_weight_var = tk.DoubleVar(value=1.0)
         self.filt_target_time_var = tk.DoubleVar(value=1.0)
@@ -208,6 +210,10 @@ class HMI(tk.Tk):
         tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
+        tk.Label(info, text="Cycle Step:").grid(row=5, column=0, sticky="w")
+        tk.Label(info, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=5, column=1, sticky="w")
+        tk.Label(info, text="Cycle Count:").grid(row=6, column=0, sticky="w")
+        tk.Label(info, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=6, column=1, sticky="w")
 
         self.start_btn = tk.Button(right_col, text="Start", command=self._toggle_test, font=("Arial", 12), width=8, height=2)
         self.start_btn.pack(pady=10)
@@ -354,6 +360,11 @@ class HMI(tk.Tk):
             self.solenoid_buttons[idx].config(bg=bg)
             self._update_lines()
 
+    def _automation_progress(self, step: str, count: int, total: int) -> None:
+        """Update cycle progress information."""
+        self.cycle_step_var.set(step)
+        self.cycle_count_var.set(f"{count} of {total}")
+
     def _open_valves(self, *valves: int) -> None:
         self._set_valves(True, *valves)
 
@@ -476,6 +487,7 @@ class HMI(tk.Tk):
             self.module,
             config,
             valve_callback=self._automation_valve_change,
+            progress_callback=self._automation_progress,
         )
         self.test_thread = threading.Thread(target=self._run_test_thread)
         self.test_thread.start()
@@ -492,6 +504,8 @@ class HMI(tk.Tk):
     def _test_finished(self) -> None:
         self.is_running = False
         self.start_btn.config(text="Start")
+        self.cycle_step_var.set("Idle")
+        self.cycle_count_var.set("")
 
     # Backwards compatibility
     def stop_test(self) -> None:
