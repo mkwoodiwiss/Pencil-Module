@@ -45,16 +45,22 @@ class FakeRelay8:
 
 class FakeMultiIO:
     """Simulate the MultiIO board."""
-    def __init__(self, stack=0):
-        self.stack = stack
 
-    def get_adc(self, channel: int) -> float:
-        # Return a deterministic 4-20 mA value for testing (12 mA -> 15 PSI)
+    def __init__(self, stack=0, i2c=1):
+        self.stack = stack
+        self.i2c = i2c
+
+    def get_i_in(self, channel: int) -> float:
+        """Return a deterministic 4-20 mA value for testing (12 mA -> 15 PSI)."""
         return 12.0
 
-    def get_rtd(self, channel: int) -> float:
-        # Return a deterministic temperature
+    def get_rtd_temp(self, channel: int) -> float:
+        """Return a deterministic temperature."""
         return 20.5
+
+    # Backwards compatibility with older method names
+    get_adc = get_i_in
+    get_rtd = get_rtd_temp
 
 
 class FakeLib8Relind:
