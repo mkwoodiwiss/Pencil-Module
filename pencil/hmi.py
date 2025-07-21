@@ -362,11 +362,23 @@ class HMI(tk.Tk):
         tk.Button(win, text="Apply", command=apply).grid(row=3, column=0, columnspan=2, pady=5)
 
     def update_data(self) -> None:
-        self.weight_var.set(self.module.read_scale(0))
-        self.backwash_weight_var.set(self.module.read_scale(1))
-        self.pressure_bw_var.set(f"{self.module.read_pressure(0):.2f}")
-        self.pressure_raw_var.set(f"{self.module.read_pressure(1):.2f}")
-        self.temp_var.set(f"{self.module.read_rtd(0):.2f}")
+        weight = self.module.read_scale(0)
+        bw_weight = self.module.read_scale(1)
+        pressure_bw = self.module.read_pressure(0)
+        pressure_raw = self.module.read_pressure(1)
+        temp = self.module.read_rtd(0)
+
+        print(
+            f"[debug] update_data: weight={weight}, bw_weight={bw_weight}, "
+            f"pressure_bw={pressure_bw:.2f}, pressure_raw={pressure_raw:.2f}, "
+            f"temp={temp:.2f}"
+        )
+
+        self.weight_var.set(weight)
+        self.backwash_weight_var.set(bw_weight)
+        self.pressure_bw_var.set(f"{pressure_bw:.2f}")
+        self.pressure_raw_var.set(f"{pressure_raw:.2f}")
+        self.temp_var.set(f"{temp:.2f}")
 
         self.canvas.itemconfig(self.pi1_text, text=f"{self.pressure_bw_var.get()} PSI")
         self.canvas.itemconfig(self.pi2_text, text=f"{self.pressure_raw_var.get()} PSI")
