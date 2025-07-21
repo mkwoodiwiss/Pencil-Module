@@ -12,14 +12,16 @@ from .hardware import PencilModule
 class NumericKeypad(tk.Toplevel):
     """Simple on-screen keypad for numeric entry."""
 
-    def __init__(self, master: tk.Widget, variable: tk.Variable) -> None:
+    def __init__(self, master: tk.Widget, variable: tk.Variable, allow_negative: bool = False) -> None:
         super().__init__(master)
         self.var = variable
         self.title("Input")
         self.resizable(False, False)
+        self.allow_negative = allow_negative
         self.value = tk.StringVar(value=str(variable.get()))
+        col_span = 4 if allow_negative else 3
         tk.Entry(self, textvariable=self.value, width=10, justify="right").grid(
-            row=0, column=0, columnspan=3, pady=5
+            row=0, column=0, columnspan=col_span, pady=5
         )
         buttons = [
             ("7", 1, 0), ("8", 1, 1), ("9", 1, 2),
@@ -27,6 +29,8 @@ class NumericKeypad(tk.Toplevel):
             ("1", 3, 0), ("2", 3, 1), ("3", 3, 2),
             ("0", 4, 0), (".", 4, 1), ("<-", 4, 2),
         ]
+        if allow_negative:
+            buttons.append(("-", 4, 3))
         for text, r, c in buttons:
             action = lambda ch=text: self._press(ch)
             tk.Button(self, text=text, width=4, command=action).grid(
@@ -52,6 +56,12 @@ class NumericKeypad(tk.Toplevel):
     def _press(self, char: str) -> None:
         if char == "<-":
             self.value.set(self.value.get()[:-1])
+        elif char == "-" and self.allow_negative:
+            val = self.value.get()
+            if val.startswith("-"):
+                self.value.set(val[1:])
+            else:
+                self.value.set("-" + val)
         else:
             self.value.set(self.value.get() + char)
 
@@ -74,13 +84,14 @@ class NumericKeypad(tk.Toplevel):
 class NumericEntry(tk.Entry):
     """Entry widget that opens a numeric keypad when tapped."""
 
-    def __init__(self, master: tk.Widget, textvariable: tk.Variable, **kw) -> None:
+    def __init__(self, master: tk.Widget, textvariable: tk.Variable, allow_negative: bool = False, **kw) -> None:
         super().__init__(master, textvariable=textvariable, **kw)
         self._var = textvariable
+        self._allow_negative = allow_negative
         self.bind("<Button-1>", self._open_pad)
 
     def _open_pad(self, _event=None) -> None:
-        pad = NumericKeypad(self, self._var)
+        pad = NumericKeypad(self, self._var, allow_negative=self._allow_negative)
         self.wait_window(pad)
 
 
@@ -563,11 +574,11 @@ class HMI(tk.Tk):
         temp_var = tk.DoubleVar(value=self.module.temp_offset)
 
         tk.Label(win, text="BW Pressure Offset").grid(row=0, column=0, sticky="w")
-        NumericEntry(win, textvariable=bw_var, width=8).grid(row=0, column=1)
+        NumericEntry(win, textvariable=bw_var, width=8, allow_negative=True).grid(row=0, column=1)
         tk.Label(win, text="Influent Pressure Offset").grid(row=1, column=0, sticky="w")
-        NumericEntry(win, textvariable=in_var, width=8).grid(row=1, column=1)
+        NumericEntry(win, textvariable=in_var, width=8, allow_negative=True).grid(row=1, column=1)
         tk.Label(win, text="Temp Offset").grid(row=2, column=0, sticky="w")
-        NumericEntry(win, textvariable=temp_var, width=8).grid(row=2, column=1)
+        NumericEntry(win, textvariable=temp_var, width=8, allow_negative=True).grid(row=2, column=1)
 
         def apply() -> None:
             self.module.apply_offsets(
