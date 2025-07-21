@@ -7,6 +7,7 @@ import time
 
 from .automation import FiltrationConfig, FiltrationTestSystem
 from .hardware import PencilModule
+from tkinter import messagebox
 
 
 class NumericKeypad(tk.Toplevel):
@@ -178,7 +179,7 @@ class HMI(tk.Tk):
         self.title("Pencil Module")
         self.geometry("800x480")
         self.update_idletasks()
-        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        self.protocol("WM_DELETE_WINDOW", self._confirm_exit)
         # Close button will be created in the PFD canvas
         if fullscreen:
             try:
@@ -313,7 +314,7 @@ class HMI(tk.Tk):
     def _create_pfd(self) -> None:
         self.canvas = tk.Canvas(self, width=780, height=190, bg="white")
         self.canvas.pack(pady=5)
-        close_btn = tk.Button(self.canvas, text="X", width=2, command=self.destroy)
+        close_btn = tk.Button(self.canvas, text="X", width=2, command=self._confirm_exit)
         self.canvas.create_window(770, 10, window=close_btn, anchor="ne")
 
         self.canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
@@ -398,7 +399,7 @@ class HMI(tk.Tk):
         state = not self.solenoid_states[channel]
         self.solenoid_states[channel] = state
         self.module.set_solenoid(channel + 1, state)
-        bg = "red" if state else "lightgray"
+        bg = "green" if state else "lightgray"
         self.solenoid_buttons[channel].config(bg=bg)
         self._update_lines()
 
@@ -407,7 +408,7 @@ class HMI(tk.Tk):
             idx = v - 1
             self.solenoid_states[idx] = state
             self.module.set_solenoid(v, state)
-            bg = "red" if state else "lightgray"
+            bg = "green" if state else "lightgray"
             self.solenoid_buttons[idx].config(bg=bg)
         self._update_lines()
 
@@ -416,7 +417,7 @@ class HMI(tk.Tk):
         idx = valve - 1
         if 0 <= idx < len(self.solenoid_states):
             self.solenoid_states[idx] = state
-            bg = "red" if state else "lightgray"
+            bg = "green" if state else "lightgray"
             self.solenoid_buttons[idx].config(bg=bg)
             self._update_lines()
 
@@ -649,6 +650,11 @@ class HMI(tk.Tk):
 
         self._update_lines()
         self.after(1000, self.update_data)
+
+    def _confirm_exit(self) -> None:
+        """Ask the user to confirm before closing the application."""
+        if messagebox.askokcancel("Quit", "Are you sure you want to exit?"):
+            self.destroy()
 
     def destroy(self) -> None:
         """Stop background threads and close the GUI."""
