@@ -17,7 +17,8 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for tests
 try:
     import lib8relind  # type: ignore
     import multiio  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover - running without hardware
+except Exception as e:  # pragma: no cover - running without hardware
+    print(f"[debug] vendor libraries missing: {e}")
     lib8relind = None
     multiio = None
 
@@ -50,7 +51,14 @@ class PencilModule:
             self.relay = _RelayWrapper(relay_stack)
         else:
             self.relay = None
-        self.io = multiio.SMmultiio(stack=io_stack) if multiio else None
+        if multiio:
+            try:
+                self.io = multiio.SMmultiio(stack=io_stack)
+            except Exception as e:  # pragma: no cover - hardware init failed
+                print(f"[debug] failed to init Multi IO: {e}")
+                self.io = None
+        else:
+            self.io = None
         print(
             f"[debug] PencilModule init: relay={'yes' if self.relay else 'no'}, "
             f"io={'yes' if self.io else 'no'}"

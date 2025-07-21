@@ -82,3 +82,5 @@ libraries and connect the Multi IO hat before starting the application.
 
 In normal operation the backwash and influent pressure sensors use the hat's
 4-20 mA inputs on Multi IO channels **1** and **2**, respectively.
+
+If you see the "io unavailable" message even though the vendor drivers are installed, verify that the libraries were installed for the same Python interpreter you use to run the application. A mismatch in Python versions can prevent the `multiio` module from loading even when the files are present.
