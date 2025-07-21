@@ -46,6 +46,34 @@ class TestAutomation(unittest.TestCase):
         system.start_test()
         self.assertTrue(calls, "valve callback not invoked")
 
+    def test_progress_callback_invoked(self):
+        mod = SimulatedPencilModule()
+        config = FiltrationConfig(
+            filtration_target=0.01,
+            filtration_by_volume=False,
+            backwash_target=0.01,
+            backwash_by_volume=False,
+            refill_time=0.01,
+            repeat_count=1,
+            sample_time=0.001,
+            project_name="progtest",
+        )
+        steps = []
+        system = FiltrationTestSystem(
+            mod,
+            config,
+            progress_callback=lambda s, c, t: steps.append((s, c, t)),
+        )
+        system.start_test()
+        self.assertEqual(
+            steps,
+            [
+                ("refill", 1, 1),
+                ("filter", 1, 1),
+                ("backwash", 1, 1),
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
