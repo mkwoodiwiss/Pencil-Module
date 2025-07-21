@@ -66,6 +66,17 @@ A lightweight script `weight_reader.py` is provided for quick testing of the USB
 python3 weight_reader.py
 ```
 
+## Relay Test Program
+
+Use `relay_test.py` to manually toggle the relays on the 8‑Relay hat. The
+script is handy for verifying wiring and confirming that the `lib8relind`
+driver is installed:
+
+```bash
+python3 relay_test.py
+```
+Enter commands such as `on 1` or `off 1` to operate a relay. Type `q` to quit.
+
 ## Troubleshooting Debug Logs
 
 When running without the Multi IO board or its `multiio` driver, hardware
