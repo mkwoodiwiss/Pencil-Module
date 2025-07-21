@@ -51,6 +51,10 @@ class PencilModule:
         else:
             self.relay = None
         self.io = multiio.SMmultiio(stack=io_stack) if multiio else None
+        print(
+            f"[debug] PencilModule init: relay={'yes' if self.relay else 'no'}, "
+            f"io={'yes' if self.io else 'no'}"
+        )
         # Calibration offsets
         self.pressure_offset_bw = 0.0
         self.pressure_offset_in = 0.0
@@ -63,14 +67,31 @@ class PencilModule:
             # Library channels are 1-indexed
             ma = self.io.get_adc(channel + 1)
             psi = (ma - 4.0) * (30.0 / 16.0)
-            return psi + offset
+            value = psi + offset
+            print(
+                f"[debug] read_pressure: ch={channel}, raw={ma:.2f}, "
+                f"psi={psi:.2f}, offset={offset:.2f}, value={value:.2f}"
+            )
+            return value
+        print(
+            f"[debug] read_pressure: ch={channel}, io unavailable, offset={offset:.2f}"
+        )
         return 0.0 + offset
 
     def read_rtd(self, channel: int) -> float:
         """Return temperature value from an RTD channel."""
         if self.io:
             # Library channels are 1-indexed
-            return self.io.get_rtd(channel + 1) + self.temp_offset
+            temp = self.io.get_rtd(channel + 1)
+            value = temp + self.temp_offset
+            print(
+                f"[debug] read_rtd: ch={channel}, raw={temp:.2f}, "
+                f"offset={self.temp_offset:.2f}, value={value:.2f}"
+            )
+            return value
+        print(
+            f"[debug] read_rtd: ch={channel}, io unavailable, offset={self.temp_offset:.2f}"
+        )
         return 0.0 + self.temp_offset
 
     def set_solenoid(self, relay: int, state: bool) -> None:
