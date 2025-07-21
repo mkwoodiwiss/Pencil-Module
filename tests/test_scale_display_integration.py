@@ -24,8 +24,8 @@ class TestScaleDisplayIntegration(unittest.TestCase):
             # Perform a single data refresh without entering the main loop
             app.update_data()
             weight = app.weight_var.get()
-            # Weight string should contain a numeric value and unit
-            self.assertRegex(weight, r"[+-]?\d+\.\d+\s*\w")
+            # Weight string shown in the sensors section should be numeric only
+            self.assertRegex(weight, r"^\d+\.\d+$")
             # GUI should be sized for the official Pi display
             self.assertTrue(app.winfo_geometry().startswith("800x480"))
             app.destroy()
