@@ -34,8 +34,8 @@ Scale Zero CommandDigitalZeros both scales at test start
 5 - SETPOINTS AND OPERATOR INPUTS (VIA HMI)
 •Filtration Target: Either Time (sec) or Volume (mL)
 •Backwash Target: Either Time (sec) or Volume (mL)
-•Refill Time: Duration in seconds
-•Repeat Count: Number of full cycles to perform
+•Purge Time: Duration in seconds
+•Cycle Count: Number of full cycles to perform
 •Calibration Offsets: Manual offset values for pressure and temperature
 •Sample Time: Logging interval in seconds
 •Project Name: Name of project for log files
@@ -48,10 +48,10 @@ Start Test
 4.Settings log file created [Project Name]_[Date]_[Time]
 5.Data logging begins at the interval defined by the Sample Time setpoint
 Automated Test Cycle
-The following steps repeat for the number of cycles defined in the Repeat Count setpoint:
+The following steps repeat for the number of cycles defined in the Cycle Count setpoint:
 A.Refill Phase
 1.Activate: Influent Supply Valve and Influent Water Drain Valve
-2.Run for duration set by Refill Time
+2.Run for duration set by Purge Time
 3.Deactivate valves after time elapses
 B.Filtration Phase
 1.Activate: Influent Supply Valve and Effluent Valve
@@ -65,7 +65,7 @@ C.Backwash Phase
 1.Backwash time = Backwash Time Setpoint, OR
 2.Backwash weight = Backwash Volume Setpoint
 D.Cycle Completion
-4.Loop above until Repeat Count is reached
+4.Loop above until Cycle Count is reached
 5.Stop all outputs
 6.End data logging
 7.Return to idle state
