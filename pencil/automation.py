@@ -6,6 +6,7 @@ import os
 import re
 import time
 from typing import Optional, Callable
+import threading
 
 from .hardware import PencilModule
 
@@ -48,6 +49,14 @@ class FiltrationTestSystem:
         self.valve_callback = valve_callback
         self.data_writer: Optional[csv.writer] = None
         self.data_file: Optional[object] = None
+        self._stop_event = threading.Event()
+
+    def _check_cancel(self) -> bool:
+        """Return True if cancellation requested and stop valves."""
+        if self._stop_event.is_set():
+            self.stop_test()
+            return True
+        return False
 
     def _parse_weight(self, text: str) -> float:
         match = re.search(r"([+-]?\d+\.\d+)", text)
@@ -84,6 +93,7 @@ class FiltrationTestSystem:
         self._close(self.INFLUENT_SUPPLY)
 
     def start_test(self) -> None:
+        self._stop_event.clear()
         os.makedirs(self.log_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         base = os.path.join(self.log_dir, f"{self.config.project_name}_{timestamp}")
@@ -115,6 +125,8 @@ class FiltrationTestSystem:
             self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
             start = time.time()
             while time.time() - start < self.config.refill_time:
+                if self._check_cancel():
+                    return
                 self._log_row()
                 time.sleep(self.config.sample_time)
             self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
@@ -123,6 +135,8 @@ class FiltrationTestSystem:
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(0))
             while True:
+                if self._check_cancel():
+                    return
                 self._log_row()
                 if self.config.filtration_by_volume:
                     vol = self._parse_weight(self.module.read_scale(0)) - start_w
@@ -138,6 +152,8 @@ class FiltrationTestSystem:
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(1))
             while True:
+                if self._check_cancel():
+                    return
                 self._log_row()
                 if self.config.backwash_by_volume:
                     vol = self._parse_weight(self.module.read_scale(1)) - start_w
@@ -163,3 +179,7 @@ class FiltrationTestSystem:
             self.data_file.close()
             self.data_file = None
         self.data_writer = None
+
+    def cancel(self) -> None:
+        """Signal the running test loop to cancel."""
+        self._stop_event.set()

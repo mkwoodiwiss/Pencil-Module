@@ -2,6 +2,7 @@
 
 import os
 import tkinter as tk
+import threading
 
 from .automation import FiltrationConfig, FiltrationTestSystem
 from .hardware import PencilModule
@@ -440,15 +441,11 @@ class HMI(tk.Tk):
 
     def _toggle_test(self) -> None:
         if getattr(self, "is_running", False):
-            self.stop_test()
-            self.is_running = False
-            self.start_btn.config(text="Start")
+            self.cancel_test()
         else:
             self.is_running = True
-            self.start_btn.config(text="Stop")
+            self.start_btn.config(text="Cancel")
             self.start_test()
-            self.is_running = False
-            self.start_btn.config(text="Start")
 
     def start_test(self) -> None:
         if self.filt_use_weight_var.get():
@@ -480,12 +477,25 @@ class HMI(tk.Tk):
             config,
             valve_callback=self._automation_valve_change,
         )
+        self.test_thread = threading.Thread(target=self._run_test_thread)
+        self.test_thread.start()
+
+    def _run_test_thread(self) -> None:
         self.test_system.start_test()
+        self.after(0, self._test_finished)
 
-    def stop_test(self) -> None:
+    def cancel_test(self) -> None:
         if hasattr(self, "test_system"):
-            self.test_system.stop_test()
+            self.test_system.cancel()
+        self._test_finished()
 
+    def _test_finished(self) -> None:
+        self.is_running = False
+        self.start_btn.config(text="Start")
+
+    # Backwards compatibility
+    def stop_test(self) -> None:
+        self.cancel_test()
     def calibrate(self) -> None:
         win = tk.Toplevel(self)
         win.title("Calibration")
