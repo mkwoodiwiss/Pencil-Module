@@ -178,6 +178,10 @@ class HMI(tk.Tk):
         self.title("Pencil Module")
         self.geometry("800x480")
         self.update_idletasks()
+        self.protocol("WM_DELETE_WINDOW", self.destroy)
+        # Small close button in the top-right corner
+        close_btn = tk.Button(self, text="X", width=2, command=self.destroy)
+        close_btn.place(relx=1.0, x=-10, y=10, anchor="ne")
         if fullscreen:
             try:
                 self.attributes("-fullscreen", True)
