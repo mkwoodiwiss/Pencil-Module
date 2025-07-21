@@ -3,6 +3,7 @@
 import os
 import tkinter as tk
 import threading
+import time
 
 from .automation import FiltrationConfig, FiltrationTestSystem
 from .hardware import PencilModule
@@ -180,6 +181,20 @@ class HMI(tk.Tk):
         self.is_running = False
         self.prime_frame = None
         self.prime_stage = 0
+
+        # Thread-safe storage for sensor readings
+        self._sensor_lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self.latest_weight = "--"
+        self.latest_bw_weight = "--"
+        self.latest_pressure_bw = 0.0
+        self.latest_pressure_raw = 0.0
+        self.latest_temp = 0.0
+
+        # Read once before starting the background thread
+        self._read_sensors()
+        self._worker = threading.Thread(target=self._sensor_worker, daemon=True)
+        self._worker.start()
 
         self._create_pfd()
 
@@ -537,13 +552,35 @@ class HMI(tk.Tk):
 
         tk.Button(win, text="Apply", command=apply).grid(row=3, column=0, columnspan=2, pady=5)
 
-    def update_data(self) -> None:
+    def _read_sensors(self) -> None:
+        """Read sensors once and store the values."""
         weight = self.module.read_scale(0)
         bw_weight = self.module.read_scale(1)
         pressure_bw = self.module.read_pressure(1)
         pressure_raw = self.module.read_pressure(2)
         temp = self.module.read_rtd(0)
 
+        with self._sensor_lock:
+            self.latest_weight = weight
+            self.latest_bw_weight = bw_weight
+            self.latest_pressure_bw = pressure_bw
+            self.latest_pressure_raw = pressure_raw
+            self.latest_temp = temp
+
+    def _sensor_worker(self) -> None:
+        """Continuously poll sensors in a background thread."""
+        while not self._stop_event.is_set():
+            self._read_sensors()
+            time.sleep(1)
+
+    def update_data(self) -> None:
+        """Refresh displayed values using the latest sensor readings."""
+        with self._sensor_lock:
+            weight = self.latest_weight
+            bw_weight = self.latest_bw_weight
+            pressure_bw = self.latest_pressure_bw
+            pressure_raw = self.latest_pressure_raw
+            temp = self.latest_temp
 
         self.weight_var.set(weight)
         self.backwash_weight_var.set(bw_weight)
@@ -559,3 +596,11 @@ class HMI(tk.Tk):
 
         self._update_lines()
         self.after(1000, self.update_data)
+
+    def destroy(self) -> None:
+        """Stop background threads and close the GUI."""
+        if hasattr(self, "_stop_event"):
+            self._stop_event.set()
+        if hasattr(self, "_worker"):
+            self._worker.join(timeout=1)
+        super().destroy()
