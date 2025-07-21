@@ -11,7 +11,7 @@ from pencil import (
 def main() -> None:
     """Entry point when running the module directly."""
     module = PencilModule()
-    app = HMI(module)
+    app = HMI(module, fullscreen=True)
     app.mainloop()
 
 
