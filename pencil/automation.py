@@ -5,7 +5,7 @@ import csv
 import os
 import re
 import time
-from typing import Optional
+from typing import Optional, Callable
 
 from .hardware import PencilModule
 
@@ -35,10 +35,17 @@ class FiltrationTestSystem:
     BACKWASH_EFFLUENT = 4
     INFLUENT_DRAIN = 5
 
-    def __init__(self, module: PencilModule, config: FiltrationConfig, log_dir: str = "logs"):
+    def __init__(
+        self,
+        module: PencilModule,
+        config: FiltrationConfig,
+        log_dir: str = "logs",
+        valve_callback: Optional[Callable[[int, bool], None]] = None,
+    ) -> None:
         self.module = module
         self.config = config
         self.log_dir = log_dir
+        self.valve_callback = valve_callback
         self.data_writer: Optional[csv.writer] = None
         self.data_file: Optional[object] = None
 
@@ -62,10 +69,14 @@ class FiltrationTestSystem:
     def _open(self, *valves: int) -> None:
         for v in valves:
             self.module.set_solenoid(v, True)
+            if self.valve_callback:
+                self.valve_callback(v, True)
 
     def _close(self, *valves: int) -> None:
         for v in valves:
             self.module.set_solenoid(v, False)
+            if self.valve_callback:
+                self.valve_callback(v, False)
 
     def prime(self, duration: float = 1.0) -> None:
         self._open(self.INFLUENT_SUPPLY)

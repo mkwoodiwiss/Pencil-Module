@@ -344,6 +344,15 @@ class HMI(tk.Tk):
             self.solenoid_buttons[idx].config(bg=bg)
         self._update_lines()
 
+    def _automation_valve_change(self, valve: int, state: bool) -> None:
+        """Callback invoked by the automation system when a valve changes."""
+        idx = valve - 1
+        if 0 <= idx < len(self.solenoid_states):
+            self.solenoid_states[idx] = state
+            bg = "red" if state else "lightgray"
+            self.solenoid_buttons[idx].config(bg=bg)
+            self._update_lines()
+
     def _open_valves(self, *valves: int) -> None:
         self._set_valves(True, *valves)
 
@@ -466,7 +475,11 @@ class HMI(tk.Tk):
             sample_time=self.sample_time_var.get(),
             project_name=self.project_name_var.get(),
         )
-        self.test_system = FiltrationTestSystem(self.module, config)
+        self.test_system = FiltrationTestSystem(
+            self.module,
+            config,
+            valve_callback=self._automation_valve_change,
+        )
         self.test_system.start_test()
 
     def stop_test(self) -> None:
