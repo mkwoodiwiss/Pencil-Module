@@ -39,6 +39,8 @@ class NumericKeypad(tk.Toplevel):
         tk.Button(self, text="OK", width=6, command=self._apply).grid(
             row=5, column=2, pady=2
         )
+        self.bind("<Return>", lambda _e: self._apply())
+        self.bind("<KP_Enter>", lambda _e: self._apply())
         self.grab_set()
 
     def _press(self, char: str) -> None:
@@ -74,6 +76,72 @@ class NumericEntry(tk.Entry):
     def _open_pad(self, _event=None) -> None:
         pad = NumericKeypad(self, self._var)
         self.wait_window(pad)
+
+
+class OnScreenKeyboard(tk.Toplevel):
+    """Simple keyboard popup for text entry."""
+
+    def __init__(self, master: tk.Widget, variable: tk.Variable) -> None:
+        super().__init__(master)
+        self.var = variable
+        self.title("Input")
+        self.resizable(False, False)
+        self.value = tk.StringVar(value=str(variable.get()))
+        tk.Entry(self, textvariable=self.value, width=20).grid(
+            row=0, column=0, columnspan=10, pady=5
+        )
+
+        rows = [
+            list("1234567890"),
+            list("qwertyuiop"),
+            list("asdfghjkl"),
+            list("zxcvbnm"),
+        ]
+        for r, keys in enumerate(rows, start=1):
+            for c, ch in enumerate(keys):
+                tk.Button(
+                    self,
+                    text=ch,
+                    width=3,
+                    command=lambda ch=ch: self._press(ch),
+                ).grid(row=r, column=c, padx=1, pady=1)
+
+        r = len(rows) + 1
+        tk.Button(self, text="Space", width=7, command=lambda: self._press(" ")).grid(row=r, column=0, columnspan=2, padx=1, pady=1)
+        tk.Button(self, text="<-", width=3, command=lambda: self._press("<-")).grid(row=r, column=2, padx=1, pady=1)
+        tk.Button(self, text="Clear", width=5, command=self._clear).grid(row=r, column=3, columnspan=2, padx=1, pady=1)
+        tk.Button(self, text="Cancel", width=5, command=self.destroy).grid(row=r, column=5, columnspan=2, padx=1, pady=1)
+        tk.Button(self, text="OK", width=5, command=self._apply).grid(row=r, column=7, columnspan=2, padx=1, pady=1)
+
+        self.bind("<Return>", lambda _e: self._apply())
+        self.bind("<KP_Enter>", lambda _e: self._apply())
+        self.grab_set()
+
+    def _press(self, char: str) -> None:
+        if char == "<-":
+            self.value.set(self.value.get()[:-1])
+        else:
+            self.value.set(self.value.get() + char)
+
+    def _clear(self) -> None:
+        self.value.set("")
+
+    def _apply(self) -> None:
+        self.var.set(self.value.get())
+        self.destroy()
+
+
+class KeyboardEntry(tk.Entry):
+    """Entry widget that opens an on-screen keyboard when tapped."""
+
+    def __init__(self, master: tk.Widget, textvariable: tk.Variable, **kw) -> None:
+        super().__init__(master, textvariable=textvariable, **kw)
+        self._var = textvariable
+        self.bind("<Button-1>", self._open_keyboard)
+
+    def _open_keyboard(self, _event=None) -> None:
+        kb = OnScreenKeyboard(self, self._var)
+        self.wait_window(kb)
 
 
 class HMI(tk.Tk):
@@ -165,7 +233,7 @@ class HMI(tk.Tk):
         NumericEntry(settings, textvariable=self.sample_time_var, width=7).grid(row=4, column=1)
 
         tk.Label(settings, text="Project Name").grid(row=5, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
+        KeyboardEntry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
 
         btn_frame = tk.Frame(settings)
         btn_frame.grid(row=6, column=0, columnspan=5, pady=8, sticky="ew")
