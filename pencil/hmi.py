@@ -7,6 +7,75 @@ from .automation import FiltrationConfig, FiltrationTestSystem
 from .hardware import PencilModule
 
 
+class NumericKeypad(tk.Toplevel):
+    """Simple on-screen keypad for numeric entry."""
+
+    def __init__(self, master: tk.Widget, variable: tk.Variable) -> None:
+        super().__init__(master)
+        self.var = variable
+        self.title("Input")
+        self.resizable(False, False)
+        self.value = tk.StringVar(value=str(variable.get()))
+        tk.Entry(self, textvariable=self.value, width=10, justify="right").grid(
+            row=0, column=0, columnspan=3, pady=5
+        )
+        buttons = [
+            ("7", 1, 0), ("8", 1, 1), ("9", 1, 2),
+            ("4", 2, 0), ("5", 2, 1), ("6", 2, 2),
+            ("1", 3, 0), ("2", 3, 1), ("3", 3, 2),
+            ("0", 4, 0), (".", 4, 1), ("<-", 4, 2),
+        ]
+        for text, r, c in buttons:
+            action = lambda ch=text: self._press(ch)
+            tk.Button(self, text=text, width=4, command=action).grid(
+                row=r, column=c, padx=2, pady=2
+            )
+        tk.Button(self, text="Clear", width=6, command=self._clear).grid(
+            row=5, column=0, pady=2
+        )
+        tk.Button(self, text="Cancel", width=6, command=self.destroy).grid(
+            row=5, column=1, pady=2
+        )
+        tk.Button(self, text="OK", width=6, command=self._apply).grid(
+            row=5, column=2, pady=2
+        )
+        self.grab_set()
+
+    def _press(self, char: str) -> None:
+        if char == "<-":
+            self.value.set(self.value.get()[:-1])
+        else:
+            self.value.set(self.value.get() + char)
+
+    def _clear(self) -> None:
+        self.value.set("")
+
+    def _apply(self) -> None:
+        try:
+            if isinstance(self.var, tk.DoubleVar):
+                self.var.set(float(self.value.get() or 0))
+            elif isinstance(self.var, tk.IntVar):
+                self.var.set(int(float(self.value.get() or 0)))
+            else:
+                self.var.set(self.value.get())
+        except Exception:
+            pass
+        self.destroy()
+
+
+class NumericEntry(tk.Entry):
+    """Entry widget that opens a numeric keypad when tapped."""
+
+    def __init__(self, master: tk.Widget, textvariable: tk.Variable, **kw) -> None:
+        super().__init__(master, textvariable=textvariable, **kw)
+        self._var = textvariable
+        self.bind("<Button-1>", self._open_pad)
+
+    def _open_pad(self, _event=None) -> None:
+        pad = NumericKeypad(self, self._var)
+        self.wait_window(pad)
+
+
 class HMI(tk.Tk):
     """Simple Tkinter graphical interface with a process diagram."""
 
@@ -75,25 +144,25 @@ class HMI(tk.Tk):
         self.start_btn.pack(pady=10)
 
         tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.filt_target_weight_var, width=7).grid(row=0, column=1)
+        NumericEntry(settings, textvariable=self.filt_target_weight_var, width=7).grid(row=0, column=1)
         tk.Checkbutton(settings, text="g", variable=self.filt_use_weight_var, command=self._toggle_filt_weight).grid(row=0, column=2, sticky="w")
-        tk.Entry(settings, textvariable=self.filt_target_time_var, width=7).grid(row=0, column=3)
+        NumericEntry(settings, textvariable=self.filt_target_time_var, width=7).grid(row=0, column=3)
         tk.Checkbutton(settings, text="s", variable=self.filt_use_time_var, command=self._toggle_filt_time).grid(row=0, column=4, sticky="w")
 
         tk.Label(settings, text="Backwash Target").grid(row=1, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.bw_target_weight_var, width=7).grid(row=1, column=1)
+        NumericEntry(settings, textvariable=self.bw_target_weight_var, width=7).grid(row=1, column=1)
         tk.Checkbutton(settings, text="g", variable=self.bw_use_weight_var, command=self._toggle_bw_weight).grid(row=1, column=2, sticky="w")
-        tk.Entry(settings, textvariable=self.bw_target_time_var, width=7).grid(row=1, column=3)
+        NumericEntry(settings, textvariable=self.bw_target_time_var, width=7).grid(row=1, column=3)
         tk.Checkbutton(settings, text="s", variable=self.bw_use_time_var, command=self._toggle_bw_time).grid(row=1, column=4, sticky="w")
 
         tk.Label(settings, text="Refill Time").grid(row=2, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.refill_time_var, width=7).grid(row=2, column=1)
+        NumericEntry(settings, textvariable=self.refill_time_var, width=7).grid(row=2, column=1)
 
         tk.Label(settings, text="Repeat Count").grid(row=3, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.repeat_count_var, width=7).grid(row=3, column=1)
+        NumericEntry(settings, textvariable=self.repeat_count_var, width=7).grid(row=3, column=1)
 
         tk.Label(settings, text="Sample Time").grid(row=4, column=0, sticky="w")
-        tk.Entry(settings, textvariable=self.sample_time_var, width=7).grid(row=4, column=1)
+        NumericEntry(settings, textvariable=self.sample_time_var, width=7).grid(row=4, column=1)
 
         tk.Label(settings, text="Project Name").grid(row=5, column=0, sticky="w")
         tk.Entry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
@@ -345,11 +414,11 @@ class HMI(tk.Tk):
         temp_var = tk.DoubleVar(value=self.module.temp_offset)
 
         tk.Label(win, text="BW Pressure Offset").grid(row=0, column=0, sticky="w")
-        tk.Entry(win, textvariable=bw_var, width=8).grid(row=0, column=1)
+        NumericEntry(win, textvariable=bw_var, width=8).grid(row=0, column=1)
         tk.Label(win, text="Influent Pressure Offset").grid(row=1, column=0, sticky="w")
-        tk.Entry(win, textvariable=in_var, width=8).grid(row=1, column=1)
+        NumericEntry(win, textvariable=in_var, width=8).grid(row=1, column=1)
         tk.Label(win, text="Temp Offset").grid(row=2, column=0, sticky="w")
-        tk.Entry(win, textvariable=temp_var, width=8).grid(row=2, column=1)
+        NumericEntry(win, textvariable=temp_var, width=8).grid(row=2, column=1)
 
         def apply() -> None:
             self.module.apply_offsets(
