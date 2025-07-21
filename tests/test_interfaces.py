@@ -39,7 +39,7 @@ class TestPencilModule(unittest.TestCase):
         self.module = SimulatedPencilModule()
 
     def test_read_pressure(self):
-        self.assertAlmostEqual(self.module.read_pressure(0), 3.21)
+        self.assertAlmostEqual(self.module.read_pressure(0), 15.0)
 
     def test_read_rtd(self):
         self.assertAlmostEqual(self.module.read_rtd(0), 20.5)
@@ -65,7 +65,7 @@ class TestPencilModule(unittest.TestCase):
         self.module.zero_scales()
         self.assertIn(b"Z\r\n", self.module.effluent_ser.commands)
         self.assertIn(b"Z\r\n", self.module.backwash_ser.commands)
-        self.assertAlmostEqual(self.module.read_pressure(0), 4.21)
+        self.assertAlmostEqual(self.module.read_pressure(0), 16.0)
         self.assertAlmostEqual(self.module.read_rtd(0), 22.5)
 
 

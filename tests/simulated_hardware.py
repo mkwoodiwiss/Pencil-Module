@@ -49,8 +49,8 @@ class FakeMultiIO:
         self.stack = stack
 
     def get_adc(self, channel: int) -> float:
-        # Return a deterministic value for testing
-        return 3.21
+        # Return a deterministic 4-20 mA value for testing (12 mA -> 15 PSI)
+        return 12.0
 
     def get_rtd(self, channel: int) -> float:
         # Return a deterministic temperature

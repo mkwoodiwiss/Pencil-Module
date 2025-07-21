@@ -57,16 +57,20 @@ class PencilModule:
         self.temp_offset = 0.0
 
     def read_pressure(self, channel: int) -> float:
-        """Return pressure value from ADC channel."""
+        """Return pressure in PSI from a 4-20 mA input channel."""
         offset = self.pressure_offset_bw if channel == 0 else self.pressure_offset_in
         if self.io:
-            return self.io.get_adc(channel) + offset
+            # Library channels are 1-indexed
+            ma = self.io.get_adc(channel + 1)
+            psi = (ma - 4.0) * (30.0 / 16.0)
+            return psi + offset
         return 0.0 + offset
 
     def read_rtd(self, channel: int) -> float:
-        """Return temperature value from RTD channel."""
+        """Return temperature value from an RTD channel."""
         if self.io:
-            return self.io.get_rtd(channel) + self.temp_offset
+            # Library channels are 1-indexed
+            return self.io.get_rtd(channel + 1) + self.temp_offset
         return 0.0 + self.temp_offset
 
     def set_solenoid(self, relay: int, state: bool) -> None:
