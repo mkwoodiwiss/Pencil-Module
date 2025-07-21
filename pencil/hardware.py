@@ -53,7 +53,8 @@ class PencilModule:
             self.relay = None
         if multiio:
             try:
-                self.io = multiio.SMmultiio(stack=io_stack)
+                # Use the same initialization parameters as multiio_reader
+                self.io = multiio.SMmultiio(stack=io_stack, i2c=1)
             except Exception as e:  # pragma: no cover - hardware init failed
                 print(f"[debug] failed to init Multi IO: {e}")
                 self.io = None
@@ -78,7 +79,7 @@ class PencilModule:
         else:
             offset = 0.0
         if self.io:
-            ma = self.io.get_adc(channel)
+            ma = self.io.get_i_in(channel)
             psi = (ma - 4.0) * (30.0 / 16.0)
             value = psi + offset
             print(
@@ -95,7 +96,7 @@ class PencilModule:
         """Return temperature value from an RTD channel."""
         if self.io:
             # Library channels are 1-indexed
-            temp = self.io.get_rtd(channel + 1)
+            temp = self.io.get_rtd_temp(channel + 1)
             value = temp + self.temp_offset
             print(
                 f"[debug] read_rtd: ch={channel}, raw={temp:.2f}, "
