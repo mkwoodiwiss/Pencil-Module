@@ -43,6 +43,7 @@ class NumericKeypad(tk.Toplevel):
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.grab_set()
+        self.focus_force()
 
     def _press(self, char: str) -> None:
         if char == "<-":
@@ -117,6 +118,7 @@ class OnScreenKeyboard(tk.Toplevel):
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.grab_set()
+        self.focus_force()
 
     def _press(self, char: str) -> None:
         if char == "<-":
