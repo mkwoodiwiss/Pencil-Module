@@ -4,12 +4,14 @@ import sys
 
 try:
     import lib8relind  # type: ignore
-except ModuleNotFoundError as exc:  # pragma: no cover - running without drivers
-    sys.exit(f"lib8relind driver not available: {exc}")
+except ModuleNotFoundError:  # pragma: no cover - running without drivers
+    lib8relind = None
 
 
 def main(stack: int = 1) -> None:
     """Toggle relays on the specified stack interactively."""
+    if lib8relind is None:
+        raise SystemExit("lib8relind driver not available")
     states = [False] * 8
     prompt = (
         "Enter 'on N', 'off N', or 'toggle N' for relay N (1-8). "
