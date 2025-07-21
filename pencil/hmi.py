@@ -179,9 +179,7 @@ class HMI(tk.Tk):
         self.geometry("800x480")
         self.update_idletasks()
         self.protocol("WM_DELETE_WINDOW", self.destroy)
-        # Small close button in the top-right corner
-        close_btn = tk.Button(self, text="X", width=2, command=self.destroy)
-        close_btn.place(relx=1.0, x=-10, y=10, anchor="ne")
+        # Close button will be created in the PFD canvas
         if fullscreen:
             try:
                 self.attributes("-fullscreen", True)
@@ -231,8 +229,11 @@ class HMI(tk.Tk):
         self.area = tk.Frame(self)
         self.area.pack(fill="both", expand=True, padx=5, pady=5)
 
-        settings = tk.LabelFrame(self.area, text="Settings")
-        settings.pack(side="left", padx=5, pady=5, anchor="n")
+        left_col = tk.Frame(self.area)
+        left_col.pack(side="left", padx=5, pady=5, anchor="n")
+
+        settings = tk.LabelFrame(left_col, text="Settings")
+        settings.pack(anchor="n")
         self.settings_frame = settings
 
         right_col = tk.Frame(self.area)
@@ -249,8 +250,10 @@ class HMI(tk.Tk):
         info.pack(padx=5, pady=5, anchor="n")
         tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
         tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(info, text="g").grid(row=0, column=2, sticky="w")
         tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
         tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(info, text="g").grid(row=1, column=2, sticky="w")
         tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")
         tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
         tk.Label(info, text="PSI").grid(row=2, column=2, sticky="w")
@@ -276,11 +279,11 @@ class HMI(tk.Tk):
         NumericEntry(settings, textvariable=self.bw_target_time_var, width=7).grid(row=1, column=3)
         tk.Checkbutton(settings, text="s", variable=self.bw_use_time_var, command=self._toggle_bw_time).grid(row=1, column=4, sticky="w")
 
-        tk.Label(settings, text="Refill Time").grid(row=2, column=0, sticky="w")
+        tk.Label(settings, text="Purge Time").grid(row=2, column=0, sticky="w")
         NumericEntry(settings, textvariable=self.refill_time_var, width=7).grid(row=2, column=1)
         tk.Label(settings, text="sec").grid(row=2, column=2, sticky="w")
 
-        tk.Label(settings, text="Repeat Count").grid(row=3, column=0, sticky="w")
+        tk.Label(settings, text="Cycle Count").grid(row=3, column=0, sticky="w")
         NumericEntry(settings, textvariable=self.repeat_count_var, width=7).grid(row=3, column=1)
 
         tk.Label(settings, text="Sample Time").grid(row=4, column=0, sticky="w")
@@ -298,16 +301,20 @@ class HMI(tk.Tk):
         tk.Button(btn_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(btn_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
 
-        tk.Label(settings, text="Cycle Step:").grid(row=7, column=0, sticky="w")
-        tk.Label(settings, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=7, column=1, sticky="w")
-        tk.Label(settings, text="Cycle Count:").grid(row=8, column=0, sticky="w")
-        tk.Label(settings, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=8, column=1, sticky="w")
+        cycle_frame = tk.LabelFrame(left_col, text="Cycle Status")
+        cycle_frame.pack(anchor="n", pady=5)
+        tk.Label(cycle_frame, text="Cycle Step:").grid(row=0, column=0, sticky="w")
+        tk.Label(cycle_frame, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(cycle_frame, text="Cycle Count:").grid(row=1, column=0, sticky="w")
+        tk.Label(cycle_frame, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
         self.update_data()
 
     def _create_pfd(self) -> None:
         self.canvas = tk.Canvas(self, width=780, height=190, bg="white")
         self.canvas.pack(pady=5)
+        close_btn = tk.Button(self.canvas, text="X", width=2, command=self.destroy)
+        self.canvas.create_window(770, 10, window=close_btn, anchor="ne")
 
         self.canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
         self.canvas.create_text(100, 20, text="BW water")
