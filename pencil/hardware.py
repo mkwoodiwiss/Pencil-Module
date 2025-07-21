@@ -17,8 +17,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for tests
 try:
     import lib8relind  # type: ignore
     import multiio  # type: ignore
-except Exception as e:  # pragma: no cover - running without hardware
-    print(f"[debug] vendor libraries missing: {e}")
+except Exception:  # pragma: no cover - running without hardware
     lib8relind = None
     multiio = None
 
@@ -55,15 +54,10 @@ class PencilModule:
             try:
                 # Use the same initialization parameters as multiio_reader
                 self.io = multiio.SMmultiio(stack=io_stack, i2c=1)
-            except Exception as e:  # pragma: no cover - hardware init failed
-                print(f"[debug] failed to init Multi IO: {e}")
+            except Exception:  # pragma: no cover - hardware init failed
                 self.io = None
         else:
             self.io = None
-        print(
-            f"[debug] PencilModule init: relay={'yes' if self.relay else 'no'}, "
-            f"io={'yes' if self.io else 'no'}"
-        )
         # Calibration offsets
         self.pressure_offset_bw = 0.0
         self.pressure_offset_in = 0.0
@@ -82,14 +76,7 @@ class PencilModule:
             ma = self.io.get_i_in(channel)
             psi = (ma - 4.0) * (30.0 / 16.0)
             value = psi + offset
-            print(
-                f"[debug] read_pressure: ch={channel}, raw={ma:.2f}, "
-                f"psi={psi:.2f}, offset={offset:.2f}, value={value:.2f}"
-            )
             return value
-        print(
-            f"[debug] read_pressure: ch={channel}, io unavailable, offset={offset:.2f}"
-        )
         return 0.0 + offset
 
     def read_rtd(self, channel: int) -> float:
@@ -98,14 +85,7 @@ class PencilModule:
             # Library channels are 1-indexed
             temp = self.io.get_rtd_temp(channel + 1)
             value = temp + self.temp_offset
-            print(
-                f"[debug] read_rtd: ch={channel}, raw={temp:.2f}, "
-                f"offset={self.temp_offset:.2f}, value={value:.2f}"
-            )
             return value
-        print(
-            f"[debug] read_rtd: ch={channel}, io unavailable, offset={self.temp_offset:.2f}"
-        )
         return 0.0 + self.temp_offset
 
     def set_solenoid(self, relay: int, state: bool) -> None:

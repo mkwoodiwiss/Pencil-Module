@@ -437,11 +437,6 @@ class HMI(tk.Tk):
         pressure_raw = self.module.read_pressure(2)
         temp = self.module.read_rtd(0)
 
-        print(
-            f"[debug] update_data: weight={weight}, bw_weight={bw_weight}, "
-            f"pressure_bw={pressure_bw:.2f}, pressure_raw={pressure_raw:.2f}, "
-            f"temp={temp:.2f}"
-        )
 
         self.weight_var.set(weight)
         self.backwash_weight_var.set(bw_weight)
