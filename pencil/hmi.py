@@ -93,9 +93,10 @@ class OnScreenKeyboard(tk.Toplevel):
         self.title("Input")
         self.resizable(False, False)
         self.value = tk.StringVar(value=str(variable.get()))
-        tk.Entry(self, textvariable=self.value, width=20).grid(
-            row=0, column=0, columnspan=10, pady=5
-        )
+        tk.Entry(self, textvariable=self.value, width=20).pack(pady=5)
+
+        keys_frame = tk.Frame(self)
+        keys_frame.pack()
 
         rows = [
             list("1234567890"),
@@ -103,21 +104,21 @@ class OnScreenKeyboard(tk.Toplevel):
             list("asdfghjkl"),
             list("zxcvbnm"),
         ]
-        for r, keys in enumerate(rows, start=1):
+        for r, keys in enumerate(rows):
             for c, ch in enumerate(keys):
                 tk.Button(
-                    self,
+                    keys_frame,
                     text=ch,
                     width=3,
                     command=lambda ch=ch: self._press(ch),
                 ).grid(row=r, column=c, padx=1, pady=1)
 
-        r = len(rows) + 1
-        tk.Button(self, text="Space", width=7, command=lambda: self._press(" ")).grid(row=r, column=0, columnspan=2, padx=1, pady=1)
-        tk.Button(self, text="<-", width=3, command=lambda: self._press("<-")).grid(row=r, column=2, padx=1, pady=1)
-        tk.Button(self, text="Clear", width=5, command=self._clear).grid(row=r, column=3, columnspan=2, padx=1, pady=1)
-        tk.Button(self, text="Cancel", width=5, command=self.destroy).grid(row=r, column=5, columnspan=2, padx=1, pady=1)
-        tk.Button(self, text="OK", width=5, command=self._apply).grid(row=r, column=7, columnspan=2, padx=1, pady=1)
+        r = len(rows)
+        tk.Button(keys_frame, text="_", width=3, command=lambda: self._press("_")).grid(row=r, column=0, padx=1, pady=1)
+        tk.Button(keys_frame, text="Backspace", width=9, command=lambda: self._press("<-")).grid(row=r, column=1, columnspan=2, padx=1, pady=1)
+        tk.Button(keys_frame, text="Clear", width=5, command=self._clear).grid(row=r, column=3, columnspan=2, padx=1, pady=1)
+        tk.Button(keys_frame, text="Cancel", width=5, command=self.destroy).grid(row=r, column=5, columnspan=2, padx=1, pady=1)
+        tk.Button(keys_frame, text="OK", width=5, command=self._apply).grid(row=r, column=7, columnspan=2, padx=1, pady=1)
 
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
