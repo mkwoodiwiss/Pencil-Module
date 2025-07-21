@@ -80,5 +80,5 @@ board itself is not available. The returned value will simply be the calibration
 offset (zero by default). To obtain real sensor readings, install the vendor
 libraries and connect the Multi IO hat before starting the application.
 
-In normal operation the backwash and influent pressure sensors are wired to
-Multi IO channels **1** and **2**, respectively.
+In normal operation the backwash and influent pressure sensors use the hat's
+4-20 mA inputs on Multi IO channels **1** and **2**, respectively.

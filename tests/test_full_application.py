@@ -27,7 +27,7 @@ class HeadlessHMI:
     def update_data(self):
         self.weight = self.module.read_scale(0)
         self.backwash_weight = self.module.read_scale(1)
-        self.pressure = f"{self.module.read_pressure(0):.2f}"
+        self.pressure = f"{self.module.read_pressure(1):.2f}"
         self.temp = f"{self.module.read_rtd(0):.2f}"
         self.update_count += 1
         self.after(1000, self.update_data)

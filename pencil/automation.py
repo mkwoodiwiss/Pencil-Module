@@ -52,8 +52,8 @@ class FiltrationTestSystem:
         row = [
             time.time(),
             self.module.read_rtd(0),
+            self.module.read_pressure(2),
             self.module.read_pressure(1),
-            self.module.read_pressure(0),
             self._parse_weight(self.module.read_scale(0)),
             self._parse_weight(self.module.read_scale(1)),
         ]

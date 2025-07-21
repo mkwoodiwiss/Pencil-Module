@@ -62,10 +62,15 @@ class PencilModule:
 
     def read_pressure(self, channel: int) -> float:
         """Return pressure in PSI from a 4-20 mA input channel."""
-        offset = self.pressure_offset_bw if channel == 0 else self.pressure_offset_in
+        # Channel numbers correspond to the Multi IO hat numbering (1/2)
+        if channel == 1:
+            offset = self.pressure_offset_bw
+        elif channel == 2:
+            offset = self.pressure_offset_in
+        else:
+            offset = 0.0
         if self.io:
-            # Library channels are 1-indexed
-            ma = self.io.get_adc(channel + 1)
+            ma = self.io.get_adc(channel)
             psi = (ma - 4.0) * (30.0 / 16.0)
             value = psi + offset
             print(
