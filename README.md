@@ -65,3 +65,20 @@ A lightweight script `weight_reader.py` is provided for quick testing of the USB
 ```bash
 python3 weight_reader.py
 ```
+
+## Troubleshooting Debug Logs
+
+When running without the Multi IO board or its `multiio` driver, hardware
+methods fall back to simulated values. In that case you may see messages such
+as:
+
+```
+[debug] read_pressure: ch=1, io unavailable, offset=0.00
+```
+This indicates the pressure sensor could not be read because the driver or the
+board itself is not available. The returned value will simply be the calibration
+offset (zero by default). To obtain real sensor readings, install the vendor
+libraries and connect the Multi IO hat before starting the application.
+
+In normal operation the backwash and influent pressure sensors are wired to
+Multi IO channels **1** and **2**, respectively.
