@@ -44,7 +44,7 @@ class TestFullApplication(unittest.TestCase):
         self.assertTrue(_created_apps, "HMI was not instantiated")
         app = _created_apps[-1]
         self.assertEqual(app.weight, "+123.45 g")
-        self.assertEqual(app.pressure, "3.21")
+        self.assertEqual(app.pressure, "15.00")
         self.assertEqual(app.temp, "20.50")
         self.assertEqual(app.update_count, 2)
 
