@@ -1,6 +1,7 @@
 """Tkinter based HMI for the Pencil Module."""
 
 import os
+import re
 import tkinter as tk
 import threading
 import time
@@ -627,6 +628,12 @@ class HMI(tk.Tk):
             self._read_sensors()
             time.sleep(1)
 
+    @staticmethod
+    def _strip_weight(text: str) -> str:
+        """Return the numeric portion of a scale reading without sign or units."""
+        match = re.search(r"[+-]?([0-9]*\.?[0-9]+)", text)
+        return match.group(1) if match else text.strip()
+
     def update_data(self) -> None:
         """Refresh displayed values using the latest sensor readings."""
         if not self.winfo_exists():
@@ -637,9 +644,11 @@ class HMI(tk.Tk):
             pressure_bw = self.latest_pressure_bw
             pressure_raw = self.latest_pressure_raw
             temp = self.latest_temp
-
-        self.weight_var.set(weight)
-        self.backwash_weight_var.set(bw_weight)
+        # Strip units and sign for the sensor labels
+        clean_w = self._strip_weight(weight)
+        clean_bw = self._strip_weight(bw_weight)
+        self.weight_var.set(clean_w)
+        self.backwash_weight_var.set(clean_bw)
         self.pressure_bw_var.set(f"{pressure_bw:.2f}")
         self.pressure_raw_var.set(f"{pressure_raw:.2f}")
         self.temp_var.set(f"{temp:.2f}")
@@ -647,8 +656,9 @@ class HMI(tk.Tk):
         self.canvas.itemconfig(self.pi1_text, text=f"{self.pressure_bw_var.get()} PSI")
         self.canvas.itemconfig(self.pi2_text, text=f"{self.pressure_raw_var.get()} PSI")
         self.canvas.itemconfig(self.te_text, text=f"{self.temp_var.get()} C")
-        self.canvas.itemconfig(self.effluent_weight_text, text=self.weight_var.get())
-        self.canvas.itemconfig(self.backwash_weight_text, text=self.backwash_weight_var.get())
+        # Display raw weight values (with units) on the process diagram
+        self.canvas.itemconfig(self.effluent_weight_text, text=weight)
+        self.canvas.itemconfig(self.backwash_weight_text, text=bw_weight)
 
         self._update_lines()
         self.after(1000, self.update_data)
