@@ -535,6 +535,12 @@ class HMI(tk.Tk):
         self.cancel_test()
     def calibrate(self) -> None:
         win = tk.Toplevel(self)
+        try:
+            win.transient(self)
+            win.wait_visibility()
+            win.focus_set()
+        except Exception as e:
+            print("Calibration window focus error:", e)
         win.title("Calibration")
 
         bw_var = tk.DoubleVar(value=self.module.pressure_offset_bw)
@@ -557,6 +563,8 @@ class HMI(tk.Tk):
             win.destroy()
 
         tk.Button(win, text="Apply", command=apply).grid(row=3, column=0, columnspan=2, pady=5)
+
+        self.wait_window(win)
 
     def _read_sensors(self) -> None:
         """Read sensors once and store the values."""
