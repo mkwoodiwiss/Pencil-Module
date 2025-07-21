@@ -29,11 +29,11 @@ class FiltrationConfig:
 class FiltrationTestSystem:
     """Run automated filtration cycles based on a :class:`FiltrationConfig`."""
 
-    INFLUENT_SUPPLY = 1
-    BACKWASH_SUPPLY = 2
-    EFFLUENT_VALVE = 3
-    BACKWASH_EFFLUENT = 4
-    INFLUENT_DRAIN = 5
+    BACKWASH_SUPPLY = 1
+    INFLUENT_SUPPLY = 2
+    BACKWASH_EFFLUENT = 3
+    INFLUENT_DRAIN = 4
+    EFFLUENT_VALVE = 5
 
     def __init__(self, module: PencilModule, config: FiltrationConfig, log_dir: str = "logs"):
         self.module = module
