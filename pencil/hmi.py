@@ -104,21 +104,24 @@ class OnScreenKeyboard(tk.Toplevel):
             list("asdfghjkl"),
             list("zxcvbnm"),
         ]
-        for r, keys in enumerate(rows):
-            for c, ch in enumerate(keys):
+        for keys in rows:
+            row_frame = tk.Frame(keys_frame)
+            row_frame.pack(anchor="center")
+            for ch in keys:
                 tk.Button(
-                    keys_frame,
+                    row_frame,
                     text=ch,
                     width=3,
                     command=lambda ch=ch: self._press(ch),
-                ).grid(row=r, column=c, padx=1, pady=1)
+                ).pack(side="left", padx=1, pady=1)
 
-        r = len(rows)
-        tk.Button(keys_frame, text="_", width=3, command=lambda: self._press("_")).grid(row=r, column=0, padx=1, pady=1)
-        tk.Button(keys_frame, text="Backspace", width=9, command=lambda: self._press("<-")).grid(row=r, column=1, columnspan=2, padx=1, pady=1)
-        tk.Button(keys_frame, text="Clear", width=5, command=self._clear).grid(row=r, column=3, columnspan=2, padx=1, pady=1)
-        tk.Button(keys_frame, text="Cancel", width=5, command=self.destroy).grid(row=r, column=5, columnspan=2, padx=1, pady=1)
-        tk.Button(keys_frame, text="OK", width=5, command=self._apply).grid(row=r, column=7, columnspan=2, padx=1, pady=1)
+        bottom = tk.Frame(keys_frame)
+        bottom.pack(anchor="center")
+        tk.Button(bottom, text="_", width=3, command=lambda: self._press("_")).pack(side="left", padx=1, pady=1)
+        tk.Button(bottom, text="Backspace", width=9, command=lambda: self._press("<-")).pack(side="left", padx=1, pady=1)
+        tk.Button(bottom, text="Clear", width=5, command=self._clear).pack(side="left", padx=1, pady=1)
+        tk.Button(bottom, text="Cancel", width=5, command=self.destroy).pack(side="left", padx=1, pady=1)
+        tk.Button(bottom, text="OK", width=5, command=self._apply).pack(side="left", padx=1, pady=1)
 
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
@@ -235,14 +238,13 @@ class HMI(tk.Tk):
         tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
         tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")
         tk.Label(info, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
+        tk.Label(info, text="PSI").grid(row=2, column=2, sticky="w")
         tk.Label(info, text="Influent Pressure:").grid(row=3, column=0, sticky="w")
         tk.Label(info, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
+        tk.Label(info, text="PSI").grid(row=3, column=2, sticky="w")
         tk.Label(info, text="Temperature:").grid(row=4, column=0, sticky="w")
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
-        tk.Label(info, text="Cycle Step:").grid(row=5, column=0, sticky="w")
-        tk.Label(info, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=5, column=1, sticky="w")
-        tk.Label(info, text="Cycle Count:").grid(row=6, column=0, sticky="w")
-        tk.Label(info, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=6, column=1, sticky="w")
+        tk.Label(info, text="C").grid(row=4, column=2, sticky="w")
 
         self.start_btn = tk.Button(right_col, text="Start", command=self._toggle_test, font=("Arial", 12), width=8, height=2)
         self.start_btn.pack(pady=10)
@@ -261,12 +263,14 @@ class HMI(tk.Tk):
 
         tk.Label(settings, text="Refill Time").grid(row=2, column=0, sticky="w")
         NumericEntry(settings, textvariable=self.refill_time_var, width=7).grid(row=2, column=1)
+        tk.Label(settings, text="sec").grid(row=2, column=2, sticky="w")
 
         tk.Label(settings, text="Repeat Count").grid(row=3, column=0, sticky="w")
         NumericEntry(settings, textvariable=self.repeat_count_var, width=7).grid(row=3, column=1)
 
         tk.Label(settings, text="Sample Time").grid(row=4, column=0, sticky="w")
         NumericEntry(settings, textvariable=self.sample_time_var, width=7).grid(row=4, column=1)
+        tk.Label(settings, text="sec").grid(row=4, column=2, sticky="w")
 
         tk.Label(settings, text="Project Name").grid(row=5, column=0, sticky="w")
         KeyboardEntry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
@@ -278,6 +282,11 @@ class HMI(tk.Tk):
         tk.Button(btn_frame, text="Calibrate", command=self.calibrate).grid(row=0, column=0, padx=5, sticky="ew")
         tk.Button(btn_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(btn_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
+
+        tk.Label(settings, text="Cycle Step:").grid(row=7, column=0, sticky="w")
+        tk.Label(settings, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=7, column=1, sticky="w")
+        tk.Label(settings, text="Cycle Count:").grid(row=8, column=0, sticky="w")
+        tk.Label(settings, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=8, column=1, sticky="w")
 
         self.update_data()
 
