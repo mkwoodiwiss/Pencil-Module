@@ -44,16 +44,10 @@ class NumericKeypad(tk.Toplevel):
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.attributes("-topmost", True)
-        self.after_idle(self._grab_focus)
+        self.transient(master)
+        self.focus_set()
+        self.wait_visibility()
 
-    def _grab_focus(self) -> None:
-        """Make the keypad modal once it becomes visible."""
-        try:
-            self.wait_visibility()
-            self.grab_set()
-        except tk.TclError:
-            pass
-        self.focus_force()
 
     def _press(self, char: str) -> None:
         if char == "<-":
@@ -128,16 +122,10 @@ class OnScreenKeyboard(tk.Toplevel):
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.attributes("-topmost", True)
-        self.after_idle(self._grab_focus)
+        self.transient(master)
+        self.focus_set()
+        self.wait_visibility()
 
-    def _grab_focus(self) -> None:
-        """Make the keyboard modal once it becomes visible."""
-        try:
-            self.wait_visibility()
-            self.grab_set()
-        except tk.TclError:
-            pass
-        self.focus_force()
 
     def _press(self, char: str) -> None:
         if char == "<-":
@@ -593,6 +581,8 @@ class HMI(tk.Tk):
 
     def update_data(self) -> None:
         """Refresh displayed values using the latest sensor readings."""
+        if not self.winfo_exists():
+            return
         with self._sensor_lock:
             weight = self.latest_weight
             bw_weight = self.latest_bw_weight
