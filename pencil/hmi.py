@@ -264,8 +264,12 @@ class HMI(tk.Tk):
         tk.Label(info, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
         tk.Label(info, text="C").grid(row=4, column=2, sticky="w")
 
-        self.start_btn = tk.Button(right_col, text="Start", command=self._toggle_test, font=("Arial", 12), width=8, height=2)
-        self.start_btn.pack(pady=10)
+        cycle_frame = tk.LabelFrame(right_col, text="Cycle Status")
+        cycle_frame.pack(anchor="n", pady=5)
+        tk.Label(cycle_frame, text="Cycle Step:").grid(row=0, column=0, sticky="w")
+        tk.Label(cycle_frame, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(cycle_frame, text="Cycle Count:").grid(row=1, column=0, sticky="w")
+        tk.Label(cycle_frame, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
         tk.Label(settings, text="Filtration Target").grid(row=0, column=0, sticky="w")
         NumericEntry(settings, textvariable=self.filt_target_weight_var, width=7).grid(row=0, column=1)
@@ -301,12 +305,10 @@ class HMI(tk.Tk):
         tk.Button(btn_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(btn_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
 
-        cycle_frame = tk.LabelFrame(left_col, text="Cycle Status")
-        cycle_frame.pack(anchor="n", pady=5)
-        tk.Label(cycle_frame, text="Cycle Step:").grid(row=0, column=0, sticky="w")
-        tk.Label(cycle_frame, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
-        tk.Label(cycle_frame, text="Cycle Count:").grid(row=1, column=0, sticky="w")
-        tk.Label(cycle_frame, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        start_frame = tk.Frame(self)
+        start_frame.pack(side="bottom", fill="x", pady=10)
+        self.start_btn = tk.Button(start_frame, text="Start", command=self._toggle_test, font=("Arial", 12), width=8, height=2)
+        self.start_btn.pack()
 
         self.update_data()
 
