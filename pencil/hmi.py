@@ -310,8 +310,17 @@ class HMI(tk.Tk):
         start_frame = tk.Frame(self)
         # Add extra bottom padding so the button isn't flush with the edge
         start_frame.pack(side="bottom", fill="x", pady=20)
-        self.start_btn = tk.Button(start_frame, text="Start", command=self._toggle_test, font=("Arial", 12), width=8, height=2)
+        self.start_btn = tk.Button(
+            start_frame,
+            text="Start",
+            command=self._toggle_test,
+            font=("Arial", 12),
+            width=8,
+            height=2,
+        )
         self.start_btn.pack()
+        # Ensure the Start button is drawn above other widgets
+        self.start_btn.lift()
 
         self.update_data()
 
