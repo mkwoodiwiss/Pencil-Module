@@ -307,11 +307,11 @@ class HMI(tk.Tk):
         tk.Button(btn_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(btn_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
 
-        start_frame = tk.Frame(self)
+        self.start_frame = tk.Frame(self)
         # Add extra bottom padding so the button isn't flush with the edge
-        start_frame.pack(side="bottom", fill="x", pady=20)
+        self.start_frame.pack(side="bottom", fill="x", pady=20)
         self.start_btn = tk.Button(
-            start_frame,
+            self.start_frame,
             text="Start",
             command=self._toggle_test,
             font=("Arial", 12),
@@ -320,7 +320,7 @@ class HMI(tk.Tk):
         )
         self.start_btn.pack()
         # Ensure the Start button is drawn above other widgets
-        self.start_btn.lift()
+        self.start_frame.lift()
 
         self.update_data()
 
@@ -457,6 +457,7 @@ class HMI(tk.Tk):
         tk.Label(self.prime_frame, text="Confirm Prime").pack(side="left", padx=5)
         tk.Button(self.prime_frame, text="Cancel", command=self._cancel_prime).pack(side="left", padx=5)
         tk.Button(self.prime_frame, text="Start", command=self._start_prime).pack(side="left", padx=5)
+        self.start_frame.lift()
 
     def _cancel_prime(self) -> None:
         self._close_all_valves()
@@ -464,6 +465,7 @@ class HMI(tk.Tk):
             self.prime_frame.destroy()
             self.prime_frame = None
         self.prime_stage = 0
+        self.start_frame.lift()
 
     def _start_prime(self) -> None:
         self.prime_stage = 2
@@ -492,6 +494,7 @@ class HMI(tk.Tk):
         tk.Label(self.prime_frame, text=step_text.get(self.prime_stage, "")).pack(side="left", padx=5)
         btn_text = "Continue" if self.prime_stage < 4 else "Finish"
         tk.Button(self.prime_frame, text=btn_text, command=self._advance_prime).pack(side="left", padx=5)
+        self.start_frame.lift()
 
     def _finish_prime(self) -> None:
         self._close_all_valves()
@@ -499,6 +502,7 @@ class HMI(tk.Tk):
             self.prime_frame.destroy()
             self.prime_frame = None
         self.prime_stage = 0
+        self.start_frame.lift()
 
     def _toggle_filt_weight(self) -> None:
         if self.filt_use_weight_var.get():
