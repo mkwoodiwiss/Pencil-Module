@@ -308,7 +308,8 @@ class HMI(tk.Tk):
         tk.Button(btn_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
 
         start_frame = tk.Frame(self)
-        start_frame.pack(side="bottom", fill="x", pady=10)
+        # Add extra bottom padding so the button isn't flush with the edge
+        start_frame.pack(side="bottom", fill="x", pady=20)
         self.start_btn = tk.Button(start_frame, text="Start", command=self._toggle_test, font=("Arial", 12), width=8, height=2)
         self.start_btn.pack()
 
