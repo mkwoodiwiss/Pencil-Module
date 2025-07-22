@@ -307,10 +307,23 @@ class HMI(tk.Tk):
         tk.Button(btn_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(btn_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
 
-        start_frame = tk.Frame(self)
-        start_frame.pack(side="bottom", fill="x", pady=10)
-        self.start_btn = tk.Button(start_frame, text="Start", command=self._toggle_test, font=("Arial", 12), width=8, height=2)
-        self.start_btn.pack()
+        # Place the start button overlayed near the bottom center so it does not
+        # get pushed out of view when the window content grows.  Using ``place``
+        # also allows us to lift the button above other widgets so it partially
+        # overlaps them on the x axis as requested.
+        self.start_btn = tk.Button(
+            self,
+            text="Start",
+            command=self._toggle_test,
+            font=("Arial", 12),
+            width=8,
+            height=2,
+        )
+        # Position relative to the bottom of the window with a slight upward
+        # offset so the button remains visible.
+        self.start_btn.place(relx=0.5, rely=1.0, anchor="s", y=-20)
+        # Ensure the button stays in front of other elements.
+        self.start_btn.lift()
 
         self.update_data()
 
