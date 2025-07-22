@@ -116,11 +116,15 @@ class FiltrationTestSystem:
             for k, v in asdict(self.config).items():
                 writer.writerow([k, v])
 
-        self.module.apply_offsets(
-            pressure_bw=self.config.pressure_offset,
-            pressure_in=self.config.pressure_offset,
-            temperature=self.config.temp_offset,
-        )
+        if (
+            self.config.pressure_offset != 0.0
+            or self.config.temp_offset != 0.0
+        ):
+            self.module.apply_offsets(
+                pressure_bw=self.config.pressure_offset,
+                pressure_in=self.config.pressure_offset,
+                temperature=self.config.temp_offset,
+            )
         self.module.zero_scales()
 
         for cycle in range(self.config.repeat_count):
