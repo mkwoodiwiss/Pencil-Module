@@ -250,10 +250,10 @@ class HMI(tk.Tk):
 
         info = tk.LabelFrame(right_col, text="Sensors")
         info.pack(padx=5, pady=5, anchor="n")
-        tk.Label(info, text="Filtrate Weight:").grid(row=0, column=0, sticky="w")
+        tk.Label(info, text="Effluent Weight:").grid(row=0, column=0, sticky="w")
         tk.Label(info, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
         tk.Label(info, text="g").grid(row=0, column=2, sticky="w")
-        tk.Label(info, text="Backwash Weight:").grid(row=1, column=0, sticky="w")
+        tk.Label(info, text="BW Weight:").grid(row=1, column=0, sticky="w")
         tk.Label(info, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
         tk.Label(info, text="g").grid(row=1, column=2, sticky="w")
         tk.Label(info, text="BW Pressure:").grid(row=2, column=0, sticky="w")

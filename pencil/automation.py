@@ -129,7 +129,7 @@ class FiltrationTestSystem:
 
         for cycle in range(self.config.repeat_count):
             if self.progress_callback:
-                self.progress_callback("refill", cycle + 1, self.config.repeat_count)
+                self.progress_callback("Purge", cycle + 1, self.config.repeat_count)
             self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
             start = time.time()
             while time.time() - start < self.config.refill_time:
@@ -140,7 +140,7 @@ class FiltrationTestSystem:
             self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
 
             if self.progress_callback:
-                self.progress_callback("filter", cycle + 1, self.config.repeat_count)
+                self.progress_callback("Filter", cycle + 1, self.config.repeat_count)
             self._open(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(0))
@@ -159,7 +159,7 @@ class FiltrationTestSystem:
             self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
 
             if self.progress_callback:
-                self.progress_callback("backwash", cycle + 1, self.config.repeat_count)
+                self.progress_callback("Backwash", cycle + 1, self.config.repeat_count)
             self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(1))
