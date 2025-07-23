@@ -68,9 +68,9 @@ class TestAutomation(unittest.TestCase):
         self.assertEqual(
             steps,
             [
-                ("refill", 1, 1),
-                ("filter", 1, 1),
-                ("backwash", 1, 1),
+                ("Purge", 1, 1),
+                ("Filter", 1, 1),
+                ("Backwash", 1, 1),
             ],
         )
 
