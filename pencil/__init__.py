@@ -1,7 +1,8 @@
 """Pencil Module package."""
 
 from .hardware import PencilModule
-from .automation import FiltrationConfig, FiltrationTestSystem
+from .config import FiltrationConfig
+from .automation import FiltrationTestSystem
 from .hmi import HMI
 
 __all__ = [
