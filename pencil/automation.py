@@ -1,6 +1,6 @@
 """Automation logic for running filtration tests."""
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 import csv
 import os
 import re
@@ -9,22 +9,7 @@ from typing import Optional, Callable
 import threading
 
 from .hardware import PencilModule
-
-
-@dataclass
-class FiltrationConfig:
-    """Configuration for an automated filtration test."""
-
-    filtration_target: float
-    filtration_by_volume: bool
-    backwash_target: float
-    backwash_by_volume: bool
-    refill_time: float
-    repeat_count: int
-    sample_time: float
-    project_name: str
-    pressure_offset: float = 0.0
-    temp_offset: float = 0.0
+from .config import FiltrationConfig
 
 
 class FiltrationTestSystem:

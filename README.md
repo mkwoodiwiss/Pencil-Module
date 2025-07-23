@@ -51,29 +51,29 @@ to include in the full suite on headless machines.
 ## Manual GUI Testing
 
 You can experiment with the interface on any machine using simulated hardware.
-Run the `manual_hmi.py` script and interact with the GUI while all hardware
+Run the `scripts/manual_hmi.py` script and interact with the GUI while all hardware
 calls are faked:
 
 ```bash
-python3 manual_hmi.py
+python3 scripts/manual_hmi.py
 ```
 
 ## Simple Weight Reader
 
-A lightweight script `weight_reader.py` is provided for quick testing of the USB scale. When run it prompts you to either read the current weight or send the zero (`Z`) command:
+A lightweight script `scripts/weight_reader.py` is provided for quick testing of the USB scale. When run it prompts you to either read the current weight or send the zero (`Z`) command:
 
 ```bash
-python3 weight_reader.py
+python3 scripts/weight_reader.py
 ```
 
 ## Relay Test Program
 
-Use `relay_test.py` to manually toggle the relays on the 8‑Relay hat. The
+Use `scripts/relay_test.py` to manually toggle the relays on the 8‑Relay hat. The
 script is handy for verifying wiring and confirming that the `lib8relind`
 driver is installed:
 
 ```bash
-python3 relay_test.py
+python3 scripts/relay_test.py
 ```
 Enter commands such as `on 1` or `off 1` to operate a relay. Type `q` to quit.
 
