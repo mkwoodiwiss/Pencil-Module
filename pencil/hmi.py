@@ -5,6 +5,7 @@ import re
 import tkinter as tk
 import threading
 import time
+from tkinter import scrolledtext
 
 from .automation import FiltrationConfig, FiltrationTestSystem
 from .hardware import PencilModule
@@ -175,6 +176,8 @@ class HMI(tk.Tk):
         self.canvas.pack(pady=5)
         close_btn = tk.Button(self.canvas, text="X", width=2, command=self._confirm_exit)
         self.canvas.create_window(770, 10, window=close_btn, anchor="ne")
+        help_btn = tk.Button(self.canvas, text="?", width=2, command=self._show_control_narrative)
+        self.canvas.create_window(740, 10, window=help_btn, anchor="ne")
 
         self.canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
         self.canvas.create_text(100, 20, text="BW water")
@@ -518,6 +521,28 @@ class HMI(tk.Tk):
 
         self._update_lines()
         self.after(1000, self.update_data)
+
+    def _show_control_narrative(self) -> None:
+        """Open a window displaying the control narrative documentation."""
+        win = tk.Toplevel(self)
+        try:
+            win.transient(self)
+            win.focus_set()
+        except Exception:
+            pass
+        win.title("Control Narrative")
+        path = os.path.join(os.path.dirname(__file__), "..", "resources", "CONTROL_NARRATIVE.md")
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                text = fh.read()
+        except Exception:
+            text = "Control narrative not found."
+        txt = scrolledtext.ScrolledText(win, wrap="word", width=80, height=30)
+        txt.insert("1.0", text)
+        txt.configure(state="disabled")
+        txt.pack(fill="both", expand=True)
+        tk.Button(win, text="Close", command=win.destroy).pack(pady=5)
+        self.wait_window(win)
 
     def _confirm_exit(self) -> None:
         """Ask the user to confirm before closing the application."""
