@@ -47,7 +47,7 @@ def zero_scale(ser: serial.Serial) -> None:
         pass
 
 
-def main(port: str = "/dev/ttyUSB0", baud: int = 9600) -> None:
+def main(port: str = "/dev/ttyAMA3", baud: int = 9600) -> None:
     """
     Interactive CLI for reading or zeroing the scale.
     """

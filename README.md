@@ -5,7 +5,9 @@ It assumes the following hardware:
 
 * Sequent Microsystems **8-Relay** hat – controls solenoid valves.
 * Sequent Microsystems **Multi IO** hat – reads pressure and RTD sensors.
-* Two weight scales connected over USB.
+* Two weight scales connected via RS232.
+  The effluent scale is typically available as ``/dev/ttyAMA3`` and the
+  backwash scale as ``/dev/ttyAMA2``.
 * A Raspberry Pi 7 inch touch screen display used as an HMI.
 
 The application uses the vendor Python libraries (`lib8relind` and `multiio`).
@@ -60,7 +62,7 @@ python3 scripts/manual_hmi.py
 
 ## Simple Weight Reader
 
-A lightweight script `scripts/weight_reader.py` is provided for quick testing of the USB scale. When run it prompts you to either read the current weight or send the zero (`Z`) command:
+A lightweight script `scripts/weight_reader.py` is provided for quick testing of the RS232 scale. When run it prompts you to either read the current weight or send the zero (`Z`) command:
 
 ```bash
 python3 scripts/weight_reader.py

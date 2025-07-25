@@ -40,8 +40,8 @@ class PencilModule:
     """Interface to the hardware boards."""
 
     def __init__(self, relay_stack: int = 1, io_stack: int = 2,
-                 effluent_port: str = "/dev/ttyUSB0",
-                 backwash_port: str = "/dev/ttyUSB1", baud: int = 9600) -> None:
+                 effluent_port: str = "/dev/ttyAMA3",
+                 backwash_port: str = "/dev/ttyAMA2", baud: int = 9600) -> None:
         """Initialize connections to the hardware."""
         # Individual serial connections to each scale
         self.effluent_ser = serial.Serial(effluent_port, baud, timeout=1)

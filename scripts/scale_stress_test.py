@@ -45,8 +45,8 @@ def poll_scale(name: str, ser: serial.Serial, stop: threading.Event) -> None:
 
 def main() -> None:
     stop = threading.Event()
-    effluent_ser = serial.Serial("/dev/ttyUSB0", 9600, timeout=1)
-    backwash_ser = serial.Serial("/dev/ttyUSB1", 9600, timeout=1)
+    effluent_ser = serial.Serial("/dev/ttyAMA3", 9600, timeout=1)
+    backwash_ser = serial.Serial("/dev/ttyAMA2", 9600, timeout=1)
 
     threads = [
         threading.Thread(
