@@ -78,8 +78,9 @@ def main(argv: list[str] | None = None) -> None:
     Path("logs").mkdir(exist_ok=True)
     log_file = Path("logs") / f"stress_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
 
-    effluent_ser = serial.Serial("/dev/ttyUSB0", 9600, timeout=0.1)
-    backwash_ser = serial.Serial("/dev/ttyUSB1", 9600, timeout=0.1)
+    # Use the Pi's built-in RS232 ports for the weight scales
+    effluent_ser = serial.Serial("/dev/ttyAMA3", 9600, timeout=0.1)
+    backwash_ser = serial.Serial("/dev/ttyAMA2", 9600, timeout=0.1)
 
     stop = threading.Event()
     threads = [
