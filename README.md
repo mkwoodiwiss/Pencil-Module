@@ -79,6 +79,20 @@ python3 scripts/relay_test.py
 ```
 Enter commands such as `on 1` or `off 1` to operate a relay. Type `q` to quit.
 
+## Continuous Scale Stress Test
+
+Run `stress_test_continuous.py` to repeatedly query both scales for a fixed
+period of time. The script expects the scales to be connected to the Pi's
+RS232 ports with the effluent scale on `/dev/ttyAMA3` and the backwash scale on
+`/dev/ttyAMA2`.
+
+```bash
+python3 stress_test_continuous.py 60
+```
+
+The optional argument specifies the duration in seconds (default is 60). Log
+messages are written to the `logs` directory.
+
 ## Troubleshooting Debug Logs
 
 When running without the Multi IO board or its `multiio` driver, hardware
