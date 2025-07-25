@@ -297,6 +297,18 @@ class HMI(tk.Tk):
     def _close_all_valves(self) -> None:
         self._close_valves(1, 2, 3, 4, 5)
 
+    def _disable_manual_controls(self) -> None:
+        """Disable the valve and prime buttons while a test is running."""
+        for btn in self.solenoid_buttons:
+            btn.config(state="disabled")
+        self.prime_btn.config(state="disabled")
+
+    def _enable_manual_controls(self) -> None:
+        """Re-enable manual control buttons after a test completes."""
+        for btn in self.solenoid_buttons:
+            btn.config(state="normal")
+        self.prime_btn.config(state="normal")
+
     def prime(self) -> None:
         if self.prime_frame:
             return
@@ -377,11 +389,17 @@ class HMI(tk.Tk):
         if getattr(self, "is_running", False):
             self.cancel_test()
         else:
+            self._cancel_prime()
             self.is_running = True
             self.start_btn.config(text="Cancel")
             self.start_test()
 
     def start_test(self) -> None:
+        # Disable manual valve controls and ensure all valves are closed before
+        # handing control over to the automation routine.
+        self._disable_manual_controls()
+        self._close_all_valves()
+
         if self.filt_use_weight_var.get():
             filt_target = self.filt_target_weight_var.get()
             filt_by_vol = True
@@ -429,6 +447,7 @@ class HMI(tk.Tk):
         self.start_btn.config(text="Start")
         self.cycle_step_var.set("Idle")
         self.cycle_count_var.set("")
+        self._enable_manual_controls()
 
     # Backwards compatibility
     def stop_test(self) -> None:
