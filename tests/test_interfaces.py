@@ -26,8 +26,8 @@ class SimulatedPencilModule(PencilModule):
 
     def __init__(self):
         # Do not call super().__init__ to avoid accessing real hardware
-        self.effluent_ser = FakeSerial(port="/dev/ttyUSB0")
-        self.backwash_ser = FakeSerial(port="/dev/ttyUSB1")
+        self.effluent_ser = FakeSerial(port="/dev/ttyAMA3")
+        self.backwash_ser = FakeSerial(port="/dev/ttyAMA2")
         self.effluent_lock = threading.Lock()
         self.backwash_lock = threading.Lock()
         self.relay = FakeRelay8()

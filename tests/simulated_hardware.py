@@ -1,14 +1,14 @@
 class FakeSerial:
     """Simple in-memory serial port simulator."""
 
-    def __init__(self, port="/dev/ttyUSB0", baud=9600, timeout=1):
+    def __init__(self, port="/dev/ttyAMA3", baud=9600, timeout=1):
         self.port = port
         self.baud = baud
         self.timeout = timeout
         self._buffer = b""
         self.commands = []
         # Determine which weight value this fake port should return
-        if port == "/dev/ttyUSB0":
+        if port == "/dev/ttyAMA3":
             self.weight = b"+123.45 g\r\n"
         else:
             self.weight = b"+54.32 g\r\n"

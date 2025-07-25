@@ -1,6 +1,6 @@
 class Serial:
     """Minimal stub of pyserial's Serial class for tests."""
-    def __init__(self, port="/dev/ttyUSB0", baudrate=9600, timeout=1):
+    def __init__(self, port="/dev/ttyAMA3", baudrate=9600, timeout=1):
         self.port = port
         self.baudrate = baudrate
         self.timeout = timeout
