@@ -114,7 +114,7 @@ class HMI(tk.Tk):
             width=8,
             height=2,
         )
-        self.start_btn_test.place(in_=self.pfds["test"]["canvas"], relx=0.5, rely=1.0, y=5, anchor="n")
+        self.start_btn_test.pack(pady=(0, 5))
         self.area = tk.Frame(self.test_tab)
         self.area.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -204,7 +204,7 @@ class HMI(tk.Tk):
             width=8,
             height=2,
         )
-        self.start_btn_clean.place(in_=self.pfds["clean"]["canvas"], relx=0.5, rely=1.0, y=5, anchor="n")
+        self.start_btn_clean.pack(pady=(0, 5))
         clean_area = tk.Frame(self.clean_tab)
         clean_area.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -261,7 +261,7 @@ class HMI(tk.Tk):
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
         """Create and return a process flow diagram on ``parent``."""
-        canvas = tk.Canvas(parent, width=780, height=190, bg="white")
+        canvas = tk.Canvas(parent, width=780, height=180, bg="white")
         canvas.pack(pady=5)
         btn_opts = {"width": 2, "height": 1}
         close_btn = tk.Button(canvas, text="X", command=self._confirm_exit, **btn_opts)
