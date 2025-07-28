@@ -51,16 +51,19 @@ class FiltrationTestSystem:
         match = re.search(r"([+-]?\d+\.\d+)", text)
         return float(match.group(1)) if match else 0.0
 
-    def _log_row(self) -> None:
+    def log_cycle(self) -> None:
         if not self.data_writer:
             return
+        ts = time.time()
+        effluent = self.module.read_scale(0)
+        backwash = self.module.read_scale(1)
         row = [
-            time.time(),
+            ts,
             self.module.read_rtd(0),
             self.module.read_pressure(2),
             self.module.read_pressure(1),
-            self._parse_weight(self.module.read_scale(0)),
-            self._parse_weight(self.module.read_scale(1)),
+            self._parse_weight(effluent),
+            self._parse_weight(backwash),
         ]
         self.data_writer.writerow(row)
 
@@ -126,7 +129,7 @@ class FiltrationTestSystem:
             while time.time() - start < self.config.refill_time:
                 if self._check_cancel():
                     return
-                self._log_row()
+                self.log_cycle()
                 time.sleep(self.config.sample_time)
             self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
 
@@ -138,7 +141,7 @@ class FiltrationTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self._log_row()
+                self.log_cycle()
                 if self.config.filtration_by_volume:
                     vol = self._parse_weight(self.module.read_scale(0)) - start_w
                     if vol >= self.config.filtration_target:
@@ -157,7 +160,7 @@ class FiltrationTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self._log_row()
+                self.log_cycle()
                 if self.config.backwash_by_volume:
                     vol = self._parse_weight(self.module.read_scale(1)) - start_w
                     if vol >= self.config.backwash_target:
@@ -225,16 +228,19 @@ class CleanTestSystem:
         match = re.search(r"([+-]?\d+\.\d+)", text)
         return float(match.group(1)) if match else 0.0
 
-    def _log_row(self) -> None:
+    def log_cycle(self) -> None:
         if not self.data_writer:
             return
+        ts = time.time()
+        effluent = self.module.read_scale(0)
+        backwash = self.module.read_scale(1)
         row = [
-            time.time(),
+            ts,
             self.module.read_rtd(0),
             self.module.read_pressure(2),
             self.module.read_pressure(1),
-            self._parse_weight(self.module.read_scale(0)),
-            self._parse_weight(self.module.read_scale(1)),
+            self._parse_weight(effluent),
+            self._parse_weight(backwash),
         ]
         self.data_writer.writerow(row)
 
@@ -298,7 +304,7 @@ class CleanTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self._log_row()
+                self.log_cycle()
                 if self.config.forward_by_volume:
                     vol = self._parse_weight(self.module.read_scale(0)) - start_w
                     if vol >= self.config.forward_target:
@@ -315,7 +321,7 @@ class CleanTestSystem:
             while time.time() < end:
                 if self._check_cancel():
                     return
-                self._log_row()
+                self.log_cycle()
                 time.sleep(self.config.sample_time)
 
             if self.progress_callback:
@@ -326,7 +332,7 @@ class CleanTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self._log_row()
+                self.log_cycle()
                 if self.config.backwash_by_volume:
                     vol = self._parse_weight(self.module.read_scale(1)) - start_w
                     if vol >= self.config.backwash_target:
@@ -343,7 +349,7 @@ class CleanTestSystem:
             while time.time() < end:
                 if self._check_cancel():
                     return
-                self._log_row()
+                self.log_cycle()
                 time.sleep(self.config.sample_time)
 
         if self.progress_callback:
@@ -364,7 +370,7 @@ class CleanTestSystem:
         while time.time() - start < self.config.rinse_time:
             if self._check_cancel():
                 return
-            self._log_row()
+            self.log_cycle()
             time.sleep(self.config.sample_time)
         self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
 
@@ -375,7 +381,7 @@ class CleanTestSystem:
         while time.time() - start < self.config.rinse_time:
             if self._check_cancel():
                 return
-            self._log_row()
+            self.log_cycle()
             time.sleep(self.config.sample_time)
         self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
 
@@ -386,7 +392,7 @@ class CleanTestSystem:
         while time.time() - start < self.config.rinse_time:
             if self._check_cancel():
                 return
-            self._log_row()
+            self.log_cycle()
             time.sleep(self.config.sample_time)
         self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
 
@@ -426,6 +432,18 @@ class BenchmarkTestSystem:
         self._stop_event = threading.Event()
         self.data_file: Optional[object] = None
 
+    def log_cycle(self) -> dict:
+        """Return a dictionary of sensor readings for one sample."""
+        ts = time.time()
+        return {
+            "time": ts,
+            "influent_temp": self.module.read_rtd(0),
+            "influent_pressure": self.module.read_pressure(2),
+            "backwash_pressure": self.module.read_pressure(1),
+            "effluent_weight": self.module.read_scale(0),
+            "backwash_weight": self.module.read_scale(1),
+        }
+
     def start_test(self) -> None:
         self._stop_event.clear()
         os.makedirs(self.log_dir, exist_ok=True)
@@ -444,20 +462,13 @@ class BenchmarkTestSystem:
             while time.time() - start < self.config.duration:
                 if self._stop_event.is_set():
                     break
-                row = {
-                    "time": time.time(),
-                    "influent_temp": self.module.read_rtd(0),
-                    "influent_pressure": self.module.read_pressure(2),
-                    "backwash_pressure": self.module.read_pressure(1),
-                    "effluent_weight": self.module.read_scale(0),
-                    "backwash_weight": self.module.read_scale(1),
-                }
+                row = self.log_cycle()
                 self.data_file.write(str(row) + "\n")
                 self.data_file.flush()
                 count += 1
                 if self.progress_callback:
                     self.progress_callback("Benchmark", count, 0)
-                time.sleep(self.config.interval)
+                time.sleep(max(1.0, self.config.interval))
         finally:
             self.stop_test()
 
