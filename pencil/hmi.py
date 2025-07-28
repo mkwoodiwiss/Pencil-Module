@@ -3,11 +3,17 @@
 import os
 import re
 import tkinter as tk
+from tkinter import ttk
 import threading
 import time
 from tkinter import scrolledtext
 
-from .automation import FiltrationConfig, FiltrationTestSystem
+from .automation import (
+    FiltrationConfig,
+    FiltrationTestSystem,
+    CleanConfig,
+    CleanTestSystem,
+)
 from .hardware import PencilModule
 from .widgets import NumericEntry, NumericKeypad, OnScreenKeyboard, KeyboardEntry
 from tkinter import messagebox
@@ -52,7 +58,24 @@ class HMI(tk.Tk):
         self.repeat_count_var = tk.IntVar(value=1)
         self.sample_time_var = tk.DoubleVar(value=0.1)
         self.project_name_var = tk.StringVar(value="demo")
+
+        # Clean mode variables
+        self.clean_fwd_target_weight_var = tk.DoubleVar(value=1.0)
+        self.clean_fwd_target_time_var = tk.DoubleVar(value=1.0)
+        self.clean_fwd_use_weight_var = tk.BooleanVar(value=False)
+        self.clean_fwd_use_time_var = tk.BooleanVar(value=True)
+        self.clean_bw_target_weight_var = tk.DoubleVar(value=1.0)
+        self.clean_bw_target_time_var = tk.DoubleVar(value=1.0)
+        self.clean_bw_use_weight_var = tk.BooleanVar(value=False)
+        self.clean_bw_use_time_var = tk.BooleanVar(value=True)
+        self.clean_fwd_soak_var = tk.DoubleVar(value=0.5)
+        self.clean_bw_soak_var = tk.DoubleVar(value=0.5)
+        self.clean_cycle_count_var = tk.IntVar(value=1)
+        self.clean_sample_time_var = tk.DoubleVar(value=0.1)
+        self.clean_rinse_time_var = tk.DoubleVar(value=1.0)
+        self.clean_project_name_var = tk.StringVar(value="clean")
         self.is_running = False
+        self.solenoid_states = [False] * 5
         self.prime_frame = None
         self.prime_stage = 0
 
@@ -70,9 +93,29 @@ class HMI(tk.Tk):
         self._worker = threading.Thread(target=self._sensor_worker, daemon=True)
         self._worker.start()
 
-        self._create_pfd()
+        # Create tabbed interface
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill="both", expand=True)
 
-        self.area = tk.Frame(self)
+        self.pfds = {}
+
+        self.test_tab = tk.Frame(self.notebook)
+        self.clean_tab = tk.Frame(self.notebook)
+        self.notebook.add(self.test_tab, text="Test")
+        self.notebook.add(self.clean_tab, text="Clean")
+
+        # Build Test tab
+        self.pfds["test"] = self._create_pfd(self.test_tab)
+        self.start_btn_test = tk.Button(
+            self.test_tab,
+            text="Start",
+            command=self._toggle_test,
+            font=("Arial", 12),
+            width=8,
+            height=2,
+        )
+        self.start_btn_test.pack(pady=5)
+        self.area = tk.Frame(self.test_tab)
         self.area.pack(fill="both", expand=True, padx=5, pady=5)
 
         left_col = tk.Frame(self.area)
@@ -151,61 +194,113 @@ class HMI(tk.Tk):
         tk.Button(btn_frame, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(btn_frame, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
 
-        # Place the start button overlayed near the bottom center so it does not
-        # get pushed out of view when the window content grows.  Using ``place``
-        # also allows us to lift the button above other widgets so it partially
-        # overlaps them on the x axis as requested.
-        self.start_btn = tk.Button(
-            self,
+        # Clean tab
+        self.pfds["clean"] = self._create_pfd(self.clean_tab)
+        self.start_btn_clean = tk.Button(
+            self.clean_tab,
             text="Start",
-            command=self._toggle_test,
+            command=self._toggle_clean,
             font=("Arial", 12),
             width=8,
             height=2,
         )
-        # Position relative to the bottom of the window with a slight upward
-        # offset so the button remains visible.
-        self.start_btn.place(relx=0.5, rely=1.0, anchor="s", y=-20)
-        # Ensure the button stays in front of other elements.
-        self.start_btn.lift()
+        self.start_btn_clean.pack(pady=5)
+        clean_area = tk.Frame(self.clean_tab)
+        clean_area.pack(fill="both", expand=True, padx=5, pady=5)
+
+        clean_left = tk.Frame(clean_area)
+        clean_left.pack(side="left", padx=5, pady=5, anchor="n")
+        clean_settings = tk.LabelFrame(clean_left, text="Settings")
+        clean_settings.pack(anchor="n")
+
+        clean_right = tk.Frame(clean_area)
+        clean_right.pack(side="right", fill="y", padx=5, pady=5)
+
+        tk.Label(clean_settings, text="Forward Target").grid(row=0, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_fwd_target_weight_var, width=7).grid(row=0, column=1)
+        tk.Checkbutton(clean_settings, text="g", variable=self.clean_fwd_use_weight_var).grid(row=0, column=2, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_fwd_target_time_var, width=7).grid(row=0, column=3)
+        tk.Checkbutton(clean_settings, text="s", variable=self.clean_fwd_use_time_var).grid(row=0, column=4, sticky="w")
+
+        tk.Label(clean_settings, text="Forward Soak").grid(row=1, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_fwd_soak_var, width=7).grid(row=1, column=1)
+        tk.Label(clean_settings, text="s").grid(row=1, column=2, sticky="w")
+
+        tk.Label(clean_settings, text="Backwash Target").grid(row=2, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_bw_target_weight_var, width=7).grid(row=2, column=1)
+        tk.Checkbutton(clean_settings, text="g", variable=self.clean_bw_use_weight_var).grid(row=2, column=2, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_bw_target_time_var, width=7).grid(row=2, column=3)
+        tk.Checkbutton(clean_settings, text="s", variable=self.clean_bw_use_time_var).grid(row=2, column=4, sticky="w")
+
+        tk.Label(clean_settings, text="Backwash Soak").grid(row=3, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_bw_soak_var, width=7).grid(row=3, column=1)
+        tk.Label(clean_settings, text="s").grid(row=3, column=2, sticky="w")
+
+        tk.Label(clean_settings, text="Cycle Count").grid(row=4, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_cycle_count_var, width=7).grid(row=4, column=1)
+
+        tk.Label(clean_settings, text="Sample Time").grid(row=5, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_sample_time_var, width=7).grid(row=5, column=1)
+        tk.Label(clean_settings, text="sec").grid(row=5, column=2, sticky="w")
+
+        tk.Label(clean_settings, text="Rinse Time").grid(row=6, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_rinse_time_var, width=7).grid(row=6, column=1)
+        tk.Label(clean_settings, text="sec").grid(row=6, column=2, sticky="w")
+
+        tk.Label(clean_settings, text="Project Name").grid(row=7, column=0, sticky="w")
+        KeyboardEntry(clean_settings, textvariable=self.clean_project_name_var, width=7).grid(row=7, column=1)
+
+        btn_frame2 = tk.Frame(clean_settings)
+        btn_frame2.grid(row=8, column=0, columnspan=5, pady=8, sticky="ew")
+        btn_frame2.columnconfigure((0, 1, 2), weight=1)
+        tk.Button(btn_frame2, text="Calibrate", command=self.calibrate).grid(row=0, column=0, padx=5, sticky="ew")
+        tk.Button(btn_frame2, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
+        tk.Button(btn_frame2, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
+
+        # Modes switch buttons
+        mode_frame = tk.LabelFrame(self, text="Modes")
+        mode_frame.place(relx=0.0, rely=1.0, anchor="sw", x=5, y=-5)
+        tk.Button(mode_frame, text="Test", command=lambda: self.notebook.select(self.test_tab)).pack(side="left", padx=2)
+        tk.Button(mode_frame, text="Clean", command=lambda: self.notebook.select(self.clean_tab)).pack(side="left", padx=2)
 
         self.update_data()
 
-    def _create_pfd(self) -> None:
-        self.canvas = tk.Canvas(self, width=780, height=190, bg="white")
-        self.canvas.pack(pady=5)
-        close_btn = tk.Button(self.canvas, text="X", width=2, command=self._confirm_exit)
-        self.canvas.create_window(770, 10, window=close_btn, anchor="ne")
-        help_btn = tk.Button(self.canvas, text="?", width=2, command=self._show_control_narrative)
-        self.canvas.create_window(740, 10, window=help_btn, anchor="ne")
+    def _create_pfd(self, parent: tk.Widget) -> dict:
+        """Create and return a process flow diagram on ``parent``."""
+        canvas = tk.Canvas(parent, width=780, height=190, bg="white")
+        canvas.pack(pady=5)
+        close_btn = tk.Button(canvas, text="X", width=2, command=self._confirm_exit)
+        canvas.create_window(770, 10, window=close_btn, anchor="ne")
+        help_btn = tk.Button(canvas, text="?", width=2, command=self._show_control_narrative)
+        canvas.create_window(740, 10, window=help_btn, anchor="ne")
 
-        self.canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
-        self.canvas.create_text(100, 20, text="BW water")
-        self.pi1_text = self.canvas.create_text(100, 70, text="-- PSI")
+        canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
+        canvas.create_text(100, 20, text="BW water")
+        pi1_text = canvas.create_text(100, 70, text="-- PSI")
 
-        self.canvas.create_rectangle(75, 110, 125, 160, fill="lightblue")
-        self.canvas.create_text(100, 100, text="Influent water")
-        self.pi2_text = self.canvas.create_text(100, 150, text="-- PSI")
+        canvas.create_rectangle(75, 110, 125, 160, fill="lightblue")
+        canvas.create_text(100, 100, text="Influent water")
+        pi2_text = canvas.create_text(100, 150, text="-- PSI")
 
-        self.canvas.create_rectangle(265, 45, 445, 65, fill="lightgray")
-        self.canvas.create_rectangle(275, 65, 290, 85, fill="lightgray")
-        self.canvas.create_rectangle(420, 65, 435, 85, fill="lightgray")
-        self.canvas.create_text(355, 35, text="Mini-module")
+        canvas.create_rectangle(265, 45, 445, 65, fill="lightgray")
+        canvas.create_rectangle(275, 65, 290, 85, fill="lightgray")
+        canvas.create_rectangle(420, 65, 435, 85, fill="lightgray")
+        canvas.create_text(355, 35, text="Mini-module")
 
-        self.canvas.create_rectangle(565, 30, 615, 80, fill="lightblue")
-        self.canvas.create_text(590, 20, text="Effluent")
-        self.effluent_weight_text = self.canvas.create_text(590, 70, text="-- g")
+        canvas.create_rectangle(565, 30, 615, 80, fill="lightblue")
+        canvas.create_text(590, 20, text="Effluent")
+        effluent_weight_text = canvas.create_text(590, 70, text="-- g")
 
-        self.canvas.create_rectangle(565, 120, 615, 170, fill="lightblue")
-        self.canvas.create_text(590, 110, text="Backwash")
-        self.backwash_weight_text = self.canvas.create_text(590, 160, text="-- g")
+        canvas.create_rectangle(565, 120, 615, 170, fill="lightblue")
+        canvas.create_text(590, 110, text="Backwash")
+        backwash_weight_text = canvas.create_text(590, 160, text="-- g")
 
-        self.canvas.create_rectangle(665, 75, 715, 125, fill="lightblue")
-        self.canvas.create_text(690, 65, text="Drain")
+        canvas.create_rectangle(665, 75, 715, 125, fill="lightblue")
+        canvas.create_text(690, 65, text="Drain")
 
-        self.lines = {}
-        self.valve_labels = {}
-        self.valve_to_lines = {
+        lines = {}
+        valve_labels = {}
+        valve_to_lines = {
             0: [0],
             1: [1],
             2: [2, 'v3_vert1', 'v3_vert2'],
@@ -213,56 +308,71 @@ class HMI(tk.Tk):
             4: [4],
         }
 
-        self.lines[0] = self.canvas.create_line(125, 55, 265, 55, arrow="last", fill="gray", width=2)
-        self.valve_labels['V1'] = self.canvas.create_text(195, 55, text="V1")
+        lines[0] = canvas.create_line(125, 55, 265, 55, arrow="last", fill="gray", width=2)
+        valve_labels['V1'] = canvas.create_text(195, 55, text="V1")
 
-        self.lines[1] = self.canvas.create_line(125, 125, 290, 125, fill="gray", width=2)
-        self.lines['v2_vert'] = self.canvas.create_line(282.5, 125, 282.5, 85, arrow="last", fill="gray", width=2)
-        self.valve_to_lines[1].append('v2_vert')
-        self.valve_labels['V2'] = self.canvas.create_text(195, 125, text="V2")
-        self.canvas.create_rectangle(290, 117.5, 340, 132.5, fill="white", outline="black")
-        self.te_text = self.canvas.create_text(315, 125, text="-- C")
+        lines[1] = canvas.create_line(125, 125, 290, 125, fill="gray", width=2)
+        lines['v2_vert'] = canvas.create_line(282.5, 125, 282.5, 85, arrow="last", fill="gray", width=2)
+        valve_to_lines[1].append('v2_vert')
+        valve_labels['V2'] = canvas.create_text(195, 125, text="V2")
+        canvas.create_rectangle(290, 117.5, 340, 132.5, fill="white", outline="black")
+        te_text = canvas.create_text(315, 125, text="-- C")
 
-        self.lines[2] = self.canvas.create_line(427.5, 145, 565, 145, arrow="last", fill="gray", width=2)
-        self.lines['v3_vert1'] = self.canvas.create_line(427.5, 100, 427.5, 145, fill="gray", width=2)
-        self.lines['v3_vert2'] = self.canvas.create_line(427.5, 85, 427.5, 100, fill="gray", width=2)
-        self.valve_to_lines[2].extend(['v3_vert1', 'v3_vert2'])
-        self.valve_labels['V3'] = self.canvas.create_text(505, 145, text="V3")
+        lines[2] = canvas.create_line(427.5, 145, 565, 145, arrow="last", fill="gray", width=2)
+        lines['v3_vert1'] = canvas.create_line(427.5, 100, 427.5, 145, fill="gray", width=2)
+        lines['v3_vert2'] = canvas.create_line(427.5, 85, 427.5, 100, fill="gray", width=2)
+        valve_to_lines[2].extend(['v3_vert1', 'v3_vert2'])
+        valve_labels['V3'] = canvas.create_text(505, 145, text="V3")
 
-        self.lines[3] = self.canvas.create_line(427.5, 100, 665, 100, arrow="last", fill="gray", width=2)
-        self.valve_labels['V4'] = self.canvas.create_text(505, 100, text="V4")
+        lines[3] = canvas.create_line(427.5, 100, 665, 100, arrow="last", fill="gray", width=2)
+        valve_labels['V4'] = canvas.create_text(505, 100, text="V4")
 
-        self.lines[4] = self.canvas.create_line(445, 55, 565, 55, arrow="last", fill="gray", width=2)
-        self.valve_labels['V5'] = self.canvas.create_text(505, 55, text="V5")
+        lines[4] = canvas.create_line(445, 55, 565, 55, arrow="last", fill="gray", width=2)
+        valve_labels['V5'] = canvas.create_text(505, 55, text="V5")
 
-        self.solenoid_states = [False] * 5
-        self.solenoid_buttons = []
+        solenoid_buttons = []
         valve_keys = ['V1', 'V2', 'V3', 'V4', 'V5']
         for i in range(5):
-            btn = tk.Button(self.canvas, text=f"V{i+1}", width=3, bg="lightgray", command=lambda ch=i: self.toggle_solenoid(ch))
-            x, y = self.canvas.coords(self.valve_labels[valve_keys[i]])
-            self.canvas.create_window(x, y, window=btn)
-            self.solenoid_buttons.append(btn)
+            btn = tk.Button(canvas, text=f"V{i+1}", width=3, bg="lightgray", command=lambda ch=i: self.toggle_solenoid(ch))
+            x, y = canvas.coords(valve_labels[valve_keys[i]])
+            canvas.create_window(x, y, window=btn)
+            solenoid_buttons.append(btn)
 
-        self.prime_btn = tk.Button(self.canvas, text="Prime", command=self.prime)
-        self.canvas.create_window(355, 90, window=self.prime_btn)
+        prime_btn = tk.Button(canvas, text="Prime", command=self.prime)
+        canvas.create_window(355, 90, window=prime_btn)
+
+        return {
+            "canvas": canvas,
+            "pi1_text": pi1_text,
+            "pi2_text": pi2_text,
+            "te_text": te_text,
+            "effluent_weight_text": effluent_weight_text,
+            "backwash_weight_text": backwash_weight_text,
+            "lines": lines,
+            "valve_labels": valve_labels,
+            "valve_to_lines": valve_to_lines,
+            "solenoid_buttons": solenoid_buttons,
+            "prime_btn": prime_btn,
+        }
 
     def _update_lines(self) -> None:
-        for idx, line_ids in self.valve_to_lines.items():
-            for lid in line_ids:
-                if lid == 'v3_vert2':
-                    continue
-                color = "green" if self.solenoid_states[idx] else "gray"
-                self.canvas.itemconfig(self.lines[lid], fill=color)
-        color = "green" if self.solenoid_states[2] or self.solenoid_states[3] else "gray"
-        self.canvas.itemconfig(self.lines['v3_vert2'], fill=color)
+        for pfd in self.pfds.values():
+            for idx, line_ids in pfd["valve_to_lines"].items():
+                for lid in line_ids:
+                    if lid == 'v3_vert2':
+                        continue
+                    color = "green" if self.solenoid_states[idx] else "gray"
+                    pfd["canvas"].itemconfig(pfd["lines"][lid], fill=color)
+            color = "green" if self.solenoid_states[2] or self.solenoid_states[3] else "gray"
+            pfd["canvas"].itemconfig(pfd["lines"]["v3_vert2"], fill=color)
 
     def toggle_solenoid(self, channel: int) -> None:
         state = not self.solenoid_states[channel]
         self.solenoid_states[channel] = state
         self.module.set_solenoid(channel + 1, state)
         bg = "green" if state else "lightgray"
-        self.solenoid_buttons[channel].config(bg=bg)
+        for pfd in self.pfds.values():
+            pfd["solenoid_buttons"][channel].config(bg=bg)
         self._update_lines()
 
     def _set_valves(self, state: bool, *valves: int) -> None:
@@ -271,7 +381,8 @@ class HMI(tk.Tk):
             self.solenoid_states[idx] = state
             self.module.set_solenoid(v, state)
             bg = "green" if state else "lightgray"
-            self.solenoid_buttons[idx].config(bg=bg)
+            for pfd in self.pfds.values():
+                pfd["solenoid_buttons"][idx].config(bg=bg)
         self._update_lines()
 
     def _automation_valve_change(self, valve: int, state: bool) -> None:
@@ -280,7 +391,8 @@ class HMI(tk.Tk):
         if 0 <= idx < len(self.solenoid_states):
             self.solenoid_states[idx] = state
             bg = "green" if state else "lightgray"
-            self.solenoid_buttons[idx].config(bg=bg)
+            for pfd in self.pfds.values():
+                pfd["solenoid_buttons"][idx].config(bg=bg)
             self._update_lines()
 
     def _automation_progress(self, step: str, count: int, total: int) -> None:
@@ -299,15 +411,17 @@ class HMI(tk.Tk):
 
     def _disable_manual_controls(self) -> None:
         """Disable the valve and prime buttons while a test is running."""
-        for btn in self.solenoid_buttons:
-            btn.config(state="disabled")
-        self.prime_btn.config(state="disabled")
+        for pfd in self.pfds.values():
+            for btn in pfd["solenoid_buttons"]:
+                btn.config(state="disabled")
+            pfd["prime_btn"].config(state="disabled")
 
     def _enable_manual_controls(self) -> None:
         """Re-enable manual control buttons after a test completes."""
-        for btn in self.solenoid_buttons:
-            btn.config(state="normal")
-        self.prime_btn.config(state="normal")
+        for pfd in self.pfds.values():
+            for btn in pfd["solenoid_buttons"]:
+                btn.config(state="normal")
+            pfd["prime_btn"].config(state="normal")
 
     def prime(self) -> None:
         if self.prime_frame:
@@ -391,8 +505,17 @@ class HMI(tk.Tk):
         else:
             self._cancel_prime()
             self.is_running = True
-            self.start_btn.config(text="Cancel")
+            self.start_btn_test.config(text="Cancel")
             self.start_test()
+
+    def _toggle_clean(self) -> None:
+        if getattr(self, "is_running", False):
+            self.cancel_test()
+        else:
+            self._cancel_prime()
+            self.is_running = True
+            self.start_btn_clean.config(text="Cancel")
+            self.start_clean()
 
     def start_test(self) -> None:
         # Disable manual valve controls and ensure all valves are closed before
@@ -433,6 +556,45 @@ class HMI(tk.Tk):
         self.test_thread = threading.Thread(target=self._run_test_thread)
         self.test_thread.start()
 
+    def start_clean(self) -> None:
+        self._disable_manual_controls()
+        self._close_all_valves()
+
+        if self.clean_fwd_use_weight_var.get():
+            fwd_target = self.clean_fwd_target_weight_var.get()
+            fwd_by_vol = True
+        else:
+            fwd_target = self.clean_fwd_target_time_var.get()
+            fwd_by_vol = False
+
+        if self.clean_bw_use_weight_var.get():
+            bw_target = self.clean_bw_target_weight_var.get()
+            bw_by_vol = True
+        else:
+            bw_target = self.clean_bw_target_time_var.get()
+            bw_by_vol = False
+
+        config = CleanConfig(
+            forward_target=fwd_target,
+            forward_by_volume=fwd_by_vol,
+            forward_soak=self.clean_fwd_soak_var.get(),
+            backwash_target=bw_target,
+            backwash_by_volume=bw_by_vol,
+            backwash_soak=self.clean_bw_soak_var.get(),
+            cycle_count=self.clean_cycle_count_var.get(),
+            sample_time=self.clean_sample_time_var.get(),
+            rinse_time=self.clean_rinse_time_var.get(),
+            project_name=self.clean_project_name_var.get(),
+        )
+        self.test_system = CleanTestSystem(
+            self.module,
+            config,
+            valve_callback=self._automation_valve_change,
+            progress_callback=self._automation_progress,
+        )
+        self.test_thread = threading.Thread(target=self._run_test_thread)
+        self.test_thread.start()
+
     def _run_test_thread(self) -> None:
         self.test_system.start_test()
         self.after(0, self._test_finished)
@@ -444,7 +606,8 @@ class HMI(tk.Tk):
 
     def _test_finished(self) -> None:
         self.is_running = False
-        self.start_btn.config(text="Start")
+        self.start_btn_test.config(text="Start")
+        self.start_btn_clean.config(text="Start")
         self.cycle_step_var.set("Idle")
         self.cycle_count_var.set("")
         self._enable_manual_controls()
@@ -531,12 +694,13 @@ class HMI(tk.Tk):
         self.pressure_raw_var.set(f"{pressure_raw:.2f}")
         self.temp_var.set(f"{temp:.2f}")
 
-        self.canvas.itemconfig(self.pi1_text, text=f"{self.pressure_bw_var.get()} PSI")
-        self.canvas.itemconfig(self.pi2_text, text=f"{self.pressure_raw_var.get()} PSI")
-        self.canvas.itemconfig(self.te_text, text=f"{self.temp_var.get()} C")
-        # Display raw weight values (with units) on the process diagram
-        self.canvas.itemconfig(self.effluent_weight_text, text=weight)
-        self.canvas.itemconfig(self.backwash_weight_text, text=bw_weight)
+        for pfd in self.pfds.values():
+            pfd["canvas"].itemconfig(pfd["pi1_text"], text=f"{self.pressure_bw_var.get()} PSI")
+            pfd["canvas"].itemconfig(pfd["pi2_text"], text=f"{self.pressure_raw_var.get()} PSI")
+            pfd["canvas"].itemconfig(pfd["te_text"], text=f"{self.temp_var.get()} C")
+            # Display raw weight values (with units) on the process diagram
+            pfd["canvas"].itemconfig(pfd["effluent_weight_text"], text=weight)
+            pfd["canvas"].itemconfig(pfd["backwash_weight_text"], text=bw_weight)
 
         self._update_lines()
         self.after(1000, self.update_data)
