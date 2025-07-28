@@ -1,77 +1,120 @@
-1 - INTRODUCTION
-The Pencil Module Filtration Test System is designed to automate and log performance data for filtration cycles. It facilitates the precise control and monitoring of filter and backwash processes, enabling repeatable test sequences. The system integrates pressure and temperature sensing, weight measurement, and manual and automatic operation modes via an HMI interface.
-2 - PROCESS OBJECTIVE
-The system performs automated filtration cycles on pencil module filters. It logs:
-•Influent temperature
-•Backwash supply pressure
-•Influent supply pressure
-•Weight of collected effluent and backwash water
-•Operator-entered setpoints
-•Timestamps for each data point
-The data is used to assess filtration and backwash performance over repeated cycles.
-3 - INPUTS: 
-SignalTypeDescription
-Influent Supply PressurePITMonitors influent supply tank pressure
-Backwash Supply PressurePITMonitors backwash supply tank pressure
-Influent TemperatureRTDMeasures influent temperature
-Effluent WeightScaleMeasures filtered effluent
-Backwash WeightScaleMeasures backwash water output
-Setpoints/Input ControlsHMIOperator-configurable values (see Section 5)
-Prime ButtonHMIStarts priming routine
-Start/Stop Test ButtonHMIBegins/Stops automated cycle
-Calibration ButtonHMIApplies offset to pressure/temp readings
-Manual Zero ButtonsHMIZeros each scale individually from idle
+# Controls Narrative
 
-4 - OUTPUTS: 
-DeviceTypeFunction
-Influent Supply ValveSolenoidControls influent supply flow
-Backwash Supply ValveSolenoidControls backwash supply flow
-Effluent ValveSolenoidControls effluent flow
-Backwash Effluent ValveSolenoidControls backwash effluent flow
-Influent Water Drain ValveSolenoidDrains influent line during refill
-Scale Zero CommandDigitalZeros both scales at test start
+**System Name:** Pencil Module
+**Date:** 07/25/2025
+**Author:** M. Woodiwiss
 
-5 - SETPOINTS AND OPERATOR INPUTS (VIA HMI)
-•Filtration Target: Either Time (sec) or Volume (mL)
-•Backwash Target: Either Time (sec) or Volume (mL)
-•Purge Time: Duration in seconds
-•Cycle Count: Number of full cycles to perform
-•Calibration Offsets: Manual offset values for pressure and temperature
-•Sample Time: Logging interval in seconds
-•Project Name: Name of project for log files
+## 1 - INTRODUCTION
+The Pencil Module Filtration Test System is designed to automate and log performance data for pencil module filters. It enables precise control and monitoring of filtration, backwash, cleaning and benchmark test cycles, ensuring repeatable test sequences. The system integrates pressure and temperature sensing, weight measurement, and both manual and automatic operation modes via an HMI interface.
 
-6 - SEQUENCE OF OPERATION
-Start Test
-1.Operator presses Start Test
-2.System issues zeroing command to both scales
-3.Data log file created [Project Name]_[Date]_[Time] 
-4.Settings log file created [Project Name]_[Date]_[Time]
-5.Data logging begins at the interval defined by the Sample Time setpoint
-Automated Test Cycle
-The following steps repeat for the number of cycles defined in the Cycle Count setpoint:
-A.Refill Phase
-1.Activate: Influent Supply Valve and Influent Water Drain Valve
-2.Run for duration set by Purge Time
-3.Deactivate valves after time elapses
-B.Filtration Phase
-1.Activate: Influent Supply Valve and Effluent Valve
-2.Depending on mode. flow continues until the following condition is met:
-1.Filtration time = Filtration Time Setpoint, OR
-2.Effluent weight = Effluent Volume Setpoint
-C.Backwash Phase
-1.Activate: Backwash Supply Valve and Backwash Effluent Valve
-2.Direct water through backwash line to backwash collection
-3.Depending on mode. flow continues until the following condition is met:
-1.Backwash time = Backwash Time Setpoint, OR
-2.Backwash weight = Backwash Volume Setpoint
-D.Cycle Completion
-4.Loop above until Cycle Count is reached
-5.Stop all outputs
-6.End data logging
-7.Return to idle state
-7 - MANUAL OPERATION (IDLE MODE ONLY)
-•A process flow diagram (PFD) is shown on the HMI.
-•Tapping any solenoid symbol on the HMI toggles that valve open/closed for manual testing or troubleshooting.
-8 - CALIBRATION & SPECIAL FUNCTIONS
-•Calibration: User can apply calibration offsets to pressure and temperature readings via HMI.
-•Scale Zeroing: Two individual manual zero buttons on the HMI, and an automatic scale zero command issued at the start of each test.
+## 2 - PROCESS OBJECTIVE
+The system performs automated filtration, backwash, cleaning and benchmark test cycles on pencil module filters. Throughout these processes it continuously logs:
+- Influent temperature
+- Backwash supply pressure
+- Influent supply pressure
+- Weight of collected effluent and backwash water
+- Operator-entered setpoints and process metadata
+- Timestamps for each logged data point
+The collected data is used to evaluate filter performance, cleaning effectiveness and repeatability across multiple test cycles.
+
+## 3 - INPUTS
+| Signal | Type | Description |
+|-------|------|-------------|
+| Influent Supply Pressure | PIT | Monitors influent supply tank pressure |
+| Backwash Supply Pressure | PIT | Monitors backwash supply tank pressure |
+| Influent Temperature | RTD | Measures influent temperature |
+| Effluent Weight | Scale | Measures filtered effluent |
+| Backwash Weight | Scale | Measures backwash water output |
+| Setpoints/Input Controls | HMI | Operator-configurable values (see Section 5) |
+| Prime Button | HMI | Starts priming routine |
+| Start/Stop Test Button | HMI | Begins/Stops automated cycle |
+| Calibration Button | HMI | Applies offset to pressure/temp readings |
+
+## 4 - OUTPUTS
+| Device | Type | Function |
+|-------|------|----------|
+| Influent Supply Valve | Solenoid | Controls influent supply flow |
+| Backwash Supply Valve | Solenoid | Controls backwash supply flow |
+| Effluent Valve | Solenoid | Controls effluent flow |
+| Backwash Effluent Valve | Solenoid | Controls backwash effluent flow |
+| Influent Water Drain Valve | Solenoid | Drains influent line during refill |
+| Scale Zero Command | Digital | Zeros both scales at test start |
+
+## 5 - SETPOINTS AND OPERATOR INPUTS (VIA HMI)
+- Filtration Target: Time (sec) or Weight (g)
+- Backwash Target: Time (sec) or Weight (mL)
+- Purge Time: Duration in seconds
+- Cycle Count: Number of full cycles to perform
+- Sample Time: Data logging interval in seconds
+- Calibration Offsets: Offsets used to calibrate sensors
+- Project Name: Included in log file titles
+- Sample ID: Included in log file titles
+- Module ID: Included in log file titles
+- FWD Soak Time: Duration in seconds
+- BW Soak Time: Duration in seconds
+
+## 6 - AUTOMATED PROCESSES
+### Test Sequence
+1. **Start Test**
+   - Zero both scales.
+   - Begin data logging at defined sample time intervals.
+2. **Cycle Loop** (repeats for the defined Cycle Count)
+   - **Purge Phase**
+     - Open Influent Supply Valve and Influent Water Drain Valve.
+     - Run for the configured Refill Time then close all valves.
+   - **Filter Phase**
+     - Open Influent Supply Valve and Effluent Valve.
+     - Continue until either the Filtration Time or Effluent Weight setpoint is met.
+   - **Backwash Phase**
+     - Open Backwash Supply Valve and Backwash Effluent Valve.
+     - Continue until either the Backwash Time or Backwash Weight setpoint is met.
+3. **Cycle Completion**
+   - Stop all outputs.
+   - End data logging.
+   - Return to idle state.
+
+### Clean Sequence
+1. **Start Clean**
+   - Zero both scales.
+   - Begin data logging at defined sample time intervals.
+2. **Cycle Loop** (repeats for the defined Cycle Count)
+   - **Forward Clean Phase**
+     - Open Influent Supply Valve and Effluent Valve to run cleaning solution through the filter.
+     - Continue until either the Effluent Time or Effluent Weight setpoint is met.
+     - Close valves and soak for the configured FWD Soak Time.
+   - **Backwash Clean Phase**
+     - Open Backwash Supply Valve and Backwash Effluent Valve to run cleaning solution through the backwash line.
+     - Continue until either the Backwash Time or Backwash Weight setpoint is met.
+     - Close valves and soak for the configured BW Soak Time.
+3. **Rinse Phase**
+   - Prompt the operator to refill supply tanks with DI water.
+   - Perform Purge, Filter and Backwash phases as in the Test sequence.
+4. **Cycle Completion**
+   - Stop all outputs.
+   - End data logging.
+   - Return to idle state.
+
+### Benchmark Sequence
+1. **Start Benchmark**
+   - Zero both scales.
+   - Begin data logging at defined sample time intervals.
+2. **Cycle Loop** (repeats for the defined Repeat Count)
+   - **Purge Phase**
+     - Open Influent Supply Valve and Influent Water Drain Valve for the configured Refill Time.
+   - **Filter Phase**
+     - Open Influent Supply Valve and Effluent Valve until the Filtration Time or Effluent Weight setpoint is reached.
+   - **Backwash Phase**
+     - Open Backwash Supply Valve and Backwash Effluent Valve until the Backwash Time or Backwash Weight setpoint is reached.
+3. **Cycle Completion**
+   - Stop all outputs.
+   - End data logging.
+   - Return to idle state.
+
+## 7 - MANUAL OPERATION
+- A process flow diagram (PFD) is shown on the HMI.
+- Tapping any solenoid symbol toggles that valve open or closed for manual testing or troubleshooting. Manual operation is only available when in idle mode.
+
+## 8 - CALIBRATION & SPECIAL FUNCTIONS
+- **Calibration:** Users can apply calibration offsets to pressure and temperature readings via the HMI.
+- **Scale Zeroing:** Two individual manual zero buttons are available on the HMI, and an automatic scale zero command is issued at the start of each test.
+
