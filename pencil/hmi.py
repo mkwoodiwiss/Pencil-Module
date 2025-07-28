@@ -24,7 +24,12 @@ from tkinter import messagebox
 class HMI(tk.Tk):
     """Simple Tkinter graphical interface with a process diagram."""
 
-    def __init__(self, module: PencilModule, fullscreen: bool = False) -> None:
+    def __init__(
+        self,
+        module: PencilModule,
+        fullscreen: bool = False,
+        defaults: dict | None = None,
+    ) -> None:
         super().__init__()
         self.module = module
         self.title("Pencil Module")
@@ -42,6 +47,8 @@ class HMI(tk.Tk):
             except Exception:
                 pass
 
+        defaults = defaults or {}
+
         self.weight_var = tk.StringVar()
         self.backwash_weight_var = tk.StringVar()
         self.pressure_bw_var = tk.StringVar()
@@ -50,56 +57,136 @@ class HMI(tk.Tk):
         self.cycle_step_var = tk.StringVar(value="Idle")
         self.cycle_count_var = tk.StringVar(value="")
 
-        self.filt_target_weight_var = tk.DoubleVar(value=1.0)
-        self.filt_target_time_var = tk.DoubleVar(value=1.0)
-        self.filt_use_weight_var = tk.BooleanVar(value=False)
-        self.filt_use_time_var = tk.BooleanVar(value=True)
-        self.bw_target_weight_var = tk.DoubleVar(value=1.0)
-        self.bw_target_time_var = tk.DoubleVar(value=1.0)
-        self.bw_use_weight_var = tk.BooleanVar(value=False)
-        self.bw_use_time_var = tk.BooleanVar(value=True)
-        self.refill_time_var = tk.DoubleVar(value=0.5)
-        self.repeat_count_var = tk.IntVar(value=1)
-        self.sample_time_var = tk.DoubleVar(value=0.1)
-        self.project_var = tk.StringVar(value="")
-        self.module_id_var = tk.StringVar(value="")
-        self.sample_id_var = tk.StringVar(value="")
+        self.filt_target_weight_var = tk.DoubleVar(
+            value=defaults.get("filt_target_weight", 1.0)
+        )
+        self.filt_target_time_var = tk.DoubleVar(
+            value=defaults.get("filt_target_time", 1.0)
+        )
+        self.filt_use_weight_var = tk.BooleanVar(
+            value=defaults.get("filt_use_weight", False)
+        )
+        self.filt_use_time_var = tk.BooleanVar(
+            value=defaults.get("filt_use_time", True)
+        )
+        self.bw_target_weight_var = tk.DoubleVar(
+            value=defaults.get("bw_target_weight", 1.0)
+        )
+        self.bw_target_time_var = tk.DoubleVar(
+            value=defaults.get("bw_target_time", 1.0)
+        )
+        self.bw_use_weight_var = tk.BooleanVar(
+            value=defaults.get("bw_use_weight", False)
+        )
+        self.bw_use_time_var = tk.BooleanVar(
+            value=defaults.get("bw_use_time", True)
+        )
+        self.refill_time_var = tk.DoubleVar(
+            value=defaults.get("refill_time", 0.5)
+        )
+        self.repeat_count_var = tk.IntVar(value=defaults.get("repeat_count", 1))
+        self.sample_time_var = tk.DoubleVar(
+            value=defaults.get("sample_time", 0.1)
+        )
+        self.project_var = tk.StringVar(value=defaults.get("project", ""))
+        self.module_id_var = tk.StringVar(value=defaults.get("module_id", ""))
+        self.sample_id_var = tk.StringVar(value=defaults.get("sample_id", ""))
         self.test_summary_var = tk.StringVar(value="")
 
         # Clean mode variables
-        self.clean_fwd_target_weight_var = tk.DoubleVar(value=1.0)
-        self.clean_fwd_target_time_var = tk.DoubleVar(value=1.0)
-        self.clean_fwd_use_weight_var = tk.BooleanVar(value=False)
-        self.clean_fwd_use_time_var = tk.BooleanVar(value=True)
-        self.clean_bw_target_weight_var = tk.DoubleVar(value=1.0)
-        self.clean_bw_target_time_var = tk.DoubleVar(value=1.0)
-        self.clean_bw_use_weight_var = tk.BooleanVar(value=False)
-        self.clean_bw_use_time_var = tk.BooleanVar(value=True)
-        self.clean_fwd_soak_var = tk.DoubleVar(value=0.5)
-        self.clean_bw_soak_var = tk.DoubleVar(value=0.5)
-        self.clean_cycle_count_var = tk.IntVar(value=1)
-        self.clean_sample_time_var = tk.DoubleVar(value=0.1)
-        self.clean_rinse_time_var = tk.DoubleVar(value=1.0)
-        self.clean_project_var = tk.StringVar(value="")
-        self.clean_module_id_var = tk.StringVar(value="")
-        self.clean_solution_var = tk.StringVar(value="")
+        self.clean_fwd_target_weight_var = tk.DoubleVar(
+            value=defaults.get("clean_fwd_target_weight", 1.0)
+        )
+        self.clean_fwd_target_time_var = tk.DoubleVar(
+            value=defaults.get("clean_fwd_target_time", 1.0)
+        )
+        self.clean_fwd_use_weight_var = tk.BooleanVar(
+            value=defaults.get("clean_fwd_use_weight", False)
+        )
+        self.clean_fwd_use_time_var = tk.BooleanVar(
+            value=defaults.get("clean_fwd_use_time", True)
+        )
+        self.clean_bw_target_weight_var = tk.DoubleVar(
+            value=defaults.get("clean_bw_target_weight", 1.0)
+        )
+        self.clean_bw_target_time_var = tk.DoubleVar(
+            value=defaults.get("clean_bw_target_time", 1.0)
+        )
+        self.clean_bw_use_weight_var = tk.BooleanVar(
+            value=defaults.get("clean_bw_use_weight", False)
+        )
+        self.clean_bw_use_time_var = tk.BooleanVar(
+            value=defaults.get("clean_bw_use_time", True)
+        )
+        self.clean_fwd_soak_var = tk.DoubleVar(
+            value=defaults.get("clean_fwd_soak", 0.5)
+        )
+        self.clean_bw_soak_var = tk.DoubleVar(
+            value=defaults.get("clean_bw_soak", 0.5)
+        )
+        self.clean_cycle_count_var = tk.IntVar(
+            value=defaults.get("clean_cycle_count", 1)
+        )
+        self.clean_sample_time_var = tk.DoubleVar(
+            value=defaults.get("clean_sample_time", 0.1)
+        )
+        self.clean_rinse_time_var = tk.DoubleVar(
+            value=defaults.get("clean_rinse_time", 1.0)
+        )
+        self.clean_project_var = tk.StringVar(
+            value=defaults.get("clean_project", "")
+        )
+        self.clean_module_id_var = tk.StringVar(
+            value=defaults.get("clean_module_id", "")
+        )
+        self.clean_solution_var = tk.StringVar(
+            value=defaults.get("clean_solution", "")
+        )
         self.clean_summary_var = tk.StringVar(value="")
 
         # Benchmark variables (mirror Test but independent)
-        self.benchmark_filt_target_weight_var = tk.DoubleVar(value=1.0)
-        self.benchmark_filt_target_time_var = tk.DoubleVar(value=1.0)
-        self.benchmark_filt_use_weight_var = tk.BooleanVar(value=False)
-        self.benchmark_filt_use_time_var = tk.BooleanVar(value=True)
-        self.benchmark_bw_target_weight_var = tk.DoubleVar(value=1.0)
-        self.benchmark_bw_target_time_var = tk.DoubleVar(value=1.0)
-        self.benchmark_bw_use_weight_var = tk.BooleanVar(value=False)
-        self.benchmark_bw_use_time_var = tk.BooleanVar(value=True)
-        self.benchmark_refill_time_var = tk.DoubleVar(value=0.5)
-        self.benchmark_repeat_count_var = tk.IntVar(value=1)
-        self.benchmark_sample_time_var = tk.DoubleVar(value=0.1)
-        self.benchmark_project_var = tk.StringVar(value="")
-        self.benchmark_module_id_var = tk.StringVar(value="")
-        self.benchmark_sample_id_var = tk.StringVar(value="")
+        self.benchmark_filt_target_weight_var = tk.DoubleVar(
+            value=defaults.get("benchmark_filt_target_weight", 1.0)
+        )
+        self.benchmark_filt_target_time_var = tk.DoubleVar(
+            value=defaults.get("benchmark_filt_target_time", 1.0)
+        )
+        self.benchmark_filt_use_weight_var = tk.BooleanVar(
+            value=defaults.get("benchmark_filt_use_weight", False)
+        )
+        self.benchmark_filt_use_time_var = tk.BooleanVar(
+            value=defaults.get("benchmark_filt_use_time", True)
+        )
+        self.benchmark_bw_target_weight_var = tk.DoubleVar(
+            value=defaults.get("benchmark_bw_target_weight", 1.0)
+        )
+        self.benchmark_bw_target_time_var = tk.DoubleVar(
+            value=defaults.get("benchmark_bw_target_time", 1.0)
+        )
+        self.benchmark_bw_use_weight_var = tk.BooleanVar(
+            value=defaults.get("benchmark_bw_use_weight", False)
+        )
+        self.benchmark_bw_use_time_var = tk.BooleanVar(
+            value=defaults.get("benchmark_bw_use_time", True)
+        )
+        self.benchmark_refill_time_var = tk.DoubleVar(
+            value=defaults.get("benchmark_refill_time", 0.5)
+        )
+        self.benchmark_repeat_count_var = tk.IntVar(
+            value=defaults.get("benchmark_repeat_count", 1)
+        )
+        self.benchmark_sample_time_var = tk.DoubleVar(
+            value=defaults.get("benchmark_sample_time", 0.1)
+        )
+        self.benchmark_project_var = tk.StringVar(
+            value=defaults.get("benchmark_project", "")
+        )
+        self.benchmark_module_id_var = tk.StringVar(
+            value=defaults.get("benchmark_module_id", "")
+        )
+        self.benchmark_sample_id_var = tk.StringVar(
+            value=defaults.get("benchmark_sample_id", "")
+        )
         self.benchmark_summary_var = tk.StringVar(value="")
         self.is_running = False
         self.solenoid_states = [False] * 5

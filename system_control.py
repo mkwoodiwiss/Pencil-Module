@@ -1,5 +1,8 @@
 """High level controller for the Pencil Module."""
 
+import json
+import os
+
 from pencil import (
     FiltrationConfig,
     FiltrationTestSystem,
@@ -11,7 +14,13 @@ from pencil import (
 def main() -> None:
     """Entry point when running the module directly."""
     module = PencilModule()
-    app = HMI(module, fullscreen=True)
+    config_path = os.path.join(os.path.dirname(__file__), "config.json")
+    try:
+        with open(config_path, "r", encoding="utf-8") as fp:
+            defaults = json.load(fp)
+    except Exception:
+        defaults = {}
+    app = HMI(module, fullscreen=True, defaults=defaults)
     app.mainloop()
 
 
