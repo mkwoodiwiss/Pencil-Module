@@ -106,27 +106,31 @@ class HMI(tk.Tk):
 
         # Build Test tab
         self.pfds["test"] = self._create_pfd(self.test_tab)
-        self.start_btn_test = tk.Button(
-            self.test_tab,
-            text="Start",
-            command=self._toggle_test,
-            font=("Arial", 12),
-            width=8,
-            height=2,
-        )
-        self.start_btn_test.pack(pady=(0, 5))
         self.area = tk.Frame(self.test_tab)
         self.area.pack(fill="both", expand=True, padx=5, pady=5)
 
         left_col = tk.Frame(self.area)
         left_col.pack(side="left", padx=5, pady=5, anchor="n")
 
+        middle_col = tk.Frame(self.area)
+        middle_col.pack(side="left", padx=5, pady=5, anchor="n")
+
+        self.start_btn_test = tk.Button(
+            middle_col,
+            text="Start",
+            command=self._toggle_test,
+            font=("Arial", 12),
+            width=8,
+            height=2,
+        )
+        self.start_btn_test.pack()
+
         settings = tk.LabelFrame(left_col, text="Settings")
         settings.pack(anchor="n")
         self.settings_frame = settings
 
         right_col = tk.Frame(self.area)
-        right_col.pack(side="right", fill="y", padx=5, pady=5)
+        right_col.pack(side="left", fill="y", padx=5, pady=5)
 
         logo_path = os.path.join(os.path.dirname(__file__), "..", "resources", "WaterARC Logo-Carollo-01.png")
         self.logo_image = tk.PhotoImage(file=logo_path)
@@ -196,15 +200,6 @@ class HMI(tk.Tk):
 
         # Clean tab
         self.pfds["clean"] = self._create_pfd(self.clean_tab)
-        self.start_btn_clean = tk.Button(
-            self.clean_tab,
-            text="Start",
-            command=self._toggle_clean,
-            font=("Arial", 12),
-            width=8,
-            height=2,
-        )
-        self.start_btn_clean.pack(pady=(0, 5))
         clean_area = tk.Frame(self.clean_tab)
         clean_area.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -213,8 +208,50 @@ class HMI(tk.Tk):
         clean_settings = tk.LabelFrame(clean_left, text="Settings")
         clean_settings.pack(anchor="n")
 
+        clean_middle = tk.Frame(clean_area)
+        clean_middle.pack(side="left", padx=5, pady=5, anchor="n")
+
+        self.start_btn_clean = tk.Button(
+            clean_middle,
+            text="Start",
+            command=self._toggle_clean,
+            font=("Arial", 12),
+            width=8,
+            height=2,
+        )
+        self.start_btn_clean.pack()
+
         clean_right = tk.Frame(clean_area)
-        clean_right.pack(side="right", fill="y", padx=5, pady=5)
+        clean_right.pack(side="left", fill="y", padx=5, pady=5)
+
+        logo_label2 = tk.Label(clean_area, image=self.logo_image, borderwidth=0)
+        logo_label2.place(relx=0.5, rely=0.5, x=40, anchor="center")
+        logo_label2.lower()
+
+        info2 = tk.LabelFrame(clean_right, text="Sensors")
+        info2.pack(padx=5, pady=5, anchor="n")
+        tk.Label(info2, text="Effluent Weight:").grid(row=0, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(info2, text="g").grid(row=0, column=2, sticky="w")
+        tk.Label(info2, text="BW Weight:").grid(row=1, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(info2, text="g").grid(row=1, column=2, sticky="w")
+        tk.Label(info2, text="BW Pressure:").grid(row=2, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
+        tk.Label(info2, text="PSI").grid(row=2, column=2, sticky="w")
+        tk.Label(info2, text="Influent Pressure:").grid(row=3, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
+        tk.Label(info2, text="PSI").grid(row=3, column=2, sticky="w")
+        tk.Label(info2, text="Temperature:").grid(row=4, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
+        tk.Label(info2, text="C").grid(row=4, column=2, sticky="w")
+
+        cycle_frame2 = tk.LabelFrame(clean_right, text="Cycle Status")
+        cycle_frame2.pack(anchor="n", pady=5)
+        tk.Label(cycle_frame2, text="Cycle Step:").grid(row=0, column=0, sticky="w")
+        tk.Label(cycle_frame2, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(cycle_frame2, text="Cycle Count:").grid(row=1, column=0, sticky="w")
+        tk.Label(cycle_frame2, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
         tk.Label(clean_settings, text="Forward Target").grid(row=0, column=0, sticky="w")
         NumericEntry(clean_settings, textvariable=self.clean_fwd_target_weight_var, width=7).grid(row=0, column=1)
