@@ -3,11 +3,16 @@
 import os
 import re
 import tkinter as tk
+from tkinter import ttk, scrolledtext
 import threading
 import time
-from tkinter import scrolledtext
 
-from .automation import FiltrationConfig, FiltrationTestSystem
+from .automation import (
+    FiltrationConfig,
+    FiltrationTestSystem,
+    CleaningConfig,
+    CleaningTestSystem,
+)
 from .hardware import PencilModule
 from .widgets import NumericEntry, NumericKeypad, OnScreenKeyboard, KeyboardEntry
 from tkinter import messagebox
@@ -52,7 +57,23 @@ class HMI(tk.Tk):
         self.repeat_count_var = tk.IntVar(value=1)
         self.sample_time_var = tk.DoubleVar(value=0.1)
         self.project_name_var = tk.StringVar(value="demo")
+
+        self.clean_fwd_weight_var = tk.DoubleVar(value=1.0)
+        self.clean_fwd_time_var = tk.DoubleVar(value=1.0)
+        self.clean_fwd_use_weight_var = tk.BooleanVar(value=False)
+        self.clean_fwd_use_time_var = tk.BooleanVar(value=True)
+        self.clean_fwd_soak_var = tk.DoubleVar(value=0.5)
+        self.clean_bw_weight_var = tk.DoubleVar(value=1.0)
+        self.clean_bw_time_var = tk.DoubleVar(value=1.0)
+        self.clean_bw_use_weight_var = tk.BooleanVar(value=False)
+        self.clean_bw_use_time_var = tk.BooleanVar(value=True)
+        self.clean_bw_soak_var = tk.DoubleVar(value=0.5)
+        self.clean_rinse_var = tk.DoubleVar(value=1.0)
+        self.clean_cycle_count_var = tk.IntVar(value=1)
+        self.clean_sample_time_var = tk.DoubleVar(value=0.1)
+        self.clean_project_name_var = tk.StringVar(value="clean")
         self.is_running = False
+        self.current_mode = None
         self.prime_frame = None
         self.prime_stage = 0
 
@@ -70,9 +91,23 @@ class HMI(tk.Tk):
         self._worker = threading.Thread(target=self._sensor_worker, daemon=True)
         self._worker.start()
 
-        self._create_pfd()
+        # Notebook with Test and Clean tabs
+        self.notebook = ttk.Notebook(self)
+        self.test_tab = tk.Frame(self.notebook)
+        self.clean_tab = tk.Frame(self.notebook)
+        self.notebook.add(self.test_tab, text="Test")
+        self.notebook.add(self.clean_tab, text="Clean")
+        self.notebook.pack(fill="both", expand=True)
+        self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_change)
 
-        self.area = tk.Frame(self)
+        mode_frame = tk.LabelFrame(self, text="Modes")
+        mode_frame.place(relx=0.0, rely=1.0, anchor="sw", x=5, y=-5)
+        tk.Button(mode_frame, text="Test", command=lambda: self.notebook.select(self.test_tab)).pack(side="left", padx=2)
+        tk.Button(mode_frame, text="Clean", command=lambda: self.notebook.select(self.clean_tab)).pack(side="left", padx=2)
+
+        self._create_pfd(self.test_tab)
+
+        self.area = tk.Frame(self.test_tab)
         self.area.pack(fill="both", expand=True, padx=5, pady=5)
 
         left_col = tk.Frame(self.area)
@@ -163,17 +198,90 @@ class HMI(tk.Tk):
             width=8,
             height=2,
         )
-        # Position relative to the bottom of the window with a slight upward
-        # offset so the button remains visible.
-        self.start_btn.place(relx=0.5, rely=1.0, anchor="s", y=-20)
-        # Ensure the button stays in front of other elements.
-        self.start_btn.lift()
+        self.start_btn.pack(in_=self.test_tab, pady=5)
+
+        # Build Clean tab UI
+        self.clean_area = tk.Frame(self.clean_tab)
+        self.clean_area.pack(fill="both", expand=True, padx=5, pady=5)
+
+        clean_left = tk.Frame(self.clean_area)
+        clean_left.pack(side="left", padx=5, pady=5, anchor="n")
+        clean_settings = tk.LabelFrame(clean_left, text="Settings")
+        clean_settings.pack(anchor="n")
+        self.clean_settings_frame = clean_settings
+
+        clean_right = tk.Frame(self.clean_area)
+        clean_right.pack(side="right", fill="y", padx=5, pady=5)
+
+        info2 = tk.LabelFrame(clean_right, text="Sensors")
+        info2.pack(padx=5, pady=5, anchor="n")
+        tk.Label(info2, text="Effluent Weight:").grid(row=0, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.weight_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(info2, text="g").grid(row=0, column=2, sticky="w")
+        tk.Label(info2, text="BW Weight:").grid(row=1, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.backwash_weight_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(info2, text="g").grid(row=1, column=2, sticky="w")
+        tk.Label(info2, text="BW Pressure:").grid(row=2, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.pressure_bw_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
+        tk.Label(info2, text="PSI").grid(row=2, column=2, sticky="w")
+        tk.Label(info2, text="Influent Pressure:").grid(row=3, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.pressure_raw_var, font=("Arial", 12)).grid(row=3, column=1, sticky="w")
+        tk.Label(info2, text="PSI").grid(row=3, column=2, sticky="w")
+        tk.Label(info2, text="Temperature:").grid(row=4, column=0, sticky="w")
+        tk.Label(info2, textvariable=self.temp_var, font=("Arial", 12)).grid(row=4, column=1, sticky="w")
+        tk.Label(info2, text="C").grid(row=4, column=2, sticky="w")
+
+        cycle2 = tk.LabelFrame(clean_right, text="Cycle Status")
+        cycle2.pack(anchor="n", pady=5)
+        tk.Label(cycle2, text="Cycle Step:").grid(row=0, column=0, sticky="w")
+        tk.Label(cycle2, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(cycle2, text="Cycle Count:").grid(row=1, column=0, sticky="w")
+        tk.Label(cycle2, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+
+        tk.Label(clean_settings, text="Forward Target").grid(row=0, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_fwd_weight_var, width=7).grid(row=0, column=1)
+        tk.Checkbutton(clean_settings, text="g", variable=self.clean_fwd_use_weight_var).grid(row=0, column=2, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_fwd_time_var, width=7).grid(row=0, column=3)
+        tk.Checkbutton(clean_settings, text="s", variable=self.clean_fwd_use_time_var).grid(row=0, column=4, sticky="w")
+        tk.Label(clean_settings, text="Soak").grid(row=1, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_fwd_soak_var, width=7).grid(row=1, column=1)
+        tk.Label(clean_settings, text="s").grid(row=1, column=2, sticky="w")
+
+        tk.Label(clean_settings, text="Backwash Target").grid(row=2, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_bw_weight_var, width=7).grid(row=2, column=1)
+        tk.Checkbutton(clean_settings, text="g", variable=self.clean_bw_use_weight_var).grid(row=2, column=2, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_bw_time_var, width=7).grid(row=2, column=3)
+        tk.Checkbutton(clean_settings, text="s", variable=self.clean_bw_use_time_var).grid(row=2, column=4, sticky="w")
+        tk.Label(clean_settings, text="Soak").grid(row=3, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_bw_soak_var, width=7).grid(row=3, column=1)
+        tk.Label(clean_settings, text="s").grid(row=3, column=2, sticky="w")
+
+        tk.Label(clean_settings, text="Rinse Time").grid(row=4, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_rinse_var, width=7).grid(row=4, column=1)
+        tk.Label(clean_settings, text="s").grid(row=4, column=2, sticky="w")
+        tk.Label(clean_settings, text="Cycle Count").grid(row=5, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_cycle_count_var, width=7).grid(row=5, column=1)
+        tk.Label(clean_settings, text="Sample Time").grid(row=6, column=0, sticky="w")
+        NumericEntry(clean_settings, textvariable=self.clean_sample_time_var, width=7).grid(row=6, column=1)
+        tk.Label(clean_settings, text="sec").grid(row=6, column=2, sticky="w")
+        tk.Label(clean_settings, text="Project Name").grid(row=7, column=0, sticky="w")
+        KeyboardEntry(clean_settings, textvariable=self.clean_project_name_var, width=7).grid(row=7, column=1)
+
+        self.clean_start_btn = tk.Button(
+            self,
+            text="Start",
+            command=self._toggle_clean,
+            font=("Arial", 12),
+            width=8,
+            height=2,
+        )
+        self.clean_start_btn.pack(in_=self.clean_tab, pady=5)
 
         self.update_data()
 
-    def _create_pfd(self) -> None:
+    def _create_pfd(self, container: tk.Widget) -> None:
         self.canvas = tk.Canvas(self, width=780, height=190, bg="white")
-        self.canvas.pack(pady=5)
+        self.canvas.pack(in_=container, pady=5)
         close_btn = tk.Button(self.canvas, text="X", width=2, command=self._confirm_exit)
         self.canvas.create_window(770, 10, window=close_btn, anchor="ne")
         help_btn = tk.Button(self.canvas, text="?", width=2, command=self._show_control_narrative)
@@ -246,6 +354,13 @@ class HMI(tk.Tk):
 
         self.prime_btn = tk.Button(self.canvas, text="Prime", command=self.prime)
         self.canvas.create_window(355, 90, window=self.prime_btn)
+
+    def _on_tab_change(self, _event=None) -> None:
+        idx = self.notebook.index(self.notebook.select())
+        if idx == 0:
+            self.start_btn.pack(in_=self.test_tab, pady=5)
+        else:
+            self.clean_start_btn.pack(in_=self.clean_tab, pady=5)
 
     def _update_lines(self) -> None:
         for idx, line_ids in self.valve_to_lines.items():
@@ -391,7 +506,9 @@ class HMI(tk.Tk):
         else:
             self._cancel_prime()
             self.is_running = True
+            self.current_mode = "test"
             self.start_btn.config(text="Cancel")
+            self.clean_start_btn.config(text="Start")
             self.start_test()
 
     def start_test(self) -> None:
@@ -433,18 +550,79 @@ class HMI(tk.Tk):
         self.test_thread = threading.Thread(target=self._run_test_thread)
         self.test_thread.start()
 
+    def _run_clean_thread(self) -> None:
+        self.clean_system.start_clean()
+        self.after(0, self._automation_finished)
+
+    def _toggle_clean(self) -> None:
+        if getattr(self, "is_running", False):
+            self.cancel_clean()
+        else:
+            self._cancel_prime()
+            self.is_running = True
+            self.current_mode = "clean"
+            self.clean_start_btn.config(text="Cancel")
+            self.start_btn.config(text="Start")
+            self.start_clean()
+
+    def start_clean(self) -> None:
+        self._disable_manual_controls()
+        self._close_all_valves()
+
+        if self.clean_fwd_use_weight_var.get():
+            fwd_target = self.clean_fwd_weight_var.get()
+            fwd_by_vol = True
+        else:
+            fwd_target = self.clean_fwd_time_var.get()
+            fwd_by_vol = False
+
+        if self.clean_bw_use_weight_var.get():
+            bw_target = self.clean_bw_weight_var.get()
+            bw_by_vol = True
+        else:
+            bw_target = self.clean_bw_time_var.get()
+            bw_by_vol = False
+
+        config = CleaningConfig(
+            forward_target=fwd_target,
+            forward_by_volume=fwd_by_vol,
+            forward_soak=self.clean_fwd_soak_var.get(),
+            backwash_target=bw_target,
+            backwash_by_volume=bw_by_vol,
+            backwash_soak=self.clean_bw_soak_var.get(),
+            rinse_time=self.clean_rinse_var.get(),
+            cycle_count=self.clean_cycle_count_var.get(),
+            sample_time=self.clean_sample_time_var.get(),
+            project_name=self.clean_project_name_var.get(),
+        )
+        self.clean_system = CleaningTestSystem(
+            self.module,
+            config,
+            valve_callback=self._automation_valve_change,
+            progress_callback=self._automation_progress,
+        )
+        self.clean_thread = threading.Thread(target=self._run_clean_thread)
+        self.clean_thread.start()
+
     def _run_test_thread(self) -> None:
         self.test_system.start_test()
-        self.after(0, self._test_finished)
+        self.after(0, self._automation_finished)
 
     def cancel_test(self) -> None:
         if hasattr(self, "test_system"):
             self.test_system.cancel()
-        self._test_finished()
+        self._automation_finished()
 
-    def _test_finished(self) -> None:
+    def cancel_clean(self) -> None:
+        if hasattr(self, "clean_system"):
+            self.clean_system.cancel()
+        self._automation_finished()
+
+    def _automation_finished(self) -> None:
         self.is_running = False
+        self.current_mode = None
         self.start_btn.config(text="Start")
+        self.clean_start_btn.config(text="Start")
         self.cycle_step_var.set("Idle")
         self.cycle_count_var.set("")
         self._enable_manual_controls()

@@ -17,3 +17,21 @@ class FiltrationConfig:
     project_name: str
     pressure_offset: float = 0.0
     temp_offset: float = 0.0
+
+
+@dataclass
+class CleaningConfig:
+    """Configuration for an automated cleaning cycle."""
+
+    forward_target: float
+    forward_by_volume: bool
+    forward_soak: float
+    backwash_target: float
+    backwash_by_volume: bool
+    backwash_soak: float
+    rinse_time: float
+    cycle_count: int
+    sample_time: float
+    project_name: str
+    pressure_offset: float = 0.0
+    temp_offset: float = 0.0
