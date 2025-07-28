@@ -8,6 +8,8 @@ import time
 from typing import Optional, Callable
 import threading
 
+from tkinter import messagebox
+
 from .hardware import PencilModule
 from .config import FiltrationConfig, CleanConfig
 
@@ -318,7 +320,7 @@ class CleanTestSystem:
 
             if self.progress_callback:
                 self.progress_callback("Backwash Clean", cycle + 1, self.config.cycle_count)
-            self._open(self.BACKWASH_SUPPLY, self.EFFLUENT_VALVE)
+            self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(1))
             while True:
@@ -333,7 +335,7 @@ class CleanTestSystem:
                     if time.time() - start >= self.config.backwash_target:
                         break
                 time.sleep(self.config.sample_time)
-            self._close(self.BACKWASH_SUPPLY, self.EFFLUENT_VALVE)
+            self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
 
             if self.progress_callback:
                 self.progress_callback("Soak BW", cycle + 1, self.config.cycle_count)
@@ -346,7 +348,14 @@ class CleanTestSystem:
 
         if self.progress_callback:
             self.progress_callback("Refill DI", 0, 0)
-        # In a real system we might pause for operator input
+        # Prompt the operator to refill tanks before rinsing
+        try:
+            messagebox.showinfo(
+                "Refill DI Water",
+                "Refill supply tanks with DI water and press OK to continue",
+            )
+        except Exception:
+            input("Refill supply tanks with DI water and press Enter to continue")
 
         if self.progress_callback:
             self.progress_callback("Rinse Drain", 1, 1)
@@ -372,14 +381,14 @@ class CleanTestSystem:
 
         if self.progress_callback:
             self.progress_callback("Rinse BW", 1, 1)
-        self._open(self.BACKWASH_SUPPLY, self.EFFLUENT_VALVE)
+        self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
         start = time.time()
         while time.time() - start < self.config.rinse_time:
             if self._check_cancel():
                 return
             self._log_row()
             time.sleep(self.config.sample_time)
-        self._close(self.BACKWASH_SUPPLY, self.EFFLUENT_VALVE)
+        self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
 
         self.stop_test()
 
