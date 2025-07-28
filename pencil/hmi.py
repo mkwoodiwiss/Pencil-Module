@@ -107,7 +107,7 @@ class HMI(tk.Tk):
         # Build Test tab
         self.pfds["test"] = self._create_pfd(self.test_tab)
         self.area = tk.Frame(self.test_tab)
-        self.area.pack(fill="both", expand=True, padx=5, pady=5)
+        self.area.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
         left_col = tk.Frame(self.area)
         left_col.pack(side="left", padx=5, pady=5, anchor="n")
@@ -120,8 +120,8 @@ class HMI(tk.Tk):
             text="Start",
             command=self._toggle_test,
             font=("Arial", 12),
-            width=8,
-            height=2,
+            width=7,
+            height=1,
         )
         self.start_btn_test.pack()
 
@@ -130,7 +130,7 @@ class HMI(tk.Tk):
         self.settings_frame = settings
 
         right_col = tk.Frame(self.area)
-        right_col.pack(side="left", fill="y", padx=5, pady=5)
+        right_col.pack(side="right", fill="y", padx=5, pady=5)
 
         logo_path = os.path.join(os.path.dirname(__file__), "..", "resources", "WaterARC Logo-Carollo-01.png")
         self.logo_image = tk.PhotoImage(file=logo_path)
@@ -201,7 +201,7 @@ class HMI(tk.Tk):
         # Clean tab
         self.pfds["clean"] = self._create_pfd(self.clean_tab)
         clean_area = tk.Frame(self.clean_tab)
-        clean_area.pack(fill="both", expand=True, padx=5, pady=5)
+        clean_area.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
         clean_left = tk.Frame(clean_area)
         clean_left.pack(side="left", padx=5, pady=5, anchor="n")
@@ -216,13 +216,13 @@ class HMI(tk.Tk):
             text="Start",
             command=self._toggle_clean,
             font=("Arial", 12),
-            width=8,
-            height=2,
+            width=7,
+            height=1,
         )
         self.start_btn_clean.pack()
 
         clean_right = tk.Frame(clean_area)
-        clean_right.pack(side="left", fill="y", padx=5, pady=5)
+        clean_right.pack(side="right", fill="y", padx=5, pady=5)
 
         logo_label2 = tk.Label(clean_area, image=self.logo_image, borderwidth=0)
         logo_label2.place(relx=0.5, rely=0.5, x=40, anchor="center")
@@ -298,13 +298,16 @@ class HMI(tk.Tk):
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
         """Create and return a process flow diagram on ``parent``."""
-        canvas = tk.Canvas(parent, width=780, height=180, bg="white")
-        canvas.pack(pady=5)
-        btn_opts = {"width": 2, "height": 1}
-        close_btn = tk.Button(canvas, text="X", command=self._confirm_exit, **btn_opts)
-        help_btn = tk.Button(canvas, text="?", command=self._show_control_narrative, **btn_opts)
-        canvas.create_window(770, 10, window=close_btn, anchor="ne")
-        canvas.create_window(742, 10, window=help_btn, anchor="ne")
+        canvas = tk.Canvas(parent, width=780, height=170, bg="white")
+        canvas.pack(pady=(2, 0))
+
+        btn_opts = {"width": 2, "height": 1, "ipadx": 2, "ipady": 0}
+        btn_frame = tk.Frame(canvas, bg="white")
+        help_btn = tk.Button(btn_frame, text="?", command=self._show_control_narrative, **btn_opts)
+        close_btn = tk.Button(btn_frame, text="X", command=self._confirm_exit, **btn_opts)
+        help_btn.pack(side="left", padx=(0, 2))
+        close_btn.pack(side="left")
+        canvas.create_window(770, 10, window=btn_frame, anchor="ne")
 
         canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
         canvas.create_text(100, 20, text="BW water")
