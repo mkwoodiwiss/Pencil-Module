@@ -176,8 +176,15 @@ class HMI(tk.Tk):
         tk.Label(cycle_frame, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
-        tk.Label(settings, textvariable=self.test_summary_var, justify="left").grid(row=0, column=0, columnspan=5, sticky="w")
-        tk.Button(settings, text="Edit Settings", command=self._edit_test_settings).grid(row=1, column=0, columnspan=5, pady=(2, 5))
+        tk.Label(
+            settings,
+            textvariable=self.test_summary_var,
+            justify="left",
+            font=("TkDefaultFont", 8),
+        ).grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 2))
+        tk.Button(settings, text="Edit Settings", command=self._edit_test_settings).grid(
+            row=1, column=0, columnspan=5, pady=(2, 5)
+        )
 
         btn_frame = tk.Frame(settings)
         btn_frame.grid(row=2, column=0, columnspan=5, pady=8, sticky="ew")
@@ -242,8 +249,15 @@ class HMI(tk.Tk):
         tk.Label(cycle_frame2, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame2, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
-        tk.Label(clean_settings, textvariable=self.clean_summary_var, justify="left").grid(row=0, column=0, columnspan=5, sticky="w")
-        tk.Button(clean_settings, text="Edit Settings", command=self._edit_clean_settings).grid(row=1, column=0, columnspan=5, pady=(2,5))
+        tk.Label(
+            clean_settings,
+            textvariable=self.clean_summary_var,
+            justify="left",
+            font=("TkDefaultFont", 8),
+        ).grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 2))
+        tk.Button(clean_settings, text="Edit Settings", command=self._edit_clean_settings).grid(
+            row=1, column=0, columnspan=5, pady=(2, 5)
+        )
 
         btn_frame2 = tk.Frame(clean_settings)
         btn_frame2.grid(row=2, column=0, columnspan=5, pady=8, sticky="ew")
@@ -495,28 +509,57 @@ class HMI(tk.Tk):
             self.bw_use_weight_var.set(True)
 
     def _update_test_summary(self) -> None:
-        target = self.filt_target_weight_var.get() if self.filt_use_weight_var.get() else self.filt_target_time_var.get()
-        t_unit = "g" if self.filt_use_weight_var.get() else "s"
-        bw_target = self.bw_target_weight_var.get() if self.bw_use_weight_var.get() else self.bw_target_time_var.get()
-        bw_unit = "g" if self.bw_use_weight_var.get() else "s"
-        text = (
-            f"Filt {target} {t_unit}, BW {bw_target} {bw_unit}, Purge {self.refill_time_var.get()} s, "
-            f"Cycles {self.repeat_count_var.get()}, Sample {self.sample_time_var.get()} s\n"
-            f"Project {self.project_var.get()}, Module {self.module_id_var.get()}, Sample {self.sample_id_var.get()}"
+        target = (
+            self.filt_target_weight_var.get()
+            if self.filt_use_weight_var.get()
+            else self.filt_target_time_var.get()
         )
-        self.test_summary_var.set(text)
+        t_unit = "g" if self.filt_use_weight_var.get() else "s"
+        bw_target = (
+            self.bw_target_weight_var.get()
+            if self.bw_use_weight_var.get()
+            else self.bw_target_time_var.get()
+        )
+        bw_unit = "g" if self.bw_use_weight_var.get() else "s"
+
+        lines = [
+            f"Filt: {target} {t_unit}",
+            f"BW: {bw_target} {bw_unit}",
+            f"Purge: {self.refill_time_var.get()} s",
+            f"Cycles: {self.repeat_count_var.get()}",
+            f"Sample: {self.sample_time_var.get()} s",
+            f"Project: {self.project_var.get() or '--'}",
+            f"Module: {self.module_id_var.get() or '--'}",
+            f"Sample: {self.sample_id_var.get() or '--'}",
+        ]
+        self.test_summary_var.set("\n".join(lines))
 
     def _update_clean_summary(self) -> None:
-        fwd = self.clean_fwd_target_weight_var.get() if self.clean_fwd_use_weight_var.get() else self.clean_fwd_target_time_var.get()
-        f_unit = "g" if self.clean_fwd_use_weight_var.get() else "s"
-        bw = self.clean_bw_target_weight_var.get() if self.clean_bw_use_weight_var.get() else self.clean_bw_target_time_var.get()
-        bw_unit = "g" if self.clean_bw_use_weight_var.get() else "s"
-        text = (
-            f"Fwd {fwd} {f_unit}, BW {bw} {bw_unit}, Soak {self.clean_fwd_soak_var.get()}/{self.clean_bw_soak_var.get()} s, "
-            f"Cycles {self.clean_cycle_count_var.get()}, Sample {self.clean_sample_time_var.get()} s, Rinse {self.clean_rinse_time_var.get()} s\n"
-            f"Project {self.clean_project_var.get()}, Module {self.clean_module_id_var.get()}, Solution {self.clean_solution_var.get()}"
+        fwd = (
+            self.clean_fwd_target_weight_var.get()
+            if self.clean_fwd_use_weight_var.get()
+            else self.clean_fwd_target_time_var.get()
         )
-        self.clean_summary_var.set(text)
+        f_unit = "g" if self.clean_fwd_use_weight_var.get() else "s"
+        bw = (
+            self.clean_bw_target_weight_var.get()
+            if self.clean_bw_use_weight_var.get()
+            else self.clean_bw_target_time_var.get()
+        )
+        bw_unit = "g" if self.clean_bw_use_weight_var.get() else "s"
+
+        lines = [
+            f"Fwd: {fwd} {f_unit}",
+            f"BW: {bw} {bw_unit}",
+            f"Soak: {self.clean_fwd_soak_var.get()} / {self.clean_bw_soak_var.get()} s",
+            f"Cycles: {self.clean_cycle_count_var.get()}",
+            f"Sample: {self.clean_sample_time_var.get()} s",
+            f"Rinse: {self.clean_rinse_time_var.get()} s",
+            f"Project: {self.clean_project_var.get() or '--'}",
+            f"Module: {self.clean_module_id_var.get() or '--'}",
+            f"Solution: {self.clean_solution_var.get() or '--'}",
+        ]
+        self.clean_summary_var.set("\n".join(lines))
 
     def _edit_test_settings(self) -> None:
         orig = {var: getattr(self, var).get() for var in [
