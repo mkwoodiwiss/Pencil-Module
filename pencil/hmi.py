@@ -301,12 +301,12 @@ class HMI(tk.Tk):
         canvas = tk.Canvas(parent, width=780, height=170, bg="white")
         canvas.pack(pady=(2, 0))
 
-        btn_opts = {"width": 2, "height": 1, "ipadx": 2, "ipady": 0}
+        btn_opts = {"width": 2, "height": 1}
         btn_frame = tk.Frame(canvas, bg="white")
         help_btn = tk.Button(btn_frame, text="?", command=self._show_control_narrative, **btn_opts)
         close_btn = tk.Button(btn_frame, text="X", command=self._confirm_exit, **btn_opts)
-        help_btn.pack(side="left", padx=(0, 2))
-        close_btn.pack(side="left")
+        help_btn.pack(side="left", padx=(0, 2), ipadx=4, ipady=4)
+        close_btn.pack(side="left", ipadx=4, ipady=4)
         canvas.create_window(770, 10, window=btn_frame, anchor="ne")
 
         canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
