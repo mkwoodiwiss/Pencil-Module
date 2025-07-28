@@ -81,10 +81,11 @@ Enter commands such as `on 1` or `off 1` to operate a relay. Type `q` to quit.
 
 ## Continuous Scale Stress Test
 
-Run `stress_test_continuous.py` to repeatedly query both scales for a fixed
+Run `stress_test_continuous.py` to listen to both scales for a fixed
 period of time. The script expects the scales to be connected to the Pi's
 RS232 ports with the effluent scale on `/dev/ttyAMA3` and the backwash scale on
-`/dev/ttyAMA2`.
+`/dev/ttyAMA2`. No commands are sent; the script simply logs each line
+received from the scales.
 
 ```bash
 python3 stress_test_continuous.py 60

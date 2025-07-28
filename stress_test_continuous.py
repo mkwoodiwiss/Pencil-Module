@@ -15,29 +15,9 @@ ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.weight_reader import read_weight
+from scripts.weight_reader import parse_weight_line
 
 
-class _LineSerial:
-    """Minimal wrapper to reuse read_weight() for parsing lines."""
-
-    def __init__(self, line: bytes):
-        self._line = line
-
-    def reset_input_buffer(self) -> None:  # noqa: D401 - mimic serial API
-        pass
-
-    def write(self, data: bytes) -> None:
-        # read_weight() will attempt to send the poll command. Ignore it.
-        pass
-
-    def read_until(self, sep: bytes = b"\r\n") -> bytes:
-        return self._line
-
-
-def parse_weight_line(line: bytes) -> str:
-    """Parse a single weight line using ``read_weight`` logic."""
-    return read_weight(_LineSerial(line))
 
 
 def log_message(log_file: Path, msg: str) -> None:
