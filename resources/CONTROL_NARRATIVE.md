@@ -98,7 +98,7 @@ The collected data is used to evaluate filter performance, cleaning effectivenes
 1. **Start Benchmark**
    - Zero both scales.
    - Begin data logging at defined sample time intervals.
-2. **Cycle Loop** (repeats for the defined Repeat Count)
+2. **Cycle Loop** (repeats for the defined Cycle Count)
    - **Purge Phase**
      - Open Influent Supply Valve and Influent Water Drain Valve for the configured Refill Time.
    - **Filter Phase**
