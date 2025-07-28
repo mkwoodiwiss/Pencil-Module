@@ -638,8 +638,8 @@ class HMI(tk.Tk):
         bw_unit = "g" if self.bw_use_weight_var.get() else "s"
 
         lines = [
-            f"Filt: {target} {t_unit}",
-            f"BW: {bw_target} {bw_unit}",
+            f"Filter: {target} {t_unit}",
+            f"Backwash: {bw_target} {bw_unit}",
             f"Purge: {self.refill_time_var.get()} s",
             f"Cycles: {self.repeat_count_var.get()}",
             f"Sample: {self.sample_time_var.get()} s",
@@ -664,8 +664,8 @@ class HMI(tk.Tk):
         bw_unit = "g" if self.benchmark_bw_use_weight_var.get() else "s"
 
         lines = [
-            f"Filt: {target} {t_unit}",
-            f"BW: {bw_target} {bw_unit}",
+            f"Filter: {target} {t_unit}",
+            f"Backwash: {bw_target} {bw_unit}",
             f"Purge: {self.benchmark_refill_time_var.get()} s",
             f"Cycles: {self.benchmark_repeat_count_var.get()}",
             f"Sample: {self.benchmark_sample_time_var.get()} s",
@@ -690,8 +690,8 @@ class HMI(tk.Tk):
         bw_unit = "g" if self.clean_bw_use_weight_var.get() else "s"
 
         lines = [
-            f"Fwd: {fwd} {f_unit}",
-            f"BW: {bw} {bw_unit}",
+            f"Filter: {fwd} {f_unit}",
+            f"Backwash: {bw} {bw_unit}",
             f"Soak: {self.clean_fwd_soak_var.get()} / {self.clean_bw_soak_var.get()} s",
             f"Cycles: {self.clean_cycle_count_var.get()}",
             f"Sample: {self.clean_sample_time_var.get()} s",
