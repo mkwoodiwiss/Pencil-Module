@@ -13,8 +13,6 @@ from .automation import (
     FiltrationTestSystem,
     CleanConfig,
     CleanTestSystem,
-    BenchmarkConfig,
-    BenchmarkTestSystem,
 )
 from .hardware import PencilModule
 from .widgets import NumericEntry, NumericKeypad, OnScreenKeyboard, KeyboardEntry
@@ -87,9 +85,18 @@ class HMI(tk.Tk):
         self.clean_solution_var = tk.StringVar(value="")
         self.clean_summary_var = tk.StringVar(value="")
 
-        # Benchmark variables
-        self.benchmark_duration_var = tk.DoubleVar(value=60.0)
-        self.benchmark_interval_var = tk.DoubleVar(value=1.0)
+        # Benchmark variables (mirror Test but independent)
+        self.benchmark_filt_target_weight_var = tk.DoubleVar(value=1.0)
+        self.benchmark_filt_target_time_var = tk.DoubleVar(value=1.0)
+        self.benchmark_filt_use_weight_var = tk.BooleanVar(value=False)
+        self.benchmark_filt_use_time_var = tk.BooleanVar(value=True)
+        self.benchmark_bw_target_weight_var = tk.DoubleVar(value=1.0)
+        self.benchmark_bw_target_time_var = tk.DoubleVar(value=1.0)
+        self.benchmark_bw_use_weight_var = tk.BooleanVar(value=False)
+        self.benchmark_bw_use_time_var = tk.BooleanVar(value=True)
+        self.benchmark_refill_time_var = tk.DoubleVar(value=0.5)
+        self.benchmark_repeat_count_var = tk.IntVar(value=1)
+        self.benchmark_sample_time_var = tk.DoubleVar(value=0.1)
         self.benchmark_project_var = tk.StringVar(value="")
         self.benchmark_module_id_var = tk.StringVar(value="")
         self.benchmark_sample_id_var = tk.StringVar(value="")
@@ -592,6 +599,30 @@ class HMI(tk.Tk):
         elif not self.bw_use_weight_var.get():
             self.bw_use_weight_var.set(True)
 
+    def _toggle_bench_filt_weight(self) -> None:
+        if self.benchmark_filt_use_weight_var.get():
+            self.benchmark_filt_use_time_var.set(False)
+        elif not self.benchmark_filt_use_time_var.get():
+            self.benchmark_filt_use_time_var.set(True)
+
+    def _toggle_bench_filt_time(self) -> None:
+        if self.benchmark_filt_use_time_var.get():
+            self.benchmark_filt_use_weight_var.set(False)
+        elif not self.benchmark_filt_use_weight_var.get():
+            self.benchmark_filt_use_weight_var.set(True)
+
+    def _toggle_bench_bw_weight(self) -> None:
+        if self.benchmark_bw_use_weight_var.get():
+            self.benchmark_bw_use_time_var.set(False)
+        elif not self.benchmark_bw_use_time_var.get():
+            self.benchmark_bw_use_time_var.set(True)
+
+    def _toggle_bench_bw_time(self) -> None:
+        if self.benchmark_bw_use_time_var.get():
+            self.benchmark_bw_use_weight_var.set(False)
+        elif not self.benchmark_bw_use_weight_var.get():
+            self.benchmark_bw_use_weight_var.set(True)
+
     def _update_test_summary(self) -> None:
         target = (
             self.filt_target_weight_var.get()
@@ -619,9 +650,25 @@ class HMI(tk.Tk):
         self.test_summary_var.set("\n".join(lines))
 
     def _update_benchmark_summary(self) -> None:
+        target = (
+            self.benchmark_filt_target_weight_var.get()
+            if self.benchmark_filt_use_weight_var.get()
+            else self.benchmark_filt_target_time_var.get()
+        )
+        t_unit = "g" if self.benchmark_filt_use_weight_var.get() else "s"
+        bw_target = (
+            self.benchmark_bw_target_weight_var.get()
+            if self.benchmark_bw_use_weight_var.get()
+            else self.benchmark_bw_target_time_var.get()
+        )
+        bw_unit = "g" if self.benchmark_bw_use_weight_var.get() else "s"
+
         lines = [
-            f"Duration: {self.benchmark_duration_var.get()} s",
-            f"Interval: {self.benchmark_interval_var.get()} s",
+            f"Filt: {target} {t_unit}",
+            f"BW: {bw_target} {bw_unit}",
+            f"Purge: {self.benchmark_refill_time_var.get()} s",
+            f"Cycles: {self.benchmark_repeat_count_var.get()}",
+            f"Sample: {self.benchmark_sample_time_var.get()} s",
             f"Project: {self.benchmark_project_var.get() or '--'}",
             f"Module: {self.benchmark_module_id_var.get() or '--'}",
             f"Sample: {self.benchmark_sample_id_var.get() or '--'}",
@@ -783,8 +830,17 @@ class HMI(tk.Tk):
 
     def _edit_benchmark_settings(self) -> None:
         orig = {var: getattr(self, var).get() for var in [
-            "benchmark_duration_var",
-            "benchmark_interval_var",
+            "benchmark_filt_target_weight_var",
+            "benchmark_filt_target_time_var",
+            "benchmark_filt_use_weight_var",
+            "benchmark_filt_use_time_var",
+            "benchmark_bw_target_weight_var",
+            "benchmark_bw_target_time_var",
+            "benchmark_bw_use_weight_var",
+            "benchmark_bw_use_time_var",
+            "benchmark_refill_time_var",
+            "benchmark_repeat_count_var",
+            "benchmark_sample_time_var",
             "benchmark_project_var",
             "benchmark_module_id_var",
             "benchmark_sample_id_var",
@@ -798,25 +854,40 @@ class HMI(tk.Tk):
             pass
         win.title("Edit Benchmark Settings")
 
-        tk.Label(win, text="Duration").grid(row=0, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.benchmark_duration_var, width=7).grid(row=0, column=1)
-        tk.Label(win, text="s").grid(row=0, column=2, sticky="w")
+        tk.Label(win, text="Filtration Target").grid(row=0, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.benchmark_filt_target_weight_var, width=7).grid(row=0, column=1)
+        tk.Checkbutton(win, text="g", variable=self.benchmark_filt_use_weight_var, command=self._toggle_bench_filt_weight).grid(row=0, column=2, sticky="w")
+        NumericEntry(win, textvariable=self.benchmark_filt_target_time_var, width=7).grid(row=0, column=3)
+        tk.Checkbutton(win, text="s", variable=self.benchmark_filt_use_time_var, command=self._toggle_bench_filt_time).grid(row=0, column=4, sticky="w")
 
-        tk.Label(win, text="Interval").grid(row=1, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.benchmark_interval_var, width=7).grid(row=1, column=1)
-        tk.Label(win, text="s").grid(row=1, column=2, sticky="w")
+        tk.Label(win, text="Backwash Target").grid(row=1, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.benchmark_bw_target_weight_var, width=7).grid(row=1, column=1)
+        tk.Checkbutton(win, text="g", variable=self.benchmark_bw_use_weight_var, command=self._toggle_bench_bw_weight).grid(row=1, column=2, sticky="w")
+        NumericEntry(win, textvariable=self.benchmark_bw_target_time_var, width=7).grid(row=1, column=3)
+        tk.Checkbutton(win, text="s", variable=self.benchmark_bw_use_time_var, command=self._toggle_bench_bw_time).grid(row=1, column=4, sticky="w")
 
-        tk.Label(win, text="Project").grid(row=2, column=0, sticky="w")
-        KeyboardEntry(win, textvariable=self.benchmark_project_var, width=7).grid(row=2, column=1)
+        tk.Label(win, text="Purge Time").grid(row=2, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.benchmark_refill_time_var, width=7).grid(row=2, column=1)
+        tk.Label(win, text="sec").grid(row=2, column=2, sticky="w")
 
-        tk.Label(win, text="Module ID").grid(row=3, column=0, sticky="w")
-        KeyboardEntry(win, textvariable=self.benchmark_module_id_var, width=7).grid(row=3, column=1)
+        tk.Label(win, text="Cycle Count").grid(row=3, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.benchmark_repeat_count_var, width=7).grid(row=3, column=1)
 
-        tk.Label(win, text="Sample ID").grid(row=4, column=0, sticky="w")
-        KeyboardEntry(win, textvariable=self.benchmark_sample_id_var, width=7).grid(row=4, column=1)
+        tk.Label(win, text="Sample Time").grid(row=4, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.benchmark_sample_time_var, width=7).grid(row=4, column=1)
+        tk.Label(win, text="sec").grid(row=4, column=2, sticky="w")
+
+        tk.Label(win, text="Project").grid(row=5, column=0, sticky="w")
+        KeyboardEntry(win, textvariable=self.benchmark_project_var, width=7).grid(row=5, column=1)
+
+        tk.Label(win, text="Module ID").grid(row=6, column=0, sticky="w")
+        KeyboardEntry(win, textvariable=self.benchmark_module_id_var, width=7).grid(row=6, column=1)
+
+        tk.Label(win, text="Sample ID").grid(row=7, column=0, sticky="w")
+        KeyboardEntry(win, textvariable=self.benchmark_sample_id_var, width=7).grid(row=7, column=1)
 
         btn_frame = tk.Frame(win)
-        btn_frame.grid(row=5, column=0, columnspan=3, pady=5)
+        btn_frame.grid(row=8, column=0, columnspan=5, pady=5)
         tk.Button(btn_frame, text="Save", command=lambda: (self._update_benchmark_summary(), win.destroy())).pack(side="left", padx=5)
 
         def cancel3() -> None:
@@ -898,16 +969,36 @@ class HMI(tk.Tk):
         self._disable_manual_controls()
         self._close_all_valves()
 
-        config = BenchmarkConfig(
-            duration=self.benchmark_duration_var.get(),
-            interval=self.benchmark_interval_var.get(),
+        if self.benchmark_filt_use_weight_var.get():
+            filt_target = self.benchmark_filt_target_weight_var.get()
+            filt_by_vol = True
+        else:
+            filt_target = self.benchmark_filt_target_time_var.get()
+            filt_by_vol = False
+
+        if self.benchmark_bw_use_weight_var.get():
+            bw_target = self.benchmark_bw_target_weight_var.get()
+            bw_by_vol = True
+        else:
+            bw_target = self.benchmark_bw_target_time_var.get()
+            bw_by_vol = False
+
+        config = FiltrationConfig(
+            filtration_target=filt_target,
+            filtration_by_volume=filt_by_vol,
+            backwash_target=bw_target,
+            backwash_by_volume=bw_by_vol,
+            refill_time=self.benchmark_refill_time_var.get(),
+            repeat_count=self.benchmark_repeat_count_var.get(),
+            sample_time=self.benchmark_sample_time_var.get(),
             project=self.benchmark_project_var.get(),
             module_id=self.benchmark_module_id_var.get(),
             sample_id=self.benchmark_sample_id_var.get(),
         )
-        self.test_system = BenchmarkTestSystem(
+        self.test_system = FiltrationTestSystem(
             self.module,
             config,
+            valve_callback=self._automation_valve_change,
             progress_callback=self._automation_progress,
         )
         self.test_thread = threading.Thread(target=self._run_test_thread)
