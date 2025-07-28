@@ -12,7 +12,7 @@ class FiltrationConfig:
     backwash_target: float
     backwash_by_volume: bool
     refill_time: float
-    repeat_count: int
+    cycle_count: int
     sample_time: float
     project: str
     module_id: str

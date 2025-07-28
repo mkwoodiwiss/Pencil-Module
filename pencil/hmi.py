@@ -55,7 +55,7 @@ class HMI(tk.Tk):
         self.pressure_raw_var = tk.StringVar()
         self.temp_var = tk.StringVar()
         self.cycle_step_var = tk.StringVar(value="Idle")
-        self.cycle_count_var = tk.StringVar(value="")
+        self.cycle_progress_var = tk.StringVar(value="")
 
         self.filt_target_weight_var = tk.DoubleVar(
             value=defaults.get("filt_target_weight", 1.0)
@@ -84,7 +84,7 @@ class HMI(tk.Tk):
         self.refill_time_var = tk.DoubleVar(
             value=defaults.get("refill_time", 0.5)
         )
-        self.repeat_count_var = tk.IntVar(value=defaults.get("repeat_count", 1))
+        self.cycle_count_var = tk.IntVar(value=defaults.get("cycle_count", 1))
         self.sample_time_var = tk.DoubleVar(
             value=max(1.0, defaults.get("sample_time", 1.0))
         )
@@ -172,8 +172,8 @@ class HMI(tk.Tk):
         self.benchmark_refill_time_var = tk.DoubleVar(
             value=defaults.get("benchmark_refill_time", 0.5)
         )
-        self.benchmark_repeat_count_var = tk.IntVar(
-            value=defaults.get("benchmark_repeat_count", 1)
+        self.benchmark_cycle_count_var = tk.IntVar(
+            value=defaults.get("benchmark_cycle_count", 1)
         )
         self.benchmark_sample_time_var = tk.DoubleVar(
             value=max(1.0, defaults.get("benchmark_sample_time", 1.0))
@@ -286,7 +286,7 @@ class HMI(tk.Tk):
             anchor="w",
         ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame, text="Cycle Count:").grid(row=1, column=0, sticky="w")
-        tk.Label(cycle_frame, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(cycle_frame, textvariable=self.cycle_progress_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
         tk.Label(
             settings,
@@ -364,7 +364,7 @@ class HMI(tk.Tk):
             anchor="w",
         ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame_b, text="Cycle Count:").grid(row=1, column=0, sticky="w")
-        tk.Label(cycle_frame_b, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(cycle_frame_b, textvariable=self.cycle_progress_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
         tk.Label(
             bench_settings,
@@ -442,7 +442,7 @@ class HMI(tk.Tk):
             anchor="w",
         ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame2, text="Cycle Count:").grid(row=1, column=0, sticky="w")
-        tk.Label(cycle_frame2, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(cycle_frame2, textvariable=self.cycle_progress_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
         tk.Label(
             clean_settings,
@@ -603,7 +603,7 @@ class HMI(tk.Tk):
     def _automation_progress(self, step: str, count: int, total: int) -> None:
         """Update cycle progress information."""
         self.cycle_step_var.set(step)
-        self.cycle_count_var.set(f"{count} of {total}")
+        self.cycle_progress_var.set(f"{count} of {total}")
 
     def _open_valves(self, *valves: int) -> None:
         self._set_valves(True, *valves)
@@ -746,7 +746,7 @@ class HMI(tk.Tk):
             f"Filter: {target} {t_unit}",
             f"Backwash: {bw_target} {bw_unit}",
             f"Purge: {self.refill_time_var.get()} s",
-            f"Cycles: {self.repeat_count_var.get()}",
+            f"Cycles: {self.cycle_count_var.get()}",
             f"Sample: {self.sample_time_var.get()} s",
             f"Project: {self.project_var.get() or '--'}",
             f"Module: {self.module_id_var.get() or '--'}",
@@ -772,7 +772,7 @@ class HMI(tk.Tk):
             f"Filter: {target} {t_unit}",
             f"Backwash: {bw_target} {bw_unit}",
             f"Purge: {self.benchmark_refill_time_var.get()} s",
-            f"Cycles: {self.benchmark_repeat_count_var.get()}",
+            f"Cycles: {self.benchmark_cycle_count_var.get()}",
             f"Sample: {self.benchmark_sample_time_var.get()} s",
             f"Project: {self.benchmark_project_var.get() or '--'}",
             f"Module: {self.benchmark_module_id_var.get() or '--'}",
@@ -811,7 +811,7 @@ class HMI(tk.Tk):
         orig = {var: getattr(self, var).get() for var in [
             "filt_target_weight_var", "filt_target_time_var", "filt_use_weight_var", "filt_use_time_var",
             "bw_target_weight_var", "bw_target_time_var", "bw_use_weight_var", "bw_use_time_var",
-            "refill_time_var", "repeat_count_var", "sample_time_var",
+            "refill_time_var", "cycle_count_var", "sample_time_var",
             "project_var", "module_id_var", "sample_id_var",
         ]}
 
@@ -840,7 +840,7 @@ class HMI(tk.Tk):
         tk.Label(win, text="sec").grid(row=2, column=2, sticky="w")
 
         tk.Label(win, text="Cycle Count").grid(row=3, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.repeat_count_var, width=7).grid(row=3, column=1)
+        NumericEntry(win, textvariable=self.cycle_count_var, width=7).grid(row=3, column=1)
 
         tk.Label(win, text="Sample Time").grid(row=4, column=0, sticky="w")
         NumericEntry(win, textvariable=self.sample_time_var, width=7).grid(row=4, column=1)
@@ -944,7 +944,7 @@ class HMI(tk.Tk):
             "benchmark_bw_use_weight_var",
             "benchmark_bw_use_time_var",
             "benchmark_refill_time_var",
-            "benchmark_repeat_count_var",
+            "benchmark_cycle_count_var",
             "benchmark_sample_time_var",
             "benchmark_project_var",
             "benchmark_module_id_var",
@@ -976,7 +976,7 @@ class HMI(tk.Tk):
         tk.Label(win, text="sec").grid(row=2, column=2, sticky="w")
 
         tk.Label(win, text="Cycle Count").grid(row=3, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.benchmark_repeat_count_var, width=7).grid(row=3, column=1)
+        NumericEntry(win, textvariable=self.benchmark_cycle_count_var, width=7).grid(row=3, column=1)
 
         tk.Label(win, text="Sample Time").grid(row=4, column=0, sticky="w")
         NumericEntry(win, textvariable=self.benchmark_sample_time_var, width=7).grid(row=4, column=1)
@@ -1055,7 +1055,7 @@ class HMI(tk.Tk):
             backwash_target=bw_target,
             backwash_by_volume=bw_by_vol,
             refill_time=self.refill_time_var.get(),
-            repeat_count=self.repeat_count_var.get(),
+            cycle_count=self.cycle_count_var.get(),
             sample_time=max(1.0, self.sample_time_var.get()),
             project=self.project_var.get(),
             module_id=self.module_id_var.get(),
@@ -1094,7 +1094,7 @@ class HMI(tk.Tk):
             backwash_target=bw_target,
             backwash_by_volume=bw_by_vol,
             refill_time=self.benchmark_refill_time_var.get(),
-            repeat_count=self.benchmark_repeat_count_var.get(),
+            cycle_count=self.benchmark_cycle_count_var.get(),
             sample_time=max(1.0, self.benchmark_sample_time_var.get()),
             project=self.benchmark_project_var.get(),
             module_id=self.benchmark_module_id_var.get(),
@@ -1165,7 +1165,7 @@ class HMI(tk.Tk):
         self.start_btn_clean.config(text="Start")
         self.start_btn_benchmark.config(text="Start")
         self.cycle_step_var.set("Idle")
-        self.cycle_count_var.set("")
+        self.cycle_progress_var.set("")
         self._enable_manual_controls()
 
     # Backwards compatibility
