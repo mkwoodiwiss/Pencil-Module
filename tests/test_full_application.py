@@ -10,7 +10,7 @@ _created_apps = []
 class HeadlessHMI:
     """Minimal HMI replacement that runs without a GUI."""
 
-    def __init__(self, module, fullscreen=False):
+    def __init__(self, module, fullscreen=False, defaults=None):
         _created_apps.append(self)
         self.module = module
         self.weight = ""
