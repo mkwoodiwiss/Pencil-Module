@@ -180,7 +180,7 @@ class HMI(tk.Tk):
             settings,
             textvariable=self.test_summary_var,
             justify="left",
-            font=("TkDefaultFont", 8),
+            font=("TkDefaultFont", 10),
         ).grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 2))
         tk.Button(settings, text="Edit Settings", command=self._edit_test_settings).grid(
             row=1, column=0, columnspan=5, pady=(2, 5)
