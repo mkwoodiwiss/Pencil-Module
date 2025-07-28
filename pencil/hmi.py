@@ -113,7 +113,8 @@ class HMI(tk.Tk):
         left_col.pack(side="left", padx=5, pady=5, anchor="n")
 
         middle_col = tk.Frame(self.area)
-        middle_col.pack(side="left", padx=5, pady=5, anchor="n")
+        # Expand so the start button sits in the middle of the available space
+        middle_col.pack(side="left", padx=5, pady=5, anchor="n", expand=True, fill="both")
 
         self.start_btn_test = tk.Button(
             middle_col,
@@ -123,7 +124,8 @@ class HMI(tk.Tk):
             width=7,
             height=1,
         )
-        self.start_btn_test.pack()
+        # Center the button within the middle column
+        self.start_btn_test.pack(pady=(0, 10))
 
         settings = tk.LabelFrame(left_col, text="Settings")
         settings.pack(anchor="n")
@@ -135,9 +137,9 @@ class HMI(tk.Tk):
         logo_path = os.path.join(os.path.dirname(__file__), "..", "resources", "WaterARC Logo-Carollo-01.png")
         self.logo_image = tk.PhotoImage(file=logo_path)
         self.logo_image = self.logo_image.subsample(8, 8)
-        logo_label = tk.Label(self.area, image=self.logo_image, borderwidth=0)
-        logo_label.place(relx=0.5, rely=0.5, x=40, anchor="center")
-        logo_label.lower()
+        logo_label = tk.Label(middle_col, image=self.logo_image, borderwidth=0)
+        # Display the logo below the start button and keep it centered
+        logo_label.pack()
 
         info = tk.LabelFrame(right_col, text="Sensors")
         info.pack(padx=5, pady=5, anchor="n")
@@ -209,7 +211,7 @@ class HMI(tk.Tk):
         clean_settings.pack(anchor="n")
 
         clean_middle = tk.Frame(clean_area)
-        clean_middle.pack(side="left", padx=5, pady=5, anchor="n")
+        clean_middle.pack(side="left", padx=5, pady=5, anchor="n", expand=True, fill="both")
 
         self.start_btn_clean = tk.Button(
             clean_middle,
@@ -219,14 +221,14 @@ class HMI(tk.Tk):
             width=7,
             height=1,
         )
-        self.start_btn_clean.pack()
+        # Center the button within the middle column
+        self.start_btn_clean.pack(pady=(0, 10))
 
         clean_right = tk.Frame(clean_area)
         clean_right.pack(side="right", fill="y", padx=5, pady=5)
 
-        logo_label2 = tk.Label(clean_area, image=self.logo_image, borderwidth=0)
-        logo_label2.place(relx=0.5, rely=0.5, x=40, anchor="center")
-        logo_label2.lower()
+        logo_label2 = tk.Label(clean_middle, image=self.logo_image, borderwidth=0)
+        logo_label2.pack()
 
         info2 = tk.LabelFrame(clean_right, text="Sensors")
         info2.pack(padx=5, pady=5, anchor="n")
