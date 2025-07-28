@@ -7,6 +7,18 @@ import string
 import re
 
 
+def _parse_text(text: str) -> str:
+    """Return formatted weight from a raw response string."""
+    cleaned = ''.join(c for c in text if c in string.printable)
+    match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
+    if match:
+        sign, value, unit = match.groups()
+        if sign == " ":
+            sign = "+"
+        return f"{sign}{value} {unit}"
+    return "--"
+
+
 def read_weight(ser: serial.Serial) -> str:
     """
     Query the scale for the current weight and return a formatted string.
@@ -21,17 +33,7 @@ def read_weight(ser: serial.Serial) -> str:
         ser.write(b"P\r\n")
         time.sleep(0.1)
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
-        # Remove all non-printable characters except space
-        cleaned = ''.join(c for c in response if c in string.printable)
-        # Use regex to extract sign, value, and unit
-        match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
-        if match:
-            sign = match.group(1)
-            value = match.group(2)
-            unit = match.group(3)
-            if sign == " ":
-                sign = "+"
-            return f"{sign}{value} {unit}"
+        return _parse_text(response)
     except Exception:
         pass
     return "--"
@@ -45,6 +47,15 @@ def zero_scale(ser: serial.Serial) -> None:
         ser.write(b"Z\r\n")
     except Exception:
         pass
+
+
+def parse_weight_line(line: bytes) -> str:
+    """Return a formatted weight from a line emitted by the scale."""
+    try:
+        text = line.decode("ascii", errors="ignore")
+    except Exception:
+        return "--"
+    return _parse_text(text)
 
 
 def main(port: str = "/dev/ttyAMA3", baud: int = 9600) -> None:
