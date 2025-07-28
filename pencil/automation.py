@@ -89,6 +89,8 @@ class FiltrationTestSystem:
         base_name = f"{proj}_{module}_{sample}_test_{timestamp}"
         base = os.path.join(self.log_dir, base_name)
 
+        self.txt_file = open(os.path.join(self.log_dir, f"{proj}_{module}_{sample}_test_{timestamp}.txt"), "w")
+
         self.data_file = open(base + "_data.csv", "w", newline="")
         self.data_writer = csv.writer(self.data_file)
         self.data_writer.writerow([
@@ -179,6 +181,9 @@ class FiltrationTestSystem:
         if self.data_file:
             self.data_file.close()
             self.data_file = None
+        if hasattr(self, "txt_file"):
+            self.txt_file.close()
+            del self.txt_file
         self.data_writer = None
 
     def cancel(self) -> None:
@@ -258,6 +263,8 @@ class CleanTestSystem:
         solution = (self.config.solution or "").strip() or "unknown"
         base_name = f"{proj}_{module}_{solution}_clean_{timestamp}"
         base = os.path.join(self.log_dir, base_name)
+
+        self.txt_file = open(os.path.join(self.log_dir, f"{proj}_{module}_{solution}_clean_{timestamp}.txt"), "w")
 
         self.data_file = open(base + "_data.csv", "w", newline="")
         self.data_writer = csv.writer(self.data_file)
@@ -394,6 +401,9 @@ class CleanTestSystem:
         if self.data_file:
             self.data_file.close()
             self.data_file = None
+        if hasattr(self, "txt_file"):
+            self.txt_file.close()
+            del self.txt_file
         self.data_writer = None
 
     def cancel(self) -> None:
