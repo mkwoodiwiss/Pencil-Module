@@ -16,14 +16,17 @@ class TestAutomation(unittest.TestCase):
             refill_time=0.1,
             repeat_count=1,
             sample_time=0.01,
-            project_name="testproj",
+            project="proj",
+            module_id="mod1",
+            sample_id="sampleA",
         )
         system = FiltrationTestSystem(mod, config, log_dir="logs")
         system.start_test()
         self.assertTrue(mod.relay.calls)
         # Verify log files created
         files = os.listdir("logs")
-        self.assertTrue(any(fname.startswith("testproj_") for fname in files))
+        prefix = "proj_mod1_sampleA_test_"
+        self.assertTrue(any(fname.startswith(prefix) for fname in files))
 
     def test_valve_callback_invoked(self):
         mod = SimulatedPencilModule()
@@ -35,7 +38,9 @@ class TestAutomation(unittest.TestCase):
             refill_time=0.01,
             repeat_count=1,
             sample_time=0.001,
-            project_name="cbtest",
+            project="cb",
+            module_id="m",
+            sample_id="s",
         )
         calls = []
         system = FiltrationTestSystem(
@@ -56,7 +61,9 @@ class TestAutomation(unittest.TestCase):
             refill_time=0.01,
             repeat_count=1,
             sample_time=0.001,
-            project_name="progtest",
+            project="prog",
+            module_id="m1",
+            sample_id="s1",
         )
         steps = []
         system = FiltrationTestSystem(

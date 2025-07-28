@@ -83,7 +83,11 @@ class FiltrationTestSystem:
         self._stop_event.clear()
         os.makedirs(self.log_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        base = os.path.join(self.log_dir, f"{self.config.project_name}_{timestamp}")
+        proj = (self.config.project or "").strip() or "unknown"
+        module = (self.config.module_id or "").strip() or "unknown"
+        sample = (self.config.sample_id or "").strip() or "unknown"
+        base_name = f"{proj}_{module}_{sample}_test_{timestamp}"
+        base = os.path.join(self.log_dir, base_name)
 
         self.data_file = open(base + "_data.csv", "w", newline="")
         self.data_writer = csv.writer(self.data_file)
@@ -249,7 +253,11 @@ class CleanTestSystem:
         self._stop_event.clear()
         os.makedirs(self.log_dir, exist_ok=True)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        base = os.path.join(self.log_dir, f"{self.config.project_name}_{timestamp}")
+        proj = (self.config.project or "").strip() or "unknown"
+        module = (self.config.module_id or "").strip() or "unknown"
+        solution = (self.config.solution or "").strip() or "unknown"
+        base_name = f"{proj}_{module}_{solution}_clean_{timestamp}"
+        base = os.path.join(self.log_dir, base_name)
 
         self.data_file = open(base + "_data.csv", "w", newline="")
         self.data_writer = csv.writer(self.data_file)
