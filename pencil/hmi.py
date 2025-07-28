@@ -114,7 +114,7 @@ class HMI(tk.Tk):
             width=8,
             height=2,
         )
-        self.start_btn_test.pack(pady=5)
+        self.start_btn_test.place(in_=self.pfds["test"]["canvas"], relx=0.5, rely=1.0, y=5, anchor="n")
         self.area = tk.Frame(self.test_tab)
         self.area.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -204,7 +204,7 @@ class HMI(tk.Tk):
             width=8,
             height=2,
         )
-        self.start_btn_clean.pack(pady=5)
+        self.start_btn_clean.place(in_=self.pfds["clean"]["canvas"], relx=0.5, rely=1.0, y=5, anchor="n")
         clean_area = tk.Frame(self.clean_tab)
         clean_area.pack(fill="both", expand=True, padx=5, pady=5)
 
@@ -257,22 +257,17 @@ class HMI(tk.Tk):
         tk.Button(btn_frame2, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
         tk.Button(btn_frame2, text="Tare BW", command=lambda: self.module.zero_scale(1)).grid(row=0, column=2, padx=5, sticky="ew")
 
-        # Modes switch buttons
-        mode_frame = tk.LabelFrame(self, text="Modes")
-        mode_frame.place(relx=0.0, rely=1.0, anchor="sw", x=5, y=-5)
-        tk.Button(mode_frame, text="Test", command=lambda: self.notebook.select(self.test_tab)).pack(side="left", padx=2)
-        tk.Button(mode_frame, text="Clean", command=lambda: self.notebook.select(self.clean_tab)).pack(side="left", padx=2)
-
         self.update_data()
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
         """Create and return a process flow diagram on ``parent``."""
         canvas = tk.Canvas(parent, width=780, height=190, bg="white")
         canvas.pack(pady=5)
-        close_btn = tk.Button(canvas, text="X", width=2, command=self._confirm_exit)
+        btn_opts = {"width": 2, "height": 1}
+        close_btn = tk.Button(canvas, text="X", command=self._confirm_exit, **btn_opts)
+        help_btn = tk.Button(canvas, text="?", command=self._show_control_narrative, **btn_opts)
         canvas.create_window(770, 10, window=close_btn, anchor="ne")
-        help_btn = tk.Button(canvas, text="?", width=2, command=self._show_control_narrative)
-        canvas.create_window(740, 10, window=help_btn, anchor="ne")
+        canvas.create_window(742, 10, window=help_btn, anchor="ne")
 
         canvas.create_rectangle(75, 30, 125, 80, fill="lightblue")
         canvas.create_text(100, 20, text="BW water")
