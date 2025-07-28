@@ -92,7 +92,8 @@ python3 stress_test_continuous.py 60
 ```
 
 The optional argument specifies the duration in seconds (default is 60). Log
-messages are written to the `logs` directory.
+messages are written to the `logs` directory using the filename pattern
+`usb_scale_stress_test_<timestamp>.txt`.
 
 ## Troubleshooting Debug Logs
 

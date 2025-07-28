@@ -30,6 +30,8 @@ class SimulatedPencilModule(PencilModule):
         self.backwash_ser = FakeSerial(port="/dev/ttyAMA2")
         self.effluent_lock = threading.Lock()
         self.backwash_lock = threading.Lock()
+        # Avoid delays when running tests
+        self._read_delay = 0.0
         self.relay = FakeRelay8()
         self.io = FakeMultiIO()
         self.pressure_offset_bw = 0.0
