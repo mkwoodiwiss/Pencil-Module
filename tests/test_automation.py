@@ -1,4 +1,5 @@
 import os
+import csv
 import unittest
 
 from tests.test_interfaces import SimulatedPencilModule
@@ -27,6 +28,16 @@ class TestAutomation(unittest.TestCase):
         files = os.listdir("logs")
         prefix = "Test_proj_mod1_sampleA_"
         self.assertTrue(any(fname.startswith(prefix) for fname in files))
+        data_file = next(
+            f for f in files if f.startswith(prefix) and f.endswith("_data.csv")
+        )
+        with open(os.path.join("logs", data_file), newline="") as fp:
+            rows = list(csv.reader(fp))
+        self.assertEqual(rows[0][-1], "step")
+        steps = {row[-1] for row in rows[1:]}
+        self.assertIn("Purge", steps)
+        self.assertIn("Filter", steps)
+        self.assertIn("Backwash", steps)
 
     def test_valve_callback_invoked(self):
         mod = SimulatedPencilModule()

@@ -51,7 +51,8 @@ class FiltrationTestSystem:
         match = re.search(r"([+-]?\d+\.\d+)", text)
         return float(match.group(1)) if match else 0.0
 
-    def log_cycle(self) -> None:
+    def log_cycle(self, step: str) -> None:
+        """Record one set of sensor readings for a given cycle step."""
         if not self.data_writer:
             return
         ts = time.time()
@@ -64,6 +65,7 @@ class FiltrationTestSystem:
             self.module.read_pressure(1),
             self._parse_weight(effluent),
             self._parse_weight(backwash),
+            step,
         ]
         self.data_writer.writerow(row)
 
@@ -103,6 +105,7 @@ class FiltrationTestSystem:
             "influent_pressure",
             "effluent_weight",
             "backwash_weight",
+            "step",
         ])
 
         with open(base + "_settings.csv", "w", newline="") as sfile:
@@ -129,7 +132,7 @@ class FiltrationTestSystem:
             while time.time() - start < self.config.refill_time:
                 if self._check_cancel():
                     return
-                self.log_cycle()
+                self.log_cycle("Purge")
                 time.sleep(self.config.sample_time)
             self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
 
@@ -141,7 +144,7 @@ class FiltrationTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self.log_cycle()
+                self.log_cycle("Filter")
                 if self.config.filtration_by_volume:
                     vol = self._parse_weight(self.module.read_scale(0)) - start_w
                     if vol >= self.config.filtration_target:
@@ -160,7 +163,7 @@ class FiltrationTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self.log_cycle()
+                self.log_cycle("Backwash")
                 if self.config.backwash_by_volume:
                     vol = self._parse_weight(self.module.read_scale(1)) - start_w
                     if vol >= self.config.backwash_target:
@@ -228,7 +231,8 @@ class CleanTestSystem:
         match = re.search(r"([+-]?\d+\.\d+)", text)
         return float(match.group(1)) if match else 0.0
 
-    def log_cycle(self) -> None:
+    def log_cycle(self, step: str) -> None:
+        """Record one set of sensor readings for a given cycle step."""
         if not self.data_writer:
             return
         ts = time.time()
@@ -241,6 +245,7 @@ class CleanTestSystem:
             self.module.read_pressure(1),
             self._parse_weight(effluent),
             self._parse_weight(backwash),
+            step,
         ]
         self.data_writer.writerow(row)
 
@@ -276,6 +281,7 @@ class CleanTestSystem:
             "influent_pressure",
             "effluent_weight",
             "backwash_weight",
+            "step",
         ])
 
         with open(base + "_settings.csv", "w", newline="") as sfile:
@@ -304,7 +310,7 @@ class CleanTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self.log_cycle()
+                self.log_cycle("Forward Clean")
                 if self.config.forward_by_volume:
                     vol = self._parse_weight(self.module.read_scale(0)) - start_w
                     if vol >= self.config.forward_target:
@@ -321,7 +327,7 @@ class CleanTestSystem:
             while time.time() < end:
                 if self._check_cancel():
                     return
-                self.log_cycle()
+                self.log_cycle("Soak")
                 time.sleep(self.config.sample_time)
 
             if self.progress_callback:
@@ -332,7 +338,7 @@ class CleanTestSystem:
             while True:
                 if self._check_cancel():
                     return
-                self.log_cycle()
+                self.log_cycle("Backwash Clean")
                 if self.config.backwash_by_volume:
                     vol = self._parse_weight(self.module.read_scale(1)) - start_w
                     if vol >= self.config.backwash_target:
@@ -349,7 +355,7 @@ class CleanTestSystem:
             while time.time() < end:
                 if self._check_cancel():
                     return
-                self.log_cycle()
+                self.log_cycle("Soak BW")
                 time.sleep(self.config.sample_time)
 
         if self.progress_callback:
@@ -370,7 +376,7 @@ class CleanTestSystem:
         while time.time() - start < self.config.rinse_time:
             if self._check_cancel():
                 return
-            self.log_cycle()
+            self.log_cycle("Rinse Drain")
             time.sleep(self.config.sample_time)
         self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
 
@@ -381,7 +387,7 @@ class CleanTestSystem:
         while time.time() - start < self.config.rinse_time:
             if self._check_cancel():
                 return
-            self.log_cycle()
+            self.log_cycle("Rinse Effluent")
             time.sleep(self.config.sample_time)
         self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
 
@@ -392,7 +398,7 @@ class CleanTestSystem:
         while time.time() - start < self.config.rinse_time:
             if self._check_cancel():
                 return
-            self.log_cycle()
+            self.log_cycle("Rinse BW")
             time.sleep(self.config.sample_time)
         self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
 
