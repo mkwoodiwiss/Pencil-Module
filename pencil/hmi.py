@@ -356,7 +356,7 @@ class HMI(tk.Tk):
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
         """Create and return a process flow diagram on ``parent``."""
-        canvas = tk.Canvas(parent, width=780, height=170, bg="white")
+        canvas = tk.Canvas(parent, width=780, height=175, bg="white")
         canvas.pack(pady=(2, 0))
 
         btn_opts = {"width": 2, "height": 1}
