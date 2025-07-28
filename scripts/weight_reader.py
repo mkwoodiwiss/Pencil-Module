@@ -4,28 +4,19 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - fallback when pyserial is missing
     from pencil import serial_stub as serial
 import string
+import re
 
 
 def _parse_text(text: str) -> str:
     """Return formatted weight from a raw response string."""
-    cleaned = "".join(c for c in text if c in string.printable).strip()
-    if not cleaned:
-        return "--"
-
-    # The scale normally emits something like '+   13.10 g\r\n'.
-    # Avoid expensive regex parsing by slicing the known pattern.
-    sign = cleaned[0]
-    remainder = cleaned[1:] if sign in "+-" else cleaned
-    if sign not in "+-":
-        sign = "+"
-
-    parts = remainder.strip().split()
-    if len(parts) < 2:
-        return "--"
-
-    value = parts[0]
-    unit = parts[1]
-    return f"{sign}{value} {unit}"
+    cleaned = ''.join(c for c in text if c in string.printable)
+    match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
+    if match:
+        sign, value, unit = match.groups()
+        if sign == " ":
+            sign = "+"
+        return f"{sign}{value} {unit}"
+    return "--"
 
 
 def read_weight(ser: serial.Serial) -> str:
