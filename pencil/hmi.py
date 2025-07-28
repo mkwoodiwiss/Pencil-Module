@@ -86,7 +86,7 @@ class HMI(tk.Tk):
         )
         self.repeat_count_var = tk.IntVar(value=defaults.get("repeat_count", 1))
         self.sample_time_var = tk.DoubleVar(
-            value=defaults.get("sample_time", 0.1)
+            value=max(1.0, defaults.get("sample_time", 1.0))
         )
         self.project_var = tk.StringVar(value=defaults.get("project", ""))
         self.module_id_var = tk.StringVar(value=defaults.get("module_id", ""))
@@ -128,7 +128,7 @@ class HMI(tk.Tk):
             value=defaults.get("clean_cycle_count", 1)
         )
         self.clean_sample_time_var = tk.DoubleVar(
-            value=defaults.get("clean_sample_time", 0.1)
+            value=max(1.0, defaults.get("clean_sample_time", 1.0))
         )
         self.clean_rinse_time_var = tk.DoubleVar(
             value=defaults.get("clean_rinse_time", 1.0)
@@ -176,7 +176,7 @@ class HMI(tk.Tk):
             value=defaults.get("benchmark_repeat_count", 1)
         )
         self.benchmark_sample_time_var = tk.DoubleVar(
-            value=defaults.get("benchmark_sample_time", 0.1)
+            value=max(1.0, defaults.get("benchmark_sample_time", 1.0))
         )
         self.benchmark_project_var = tk.StringVar(
             value=defaults.get("benchmark_project", "")
@@ -1056,7 +1056,7 @@ class HMI(tk.Tk):
             backwash_by_volume=bw_by_vol,
             refill_time=self.refill_time_var.get(),
             repeat_count=self.repeat_count_var.get(),
-            sample_time=self.sample_time_var.get(),
+            sample_time=max(1.0, self.sample_time_var.get()),
             project=self.project_var.get(),
             module_id=self.module_id_var.get(),
             sample_id=self.sample_id_var.get(),
@@ -1095,7 +1095,7 @@ class HMI(tk.Tk):
             backwash_by_volume=bw_by_vol,
             refill_time=self.benchmark_refill_time_var.get(),
             repeat_count=self.benchmark_repeat_count_var.get(),
-            sample_time=self.benchmark_sample_time_var.get(),
+            sample_time=max(1.0, self.benchmark_sample_time_var.get()),
             project=self.benchmark_project_var.get(),
             module_id=self.benchmark_module_id_var.get(),
             sample_id=self.benchmark_sample_id_var.get(),
@@ -1135,7 +1135,7 @@ class HMI(tk.Tk):
             backwash_by_volume=bw_by_vol,
             backwash_soak=self.clean_bw_soak_var.get(),
             cycle_count=self.clean_cycle_count_var.get(),
-            sample_time=self.clean_sample_time_var.get(),
+            sample_time=max(1.0, self.clean_sample_time_var.get()),
             rinse_time=self.clean_rinse_time_var.get(),
             project=self.clean_project_var.get(),
             module_id=self.clean_module_id_var.get(),
