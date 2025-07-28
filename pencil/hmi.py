@@ -57,7 +57,9 @@ class HMI(tk.Tk):
         self.refill_time_var = tk.DoubleVar(value=0.5)
         self.repeat_count_var = tk.IntVar(value=1)
         self.sample_time_var = tk.DoubleVar(value=0.1)
-        self.project_name_var = tk.StringVar(value="demo")
+        self.project_var = tk.StringVar(value="")
+        self.module_id_var = tk.StringVar(value="")
+        self.sample_id_var = tk.StringVar(value="")
 
         # Clean mode variables
         self.clean_fwd_target_weight_var = tk.DoubleVar(value=1.0)
@@ -73,7 +75,9 @@ class HMI(tk.Tk):
         self.clean_cycle_count_var = tk.IntVar(value=1)
         self.clean_sample_time_var = tk.DoubleVar(value=0.1)
         self.clean_rinse_time_var = tk.DoubleVar(value=1.0)
-        self.clean_project_name_var = tk.StringVar(value="clean")
+        self.clean_project_var = tk.StringVar(value="")
+        self.clean_module_id_var = tk.StringVar(value="")
+        self.clean_solution_var = tk.StringVar(value="")
         self.is_running = False
         self.solenoid_states = [False] * 5
         self.prime_frame = None
@@ -189,11 +193,17 @@ class HMI(tk.Tk):
         NumericEntry(settings, textvariable=self.sample_time_var, width=7).grid(row=4, column=1)
         tk.Label(settings, text="sec").grid(row=4, column=2, sticky="w")
 
-        tk.Label(settings, text="Project Name").grid(row=5, column=0, sticky="w")
-        KeyboardEntry(settings, textvariable=self.project_name_var, width=7).grid(row=5, column=1)
+        tk.Label(settings, text="Project").grid(row=5, column=0, sticky="w")
+        KeyboardEntry(settings, textvariable=self.project_var, width=7).grid(row=5, column=1)
+
+        tk.Label(settings, text="Module ID").grid(row=6, column=0, sticky="w")
+        KeyboardEntry(settings, textvariable=self.module_id_var, width=7).grid(row=6, column=1)
+
+        tk.Label(settings, text="Sample ID").grid(row=7, column=0, sticky="w")
+        KeyboardEntry(settings, textvariable=self.sample_id_var, width=7).grid(row=7, column=1)
 
         btn_frame = tk.Frame(settings)
-        btn_frame.grid(row=6, column=0, columnspan=5, pady=8, sticky="ew")
+        btn_frame.grid(row=8, column=0, columnspan=5, pady=8, sticky="ew")
         btn_frame.columnconfigure((0, 1, 2), weight=1)
 
         tk.Button(btn_frame, text="Calibrate", command=self.calibrate).grid(row=0, column=0, padx=5, sticky="ew")
@@ -286,11 +296,17 @@ class HMI(tk.Tk):
         NumericEntry(clean_settings, textvariable=self.clean_rinse_time_var, width=7).grid(row=6, column=1)
         tk.Label(clean_settings, text="sec").grid(row=6, column=2, sticky="w")
 
-        tk.Label(clean_settings, text="Project Name").grid(row=7, column=0, sticky="w")
-        KeyboardEntry(clean_settings, textvariable=self.clean_project_name_var, width=7).grid(row=7, column=1)
+        tk.Label(clean_settings, text="Project").grid(row=7, column=0, sticky="w")
+        KeyboardEntry(clean_settings, textvariable=self.clean_project_var, width=7).grid(row=7, column=1)
+
+        tk.Label(clean_settings, text="Module ID").grid(row=8, column=0, sticky="w")
+        KeyboardEntry(clean_settings, textvariable=self.clean_module_id_var, width=7).grid(row=8, column=1)
+
+        tk.Label(clean_settings, text="Solution").grid(row=9, column=0, sticky="w")
+        KeyboardEntry(clean_settings, textvariable=self.clean_solution_var, width=7).grid(row=9, column=1)
 
         btn_frame2 = tk.Frame(clean_settings)
-        btn_frame2.grid(row=8, column=0, columnspan=5, pady=8, sticky="ew")
+        btn_frame2.grid(row=10, column=0, columnspan=5, pady=8, sticky="ew")
         btn_frame2.columnconfigure((0, 1, 2), weight=1)
         tk.Button(btn_frame2, text="Calibrate", command=self.calibrate).grid(row=0, column=0, padx=5, sticky="ew")
         tk.Button(btn_frame2, text="Tare EFL", command=lambda: self.module.zero_scale(0)).grid(row=0, column=1, padx=5, sticky="ew")
@@ -582,7 +598,9 @@ class HMI(tk.Tk):
             refill_time=self.refill_time_var.get(),
             repeat_count=self.repeat_count_var.get(),
             sample_time=self.sample_time_var.get(),
-            project_name=self.project_name_var.get(),
+            project=self.project_var.get(),
+            module_id=self.module_id_var.get(),
+            sample_id=self.sample_id_var.get(),
         )
         self.test_system = FiltrationTestSystem(
             self.module,
@@ -621,7 +639,9 @@ class HMI(tk.Tk):
             cycle_count=self.clean_cycle_count_var.get(),
             sample_time=self.clean_sample_time_var.get(),
             rinse_time=self.clean_rinse_time_var.get(),
-            project_name=self.clean_project_name_var.get(),
+            project=self.clean_project_var.get(),
+            module_id=self.clean_module_id_var.get(),
+            solution=self.clean_solution_var.get(),
         )
         self.test_system = CleanTestSystem(
             self.module,

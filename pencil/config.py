@@ -14,7 +14,9 @@ class FiltrationConfig:
     refill_time: float
     repeat_count: int
     sample_time: float
-    project_name: str
+    project: str
+    module_id: str
+    sample_id: str
     pressure_offset: float = 0.0
     temp_offset: float = 0.0
 
@@ -32,6 +34,8 @@ class CleanConfig:
     cycle_count: int
     sample_time: float
     rinse_time: float
-    project_name: str
+    project: str
+    module_id: str
+    solution: str
     pressure_offset: float = 0.0
     temp_offset: float = 0.0
