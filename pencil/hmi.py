@@ -191,7 +191,13 @@ class HMI(tk.Tk):
         cycle_frame = tk.LabelFrame(right_col, text="Cycle Status")
         cycle_frame.pack(anchor="n", pady=5)
         tk.Label(cycle_frame, text="Cycle Step:").grid(row=0, column=0, sticky="w")
-        tk.Label(cycle_frame, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(
+            cycle_frame,
+            textvariable=self.cycle_step_var,
+            font=("Arial", 12),
+            width=15,
+            anchor="w",
+        ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
@@ -263,7 +269,13 @@ class HMI(tk.Tk):
         cycle_frame_b = tk.LabelFrame(bench_right, text="Cycle Status")
         cycle_frame_b.pack(anchor="n", pady=5)
         tk.Label(cycle_frame_b, text="Cycle Step:").grid(row=0, column=0, sticky="w")
-        tk.Label(cycle_frame_b, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(
+            cycle_frame_b,
+            textvariable=self.cycle_step_var,
+            font=("Arial", 12),
+            width=15,
+            anchor="w",
+        ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame_b, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame_b, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
@@ -335,7 +347,13 @@ class HMI(tk.Tk):
         cycle_frame2 = tk.LabelFrame(clean_right, text="Cycle Status")
         cycle_frame2.pack(anchor="n", pady=5)
         tk.Label(cycle_frame2, text="Cycle Step:").grid(row=0, column=0, sticky="w")
-        tk.Label(cycle_frame2, textvariable=self.cycle_step_var, font=("Arial", 12)).grid(row=0, column=1, sticky="w")
+        tk.Label(
+            cycle_frame2,
+            textvariable=self.cycle_step_var,
+            font=("Arial", 12),
+            width=15,
+            anchor="w",
+        ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame2, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame2, textvariable=self.cycle_count_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
