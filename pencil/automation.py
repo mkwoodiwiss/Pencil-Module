@@ -86,10 +86,10 @@ class FiltrationTestSystem:
         proj = (self.config.project or "").strip() or "unknown"
         module = (self.config.module_id or "").strip() or "unknown"
         sample = (self.config.sample_id or "").strip() or "unknown"
-        base_name = f"{proj}_{module}_{sample}_test_{timestamp}"
+        base_name = f"{proj}_{module}_{sample}_test_{timestamp}.txt"
         base = os.path.join(self.log_dir, base_name)
 
-        self.data_file = open(base + "_data.csv", "w", newline="")
+        self.data_file = open(base, "w", newline="")
         self.data_writer = csv.writer(self.data_file)
         self.data_writer.writerow([
             "timestamp",
@@ -100,10 +100,6 @@ class FiltrationTestSystem:
             "backwash_weight",
         ])
 
-        with open(base + "_settings.csv", "w", newline="") as sfile:
-            writer = csv.writer(sfile)
-            for k, v in asdict(self.config).items():
-                writer.writerow([k, v])
 
         if (
             self.config.pressure_offset != 0.0
@@ -256,10 +252,10 @@ class CleanTestSystem:
         proj = (self.config.project or "").strip() or "unknown"
         module = (self.config.module_id or "").strip() or "unknown"
         solution = (self.config.solution or "").strip() or "unknown"
-        base_name = f"{proj}_{module}_{solution}_clean_{timestamp}"
+        base_name = f"{proj}_{module}_{solution}_clean_{timestamp}.txt"
         base = os.path.join(self.log_dir, base_name)
 
-        self.data_file = open(base + "_data.csv", "w", newline="")
+        self.data_file = open(base, "w", newline="")
         self.data_writer = csv.writer(self.data_file)
         self.data_writer.writerow([
             "timestamp",
@@ -270,10 +266,6 @@ class CleanTestSystem:
             "backwash_weight",
         ])
 
-        with open(base + "_settings.csv", "w", newline="") as sfile:
-            writer = csv.writer(sfile)
-            for k, v in asdict(self.config).items():
-                writer.writerow([k, v])
 
         if (
             self.config.pressure_offset != 0.0
