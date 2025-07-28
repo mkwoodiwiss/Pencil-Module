@@ -11,7 +11,7 @@ import threading
 from tkinter import messagebox
 
 from .hardware import PencilModule
-from .config import FiltrationConfig, CleanConfig
+from .config import FiltrationConfig, CleanConfig, BenchmarkConfig
 
 
 class FiltrationTestSystem:
@@ -88,7 +88,7 @@ class FiltrationTestSystem:
         proj = (self.config.project or "").strip() or "unknown"
         module = (self.config.module_id or "").strip() or "unknown"
         sample = (self.config.sample_id or "").strip() or "unknown"
-        base_name = f"{proj}_{module}_{sample}_test_{timestamp}"
+        base_name = f"Test_{proj}_{module}_{sample}_{timestamp}"
         base = os.path.join(self.log_dir, base_name)
 
         self.data_file = open(base + "_data.csv", "w", newline="")
@@ -258,7 +258,7 @@ class CleanTestSystem:
         proj = (self.config.project or "").strip() or "unknown"
         module = (self.config.module_id or "").strip() or "unknown"
         solution = (self.config.solution or "").strip() or "unknown"
-        base_name = f"{proj}_{module}_{solution}_clean_{timestamp}"
+        base_name = f"Clean_{proj}_{module}_{solution}_{timestamp}"
         base = os.path.join(self.log_dir, base_name)
 
         self.data_file = open(base + "_data.csv", "w", newline="")
@@ -404,6 +404,67 @@ class CleanTestSystem:
             self.data_file.close()
             self.data_file = None
         self.data_writer = None
+
+    def cancel(self) -> None:
+        self._stop_event.set()
+
+
+class BenchmarkTestSystem:
+    """Log sensor data without controlling valves."""
+
+    def __init__(
+        self,
+        module: PencilModule,
+        config: BenchmarkConfig,
+        log_dir: str = "logs",
+        progress_callback: Optional[Callable[[str, int, int], None]] = None,
+    ) -> None:
+        self.module = module
+        self.config = config
+        self.log_dir = log_dir
+        self.progress_callback = progress_callback
+        self._stop_event = threading.Event()
+        self.data_file: Optional[object] = None
+
+    def start_test(self) -> None:
+        self._stop_event.clear()
+        os.makedirs(self.log_dir, exist_ok=True)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        proj = (self.config.project or "").strip() or "unknown"
+        module = (self.config.module_id or "").strip() or "unknown"
+        sample = (self.config.sample_id or "").strip() or "unknown"
+        filename = (
+            f"Benchmark_{proj}_{module}_{sample}_{timestamp}.txt"
+        )
+        path = os.path.join(self.log_dir, filename)
+        self.data_file = open(path, "w")
+        start = time.time()
+        count = 0
+        try:
+            while time.time() - start < self.config.duration:
+                if self._stop_event.is_set():
+                    break
+                row = {
+                    "time": time.time(),
+                    "influent_temp": self.module.read_rtd(0),
+                    "influent_pressure": self.module.read_pressure(2),
+                    "backwash_pressure": self.module.read_pressure(1),
+                    "effluent_weight": self.module.read_scale(0),
+                    "backwash_weight": self.module.read_scale(1),
+                }
+                self.data_file.write(str(row) + "\n")
+                self.data_file.flush()
+                count += 1
+                if self.progress_callback:
+                    self.progress_callback("Benchmark", count, 0)
+                time.sleep(self.config.interval)
+        finally:
+            self.stop_test()
+
+    def stop_test(self) -> None:
+        if self.data_file:
+            self.data_file.close()
+            self.data_file = None
 
     def cancel(self) -> None:
         self._stop_event.set()
