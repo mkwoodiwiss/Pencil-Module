@@ -37,10 +37,7 @@ def poll_scale(name: str, ser: serial.Serial, stop: threading.Event) -> None:
         except Exception as exc:  # pragma: no cover - runtime exceptions
             result = f"error: {exc}"
         log(f"{name}: {result}")
-        for _ in range(10):
-            if stop.is_set():
-                break
-            time.sleep(0.01)
+        stop.wait(0.25)
 
 
 def main() -> None:
@@ -48,22 +45,23 @@ def main() -> None:
     effluent_ser = serial.Serial("/dev/ttyAMA3", 9600, timeout=1)
     backwash_ser = serial.Serial("/dev/ttyAMA2", 9600, timeout=1)
 
-    threads = [
-        threading.Thread(
-            target=poll_scale,
-            args=("Effluent", effluent_ser, stop),
-            daemon=True,
-        ),
-        threading.Thread(
-            target=poll_scale,
-            args=("Backwash", backwash_ser, stop),
-            daemon=True,
-        ),
-    ]
+    eff_thread = threading.Thread(
+        target=poll_scale,
+        args=("Effluent", effluent_ser, stop),
+        daemon=True,
+    )
+    bw_thread = threading.Thread(
+        target=poll_scale,
+        args=("Backwash", backwash_ser, stop),
+        daemon=True,
+    )
 
-    for t in threads:
-        t.start()
+    # Start backwash first then stagger effluent by 125 ms
+    bw_thread.start()
+    time.sleep(0.125)
+    eff_thread.start()
 
+    threads = [eff_thread, bw_thread]
     try:
         while True:
             time.sleep(1)

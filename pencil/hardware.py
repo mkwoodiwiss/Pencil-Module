@@ -39,15 +39,23 @@ class _RelayWrapper:
 class PencilModule:
     """Interface to the hardware boards."""
 
-    def __init__(self, relay_stack: int = 1, io_stack: int = 2,
-                 effluent_port: str = "/dev/ttyAMA3",
-                 backwash_port: str = "/dev/ttyAMA2", baud: int = 9600) -> None:
+    def __init__(
+        self,
+        relay_stack: int = 1,
+        io_stack: int = 2,
+        effluent_port: str = "/dev/ttyAMA3",
+        backwash_port: str = "/dev/ttyAMA2",
+        baud: int = 9600,
+        read_delay: float = 0.25,
+    ) -> None:
         """Initialize connections to the hardware."""
         # Individual serial connections to each scale
         self.effluent_ser = serial.Serial(effluent_port, baud, timeout=1)
         self.backwash_ser = serial.Serial(backwash_port, baud, timeout=1)
         self.effluent_lock = threading.Lock()
         self.backwash_lock = threading.Lock()
+        # Time to wait for a scale response after sending a command
+        self._read_delay = read_delay
         # Interfaces to the relay and IO boards if available
         if lib8relind:
             self.relay = _RelayWrapper(relay_stack)
@@ -134,7 +142,7 @@ class PencilModule:
                 except Exception:
                     pass
                 ser.write(cmd)
-                time.sleep(0.1)
+                time.sleep(self._read_delay)
                 response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
             cleaned = ''.join(c for c in response if c in string.printable)
             match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)

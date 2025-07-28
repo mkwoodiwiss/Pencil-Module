@@ -31,7 +31,8 @@ def read_weight(ser: serial.Serial) -> str:
     try:
         ser.reset_input_buffer()
         ser.write(b"P\r\n")
-        time.sleep(0.1)
+        # Allow the scale time to respond (~4 Hz update rate)
+        time.sleep(0.25)
         response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
         return _parse_text(response)
     except Exception:
