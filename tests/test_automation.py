@@ -25,7 +25,7 @@ class TestAutomation(unittest.TestCase):
         self.assertTrue(mod.relay.calls)
         # Verify log files created
         files = os.listdir("logs")
-        prefix = "proj_mod1_sampleA_test_"
+        prefix = "Test_proj_mod1_sampleA_"
         self.assertTrue(any(fname.startswith(prefix) for fname in files))
 
     def test_valve_callback_invoked(self):

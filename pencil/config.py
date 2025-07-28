@@ -39,3 +39,16 @@ class CleanConfig:
     solution: str
     pressure_offset: float = 0.0
     temp_offset: float = 0.0
+
+
+@dataclass
+class BenchmarkConfig:
+    """Configuration for a benchmark logging run."""
+
+    duration: float
+    interval: float
+    project: str
+    module_id: str
+    sample_id: str
+    pressure_offset: float = 0.0
+    temp_offset: float = 0.0
