@@ -313,7 +313,7 @@ class CleanTestSystem:
                 self.progress_callback(label, idx, self.config.cycle_count)
             self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
             start = time.time()
-            while time.time() - start < self.config.rinse_time:
+            while time.time() - start < self.config.purge_time:
                 if self._check_cancel():
                     return False
                 self.log_cycle(label)
