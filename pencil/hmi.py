@@ -118,6 +118,30 @@ class HMI(tk.Tk):
         self.clean_bw_use_time_var = tk.BooleanVar(
             value=defaults.get("clean_bw_use_time", True)
         )
+        self.rinse_fwd_target_weight_var = tk.DoubleVar(
+            value=defaults.get("rinse_fwd_target_weight", 1.0)
+        )
+        self.rinse_fwd_target_time_var = tk.DoubleVar(
+            value=defaults.get("rinse_fwd_target_time", 1.0)
+        )
+        self.rinse_fwd_use_weight_var = tk.BooleanVar(
+            value=defaults.get("rinse_fwd_use_weight", False)
+        )
+        self.rinse_fwd_use_time_var = tk.BooleanVar(
+            value=defaults.get("rinse_fwd_use_time", True)
+        )
+        self.rinse_bw_target_weight_var = tk.DoubleVar(
+            value=defaults.get("rinse_bw_target_weight", 1.0)
+        )
+        self.rinse_bw_target_time_var = tk.DoubleVar(
+            value=defaults.get("rinse_bw_target_time", 1.0)
+        )
+        self.rinse_bw_use_weight_var = tk.BooleanVar(
+            value=defaults.get("rinse_bw_use_weight", False)
+        )
+        self.rinse_bw_use_time_var = tk.BooleanVar(
+            value=defaults.get("rinse_bw_use_time", True)
+        )
         self.clean_soak_var = tk.DoubleVar(
             value=defaults.get("clean_soak", 0.5)
         )
@@ -749,6 +773,30 @@ class HMI(tk.Tk):
         elif not self.clean_bw_use_weight_var.get():
             self.clean_bw_use_weight_var.set(True)
 
+    def _toggle_rinse_fwd_weight(self) -> None:
+        if self.rinse_fwd_use_weight_var.get():
+            self.rinse_fwd_use_time_var.set(False)
+        elif not self.rinse_fwd_use_time_var.get():
+            self.rinse_fwd_use_time_var.set(True)
+
+    def _toggle_rinse_fwd_time(self) -> None:
+        if self.rinse_fwd_use_time_var.get():
+            self.rinse_fwd_use_weight_var.set(False)
+        elif not self.rinse_fwd_use_weight_var.get():
+            self.rinse_fwd_use_weight_var.set(True)
+
+    def _toggle_rinse_bw_weight(self) -> None:
+        if self.rinse_bw_use_weight_var.get():
+            self.rinse_bw_use_time_var.set(False)
+        elif not self.rinse_bw_use_time_var.get():
+            self.rinse_bw_use_time_var.set(True)
+
+    def _toggle_rinse_bw_time(self) -> None:
+        if self.rinse_bw_use_time_var.get():
+            self.rinse_bw_use_weight_var.set(False)
+        elif not self.rinse_bw_use_weight_var.get():
+            self.rinse_bw_use_weight_var.set(True)
+
     def _update_test_summary(self) -> None:
         target = (
             self.filt_target_weight_var.get()
@@ -814,10 +862,24 @@ class HMI(tk.Tk):
             else self.clean_bw_target_time_var.get()
         )
         bw_unit = "g" if self.clean_bw_use_weight_var.get() else "s"
+        rfwd = (
+            self.rinse_fwd_target_weight_var.get()
+            if self.rinse_fwd_use_weight_var.get()
+            else self.rinse_fwd_target_time_var.get()
+        )
+        rf_unit = "g" if self.rinse_fwd_use_weight_var.get() else "s"
+        rbw = (
+            self.rinse_bw_target_weight_var.get()
+            if self.rinse_bw_use_weight_var.get()
+            else self.rinse_bw_target_time_var.get()
+        )
+        rbw_unit = "g" if self.rinse_bw_use_weight_var.get() else "s"
 
         lines = [
-            f"Filter: {fwd} {f_unit}",
-            f"Backwash: {bw} {bw_unit}",
+            f"Clean Filter: {fwd} {f_unit}",
+            f"Clean Backwash: {bw} {bw_unit}",
+            f"Rinse Filter: {rfwd} {rf_unit}",
+            f"Rinse Backwash: {rbw} {rbw_unit}",
             f"Soak: {self.clean_soak_var.get()} s",
             f"Cycles: {self.clean_cycle_count_var.get()}",
             f"Sample: {self.clean_sample_time_var.get()} s",
@@ -891,6 +953,8 @@ class HMI(tk.Tk):
         orig = {var: getattr(self, var).get() for var in [
             "clean_fwd_target_weight_var", "clean_fwd_target_time_var", "clean_fwd_use_weight_var", "clean_fwd_use_time_var",
             "clean_bw_target_weight_var", "clean_bw_target_time_var", "clean_bw_use_weight_var", "clean_bw_use_time_var",
+            "rinse_fwd_target_weight_var", "rinse_fwd_target_time_var", "rinse_fwd_use_weight_var", "rinse_fwd_use_time_var",
+            "rinse_bw_target_weight_var", "rinse_bw_target_time_var", "rinse_bw_use_weight_var", "rinse_bw_use_time_var",
             "clean_soak_var", "clean_cycle_count_var", "clean_sample_time_var",
             "clean_rinse_time_var", "clean_project_var", "clean_module_id_var", "clean_solution_var",
         ]}
@@ -903,7 +967,7 @@ class HMI(tk.Tk):
             pass
         win.title("Edit Clean Settings")
 
-        tk.Label(win, text="Forward Target").grid(row=0, column=0, sticky="w")
+        tk.Label(win, text="Clean Filter Target").grid(row=0, column=0, sticky="w")
         NumericEntry(win, textvariable=self.clean_fwd_target_weight_var, width=7).grid(row=0, column=1)
         tk.Checkbutton(
             win,
@@ -919,7 +983,7 @@ class HMI(tk.Tk):
             command=self._toggle_clean_fwd_time,
         ).grid(row=0, column=4, sticky="w")
 
-        tk.Label(win, text="Backwash Target").grid(row=1, column=0, sticky="w")
+        tk.Label(win, text="Clean Backwash Target").grid(row=1, column=0, sticky="w")
         NumericEntry(win, textvariable=self.clean_bw_target_weight_var, width=7).grid(row=1, column=1)
         tk.Checkbutton(
             win,
@@ -935,32 +999,64 @@ class HMI(tk.Tk):
             command=self._toggle_clean_bw_time,
         ).grid(row=1, column=4, sticky="w")
 
-        tk.Label(win, text="Soak Time").grid(row=2, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.clean_soak_var, width=7).grid(row=2, column=1)
-        tk.Label(win, text="s").grid(row=2, column=2, sticky="w")
+        tk.Label(win, text="Rinse Filter Target").grid(row=2, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.rinse_fwd_target_weight_var, width=7).grid(row=2, column=1)
+        tk.Checkbutton(
+            win,
+            text="g",
+            variable=self.rinse_fwd_use_weight_var,
+            command=self._toggle_rinse_fwd_weight,
+        ).grid(row=2, column=2, sticky="w")
+        NumericEntry(win, textvariable=self.rinse_fwd_target_time_var, width=7).grid(row=2, column=3)
+        tk.Checkbutton(
+            win,
+            text="s",
+            variable=self.rinse_fwd_use_time_var,
+            command=self._toggle_rinse_fwd_time,
+        ).grid(row=2, column=4, sticky="w")
 
-        tk.Label(win, text="Cycle Count").grid(row=3, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.clean_cycle_count_var, width=7).grid(row=3, column=1)
+        tk.Label(win, text="Rinse Backwash Target").grid(row=3, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.rinse_bw_target_weight_var, width=7).grid(row=3, column=1)
+        tk.Checkbutton(
+            win,
+            text="g",
+            variable=self.rinse_bw_use_weight_var,
+            command=self._toggle_rinse_bw_weight,
+        ).grid(row=3, column=2, sticky="w")
+        NumericEntry(win, textvariable=self.rinse_bw_target_time_var, width=7).grid(row=3, column=3)
+        tk.Checkbutton(
+            win,
+            text="s",
+            variable=self.rinse_bw_use_time_var,
+            command=self._toggle_rinse_bw_time,
+        ).grid(row=3, column=4, sticky="w")
 
-        tk.Label(win, text="Sample Time").grid(row=4, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.clean_sample_time_var, width=7).grid(row=4, column=1)
-        tk.Label(win, text="sec").grid(row=4, column=2, sticky="w")
+        tk.Label(win, text="Soak Time").grid(row=4, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.clean_soak_var, width=7).grid(row=4, column=1)
+        tk.Label(win, text="s").grid(row=4, column=2, sticky="w")
 
-        tk.Label(win, text="Rinse Time").grid(row=5, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.clean_rinse_time_var, width=7).grid(row=5, column=1)
-        tk.Label(win, text="sec").grid(row=5, column=2, sticky="w")
+        tk.Label(win, text="Cycle Count").grid(row=5, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.clean_cycle_count_var, width=7).grid(row=5, column=1)
 
-        tk.Label(win, text="Project").grid(row=6, column=0, sticky="w")
-        KeyboardEntry(win, textvariable=self.clean_project_var, width=7).grid(row=6, column=1)
+        tk.Label(win, text="Sample Time").grid(row=6, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.clean_sample_time_var, width=7).grid(row=6, column=1)
+        tk.Label(win, text="sec").grid(row=6, column=2, sticky="w")
 
-        tk.Label(win, text="Module ID").grid(row=7, column=0, sticky="w")
-        KeyboardEntry(win, textvariable=self.clean_module_id_var, width=7).grid(row=7, column=1)
+        tk.Label(win, text="Rinse Time").grid(row=7, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.clean_rinse_time_var, width=7).grid(row=7, column=1)
+        tk.Label(win, text="sec").grid(row=7, column=2, sticky="w")
 
-        tk.Label(win, text="Solution").grid(row=8, column=0, sticky="w")
-        KeyboardEntry(win, textvariable=self.clean_solution_var, width=7).grid(row=8, column=1)
+        tk.Label(win, text="Project").grid(row=8, column=0, sticky="w")
+        KeyboardEntry(win, textvariable=self.clean_project_var, width=7).grid(row=8, column=1)
+
+        tk.Label(win, text="Module ID").grid(row=9, column=0, sticky="w")
+        KeyboardEntry(win, textvariable=self.clean_module_id_var, width=7).grid(row=9, column=1)
+
+        tk.Label(win, text="Solution").grid(row=10, column=0, sticky="w")
+        KeyboardEntry(win, textvariable=self.clean_solution_var, width=7).grid(row=10, column=1)
 
         btn_frame = tk.Frame(win)
-        btn_frame.grid(row=9, column=0, columnspan=5, pady=5)
+        btn_frame.grid(row=11, column=0, columnspan=5, pady=5)
         tk.Button(btn_frame, text="Save", command=lambda: (self._update_clean_summary(), win.destroy())).pack(side="left", padx=5)
 
         def cancel2() -> None:
@@ -1164,11 +1260,29 @@ class HMI(tk.Tk):
             bw_target = self.clean_bw_target_time_var.get()
             bw_by_vol = False
 
+        if self.rinse_fwd_use_weight_var.get():
+            rfwd_target = self.rinse_fwd_target_weight_var.get()
+            rfwd_by_vol = True
+        else:
+            rfwd_target = self.rinse_fwd_target_time_var.get()
+            rfwd_by_vol = False
+
+        if self.rinse_bw_use_weight_var.get():
+            rbw_target = self.rinse_bw_target_weight_var.get()
+            rbw_by_vol = True
+        else:
+            rbw_target = self.rinse_bw_target_time_var.get()
+            rbw_by_vol = False
+
         config = CleanConfig(
             forward_target=fwd_target,
             forward_by_volume=fwd_by_vol,
             backwash_target=bw_target,
             backwash_by_volume=bw_by_vol,
+            rinse_forward_target=rfwd_target,
+            rinse_forward_by_volume=rfwd_by_vol,
+            rinse_backwash_target=rbw_target,
+            rinse_backwash_by_volume=rbw_by_vol,
             soak_time=self.clean_soak_var.get(),
             cycle_count=self.clean_cycle_count_var.get(),
             sample_time=max(1.0, self.clean_sample_time_var.get()),

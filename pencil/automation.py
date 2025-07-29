@@ -321,9 +321,16 @@ class CleanTestSystem:
             self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
             return True
 
-        def fwd(label: str, idx: int) -> bool:
+        def fwd(
+            label: str,
+            idx: int,
+            target: Optional[float] = None,
+            by_volume: Optional[bool] = None,
+        ) -> bool:
             if self.progress_callback:
                 self.progress_callback(label, idx, self.config.cycle_count)
+            tgt = self.config.forward_target if target is None else target
+            use_vol = self.config.forward_by_volume if by_volume is None else by_volume
             self._open(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(0))
@@ -331,20 +338,27 @@ class CleanTestSystem:
                 if self._check_cancel():
                     return False
                 self.log_cycle(label)
-                if self.config.forward_by_volume:
+                if use_vol:
                     vol = self._parse_weight(self.module.read_scale(0)) - start_w
-                    if vol >= self.config.forward_target:
+                    if vol >= tgt:
                         break
                 else:
-                    if time.time() - start >= self.config.forward_target:
+                    if time.time() - start >= tgt:
                         break
                 time.sleep(self.config.sample_time)
             self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
             return True
 
-        def back(label: str, idx: int) -> bool:
+        def back(
+            label: str,
+            idx: int,
+            target: Optional[float] = None,
+            by_volume: Optional[bool] = None,
+        ) -> bool:
             if self.progress_callback:
                 self.progress_callback(label, idx, self.config.cycle_count)
+            tgt = self.config.backwash_target if target is None else target
+            use_vol = self.config.backwash_by_volume if by_volume is None else by_volume
             self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(1))
@@ -352,12 +366,12 @@ class CleanTestSystem:
                 if self._check_cancel():
                     return False
                 self.log_cycle(label)
-                if self.config.backwash_by_volume:
+                if use_vol:
                     vol = self._parse_weight(self.module.read_scale(1)) - start_w
-                    if vol >= self.config.backwash_target:
+                    if vol >= tgt:
                         break
                 else:
-                    if time.time() - start >= self.config.backwash_target:
+                    if time.time() - start >= tgt:
                         break
                 time.sleep(self.config.sample_time)
             self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
@@ -394,9 +408,19 @@ class CleanTestSystem:
                 return
             if not purge("DI Rinse 1 Purge", cycle + 1):
                 return
-            if not fwd("DI Rinse 1 Filter", cycle + 1):
+            if not fwd(
+                "DI Rinse 1 Filter",
+                cycle + 1,
+                self.config.rinse_forward_target,
+                self.config.rinse_forward_by_volume,
+            ):
                 return
-            if not back("DI Rinse 1 Backwash", cycle + 1):
+            if not back(
+                "DI Rinse 1 Backwash",
+                cycle + 1,
+                self.config.rinse_backwash_target,
+                self.config.rinse_backwash_by_volume,
+            ):
                 return
 
             if not prompt("Fill influent supply tank with acid solution."):
@@ -416,9 +440,19 @@ class CleanTestSystem:
 
             if not purge("DI Rinse 2 Purge", cycle + 1):
                 return
-            if not fwd("DI Rinse 2 Filter", cycle + 1):
+            if not fwd(
+                "DI Rinse 2 Filter",
+                cycle + 1,
+                self.config.rinse_forward_target,
+                self.config.rinse_forward_by_volume,
+            ):
                 return
-            if not back("DI Rinse 2 Backwash", cycle + 1):
+            if not back(
+                "DI Rinse 2 Backwash",
+                cycle + 1,
+                self.config.rinse_backwash_target,
+                self.config.rinse_backwash_by_volume,
+            ):
                 return
 
         self.stop_test()
