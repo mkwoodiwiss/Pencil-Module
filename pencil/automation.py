@@ -322,15 +322,6 @@ class CleanTestSystem:
             self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
 
             if self.progress_callback:
-                self.progress_callback("Soak", cycle + 1, self.config.cycle_count)
-            end = time.time() + self.config.forward_soak
-            while time.time() < end:
-                if self._check_cancel():
-                    return
-                self.log_cycle("Soak")
-                time.sleep(self.config.sample_time)
-
-            if self.progress_callback:
                 self.progress_callback("Backwash Clean", cycle + 1, self.config.cycle_count)
             self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
             start = time.time()
@@ -350,57 +341,46 @@ class CleanTestSystem:
             self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
 
             if self.progress_callback:
-                self.progress_callback("Soak BW", cycle + 1, self.config.cycle_count)
-            end = time.time() + self.config.backwash_soak
+                self.progress_callback("Soak", cycle + 1, self.config.cycle_count)
+            end = time.time() + self.config.soak_time
             while time.time() < end:
                 if self._check_cancel():
                     return
-                self.log_cycle("Soak BW")
+                self.log_cycle("Soak")
                 time.sleep(self.config.sample_time)
 
-        if self.progress_callback:
-            self.progress_callback("Refill DI", 0, 0)
-        # Prompt the operator to refill tanks before rinsing
-        try:
-            messagebox.showinfo(
-                "Refill DI Water",
-                "Refill supply tanks with DI water and press OK to continue",
-            )
-        except Exception:
-            input("Refill supply tanks with DI water and press Enter to continue")
+            if self.progress_callback:
+                self.progress_callback("Rinse Drain", cycle + 1, self.config.cycle_count)
+            self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
+            start = time.time()
+            while time.time() - start < self.config.rinse_time:
+                if self._check_cancel():
+                    return
+                self.log_cycle("Rinse Drain")
+                time.sleep(self.config.sample_time)
+            self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
 
-        if self.progress_callback:
-            self.progress_callback("Rinse Drain", 1, 1)
-        self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
-        start = time.time()
-        while time.time() - start < self.config.rinse_time:
-            if self._check_cancel():
-                return
-            self.log_cycle("Rinse Drain")
-            time.sleep(self.config.sample_time)
-        self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
+            if self.progress_callback:
+                self.progress_callback("Rinse Effluent", cycle + 1, self.config.cycle_count)
+            self._open(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
+            start = time.time()
+            while time.time() - start < self.config.rinse_time:
+                if self._check_cancel():
+                    return
+                self.log_cycle("Rinse Effluent")
+                time.sleep(self.config.sample_time)
+            self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
 
-        if self.progress_callback:
-            self.progress_callback("Rinse Effluent", 1, 1)
-        self._open(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
-        start = time.time()
-        while time.time() - start < self.config.rinse_time:
-            if self._check_cancel():
-                return
-            self.log_cycle("Rinse Effluent")
-            time.sleep(self.config.sample_time)
-        self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
-
-        if self.progress_callback:
-            self.progress_callback("Rinse BW", 1, 1)
-        self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
-        start = time.time()
-        while time.time() - start < self.config.rinse_time:
-            if self._check_cancel():
-                return
-            self.log_cycle("Rinse BW")
-            time.sleep(self.config.sample_time)
-        self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
+            if self.progress_callback:
+                self.progress_callback("Rinse BW", cycle + 1, self.config.cycle_count)
+            self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
+            start = time.time()
+            while time.time() - start < self.config.rinse_time:
+                if self._check_cancel():
+                    return
+                self.log_cycle("Rinse BW")
+                time.sleep(self.config.sample_time)
+            self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
 
         self.stop_test()
 
