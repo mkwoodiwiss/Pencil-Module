@@ -77,25 +77,31 @@ The collected data is used to evaluate filter performance, cleaning effectivenes
    - Zero both scales.
    - Begin data logging at defined sample time intervals.
 2. **Cycle Loop** (repeats for the defined Cycle Count)
-  - **Forward Flush**
-    - Open Influent Supply Valve and Effluent Valve to run cleaning solution through the filter.
-    - Continue until either the Effluent Time or Effluent Weight setpoint is met.
-    - Close both valves.
-  - **Backwash Flush**
-    - Open Backwash Supply Valve and Backwash Effluent Valve to run cleaning solution through the backwash line.
-    - Continue until either the Backwash Time or Backwash Weight setpoint is met.
-    - Close both valves.
-  - **Soak Phase**
-    - Allow the module to soak with all valves closed for the configured Soak Time.
-  - **Rinse to Drain**
-    - Open Influent Supply Valve and Influent Water Drain Valve for the configured Rinse Time.
-    - Close both valves.
-  - **Rinse Effluent**
-    - Open Influent Supply Valve and Effluent Valve for the configured Rinse Time.
-    - Close both valves.
-  - **Rinse Backwash**
-    - Open Backwash Supply Valve and Backwash Effluent Valve for the configured Rinse Time.
-    - Close both valves.
+   - **Caustic Stage**
+     1. Prompt the operator to fill the influent supply tank with caustic solution and confirm continuation.
+     2. **Purge Phase**
+     3. **Filter Phase**
+     4. **Backwash Phase**
+     5. **Soak Phase**
+     6. **Filter Phase**
+     7. **Backwash Phase**
+   - **DI Rinse 1**
+     1. Prompt the operator to refill the influent supply tank with DI water and confirm continuation.
+     2. **Purge Phase**
+     3. **Filter Phase**
+     4. **Backwash Phase**
+   - **Acid Stage**
+     1. Prompt the operator to fill the influent supply tank with acid solution and confirm continuation.
+     2. **Purge Phase**
+     3. **Filter Phase**
+     4. **Backwash Phase**
+     5. **Soak Phase**
+     6. **Filter Phase**
+     7. **Backwash Phase**
+   - **DI Rinse 2**
+     1. **Purge Phase**
+     2. **Filter Phase**
+     3. **Backwash Phase**
 3. **Cycle Completion**
    - Stop all outputs.
    - End data logging.

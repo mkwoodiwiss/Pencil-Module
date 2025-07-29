@@ -301,16 +301,36 @@ class CleanTestSystem:
 
         self.module.zero_scales()
 
-        for cycle in range(self.config.cycle_count):
+        def prompt(msg: str) -> bool:
+            try:
+                messagebox.showinfo("Action Required", msg)
+            except Exception:
+                input(msg + " Press Enter to continue")
+            return not self._check_cancel()
+
+        def purge(label: str, idx: int) -> bool:
             if self.progress_callback:
-                self.progress_callback("Forward Clean", cycle + 1, self.config.cycle_count)
+                self.progress_callback(label, idx, self.config.cycle_count)
+            self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
+            start = time.time()
+            while time.time() - start < self.config.rinse_time:
+                if self._check_cancel():
+                    return False
+                self.log_cycle(label)
+                time.sleep(self.config.sample_time)
+            self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
+            return True
+
+        def fwd(label: str, idx: int) -> bool:
+            if self.progress_callback:
+                self.progress_callback(label, idx, self.config.cycle_count)
             self._open(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(0))
             while True:
                 if self._check_cancel():
-                    return
-                self.log_cycle("Forward Clean")
+                    return False
+                self.log_cycle(label)
                 if self.config.forward_by_volume:
                     vol = self._parse_weight(self.module.read_scale(0)) - start_w
                     if vol >= self.config.forward_target:
@@ -320,16 +340,18 @@ class CleanTestSystem:
                         break
                 time.sleep(self.config.sample_time)
             self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
+            return True
 
+        def back(label: str, idx: int) -> bool:
             if self.progress_callback:
-                self.progress_callback("Backwash Clean", cycle + 1, self.config.cycle_count)
+                self.progress_callback(label, idx, self.config.cycle_count)
             self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
             start = time.time()
             start_w = self._parse_weight(self.module.read_scale(1))
             while True:
                 if self._check_cancel():
-                    return
-                self.log_cycle("Backwash Clean")
+                    return False
+                self.log_cycle(label)
                 if self.config.backwash_by_volume:
                     vol = self._parse_weight(self.module.read_scale(1)) - start_w
                     if vol >= self.config.backwash_target:
@@ -339,48 +361,65 @@ class CleanTestSystem:
                         break
                 time.sleep(self.config.sample_time)
             self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
+            return True
 
+        def soak(label: str, idx: int) -> bool:
             if self.progress_callback:
-                self.progress_callback("Soak", cycle + 1, self.config.cycle_count)
+                self.progress_callback(label, idx, self.config.cycle_count)
             end = time.time() + self.config.soak_time
             while time.time() < end:
                 if self._check_cancel():
-                    return
-                self.log_cycle("Soak")
+                    return False
+                self.log_cycle(label)
                 time.sleep(self.config.sample_time)
+            return True
 
-            if self.progress_callback:
-                self.progress_callback("Rinse Drain", cycle + 1, self.config.cycle_count)
-            self._open(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
-            start = time.time()
-            while time.time() - start < self.config.rinse_time:
-                if self._check_cancel():
-                    return
-                self.log_cycle("Rinse Drain")
-                time.sleep(self.config.sample_time)
-            self._close(self.INFLUENT_SUPPLY, self.INFLUENT_DRAIN)
+        for cycle in range(self.config.cycle_count):
+            if not prompt("Fill influent supply tank with caustic solution."):
+                return
+            if not purge("Caustic Purge", cycle + 1):
+                return
+            if not fwd("Caustic Filter 1", cycle + 1):
+                return
+            if not back("Caustic Backwash 1", cycle + 1):
+                return
+            if not soak("Caustic Soak", cycle + 1):
+                return
+            if not fwd("Caustic Filter 2", cycle + 1):
+                return
+            if not back("Caustic Backwash 2", cycle + 1):
+                return
 
-            if self.progress_callback:
-                self.progress_callback("Rinse Effluent", cycle + 1, self.config.cycle_count)
-            self._open(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
-            start = time.time()
-            while time.time() - start < self.config.rinse_time:
-                if self._check_cancel():
-                    return
-                self.log_cycle("Rinse Effluent")
-                time.sleep(self.config.sample_time)
-            self._close(self.INFLUENT_SUPPLY, self.EFFLUENT_VALVE)
+            if not prompt("Refill influent supply tank with DI water."):
+                return
+            if not purge("DI Rinse 1 Purge", cycle + 1):
+                return
+            if not fwd("DI Rinse 1 Filter", cycle + 1):
+                return
+            if not back("DI Rinse 1 Backwash", cycle + 1):
+                return
 
-            if self.progress_callback:
-                self.progress_callback("Rinse BW", cycle + 1, self.config.cycle_count)
-            self._open(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
-            start = time.time()
-            while time.time() - start < self.config.rinse_time:
-                if self._check_cancel():
-                    return
-                self.log_cycle("Rinse BW")
-                time.sleep(self.config.sample_time)
-            self._close(self.BACKWASH_SUPPLY, self.BACKWASH_EFFLUENT)
+            if not prompt("Fill influent supply tank with acid solution."):
+                return
+            if not purge("Acid Purge", cycle + 1):
+                return
+            if not fwd("Acid Filter 1", cycle + 1):
+                return
+            if not back("Acid Backwash 1", cycle + 1):
+                return
+            if not soak("Acid Soak", cycle + 1):
+                return
+            if not fwd("Acid Filter 2", cycle + 1):
+                return
+            if not back("Acid Backwash 2", cycle + 1):
+                return
+
+            if not purge("DI Rinse 2 Purge", cycle + 1):
+                return
+            if not fwd("DI Rinse 2 Filter", cycle + 1):
+                return
+            if not back("DI Rinse 2 Backwash", cycle + 1):
+                return
 
         self.stop_test()
 
