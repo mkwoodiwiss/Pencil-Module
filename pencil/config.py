@@ -36,7 +36,7 @@ class CleanConfig:
     rinse_backwash_by_volume: bool
     cycle_count: int
     sample_time: float
-    rinse_time: float
+    purge_time: float
     project: str
     module_id: str
     solution: str

@@ -151,8 +151,8 @@ class HMI(tk.Tk):
         self.clean_sample_time_var = tk.DoubleVar(
             value=max(1.0, defaults.get("clean_sample_time", 1.0))
         )
-        self.clean_rinse_time_var = tk.DoubleVar(
-            value=defaults.get("clean_rinse_time", 1.0)
+        self.clean_purge_time_var = tk.DoubleVar(
+            value=defaults.get("clean_purge_time", 1.0)
         )
         self.clean_project_var = tk.StringVar(
             value=defaults.get("clean_project", "")
@@ -163,7 +163,8 @@ class HMI(tk.Tk):
         self.clean_solution_var = tk.StringVar(
             value=defaults.get("clean_solution", "")
         )
-        self.clean_summary_var = tk.StringVar(value="")
+        self.clean_summary_left_var = tk.StringVar(value="")
+        self.clean_summary_right_var = tk.StringVar(value="")
 
         # Benchmark variables (mirror Test but independent)
         self.benchmark_filt_target_weight_var = tk.DoubleVar(
@@ -465,12 +466,20 @@ class HMI(tk.Tk):
         tk.Label(cycle_frame2, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame2, textvariable=self.cycle_progress_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
 
+        summary_frame = tk.Frame(clean_settings)
+        summary_frame.grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 2))
         tk.Label(
-            clean_settings,
-            textvariable=self.clean_summary_var,
+            summary_frame,
+            textvariable=self.clean_summary_left_var,
             justify="left",
             font=("TkDefaultFont", 10),
-        ).grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 2))
+        ).grid(row=0, column=0, sticky="nw")
+        tk.Label(
+            summary_frame,
+            textvariable=self.clean_summary_right_var,
+            justify="left",
+            font=("TkDefaultFont", 10),
+        ).grid(row=0, column=1, sticky="nw", padx=(10, 0))
         tk.Button(clean_settings, text="Edit Settings", command=self._edit_clean_settings).grid(
             row=1, column=0, columnspan=5, pady=(2, 5)
         )
@@ -883,12 +892,14 @@ class HMI(tk.Tk):
             f"Soak: {self.clean_soak_var.get()} s",
             f"Cycles: {self.clean_cycle_count_var.get()}",
             f"Sample: {self.clean_sample_time_var.get()} s",
-            f"Rinse: {self.clean_rinse_time_var.get()} s",
+            f"Purge: {self.clean_purge_time_var.get()} s",
             f"Project: {self.clean_project_var.get() or '--'}",
             f"Module: {self.clean_module_id_var.get() or '--'}",
             f"Solution: {self.clean_solution_var.get() or '--'}",
         ]
-        self.clean_summary_var.set("\n".join(lines))
+        half = (len(lines) + 1) // 2
+        self.clean_summary_left_var.set("\n".join(lines[:half]))
+        self.clean_summary_right_var.set("\n".join(lines[half:]))
 
     def _edit_test_settings(self) -> None:
         orig = {var: getattr(self, var).get() for var in [
@@ -956,7 +967,7 @@ class HMI(tk.Tk):
             "rinse_fwd_target_weight_var", "rinse_fwd_target_time_var", "rinse_fwd_use_weight_var", "rinse_fwd_use_time_var",
             "rinse_bw_target_weight_var", "rinse_bw_target_time_var", "rinse_bw_use_weight_var", "rinse_bw_use_time_var",
             "clean_soak_var", "clean_cycle_count_var", "clean_sample_time_var",
-            "clean_rinse_time_var", "clean_project_var", "clean_module_id_var", "clean_solution_var",
+            "clean_purge_time_var", "clean_project_var", "clean_module_id_var", "clean_solution_var",
         ]}
 
         win = tk.Toplevel(self)
@@ -1042,8 +1053,8 @@ class HMI(tk.Tk):
         NumericEntry(win, textvariable=self.clean_sample_time_var, width=7).grid(row=6, column=1)
         tk.Label(win, text="sec").grid(row=6, column=2, sticky="w")
 
-        tk.Label(win, text="Rinse Time").grid(row=7, column=0, sticky="w")
-        NumericEntry(win, textvariable=self.clean_rinse_time_var, width=7).grid(row=7, column=1)
+        tk.Label(win, text="Purge Time").grid(row=7, column=0, sticky="w")
+        NumericEntry(win, textvariable=self.clean_purge_time_var, width=7).grid(row=7, column=1)
         tk.Label(win, text="sec").grid(row=7, column=2, sticky="w")
 
         tk.Label(win, text="Project").grid(row=8, column=0, sticky="w")
@@ -1286,7 +1297,7 @@ class HMI(tk.Tk):
             soak_time=self.clean_soak_var.get(),
             cycle_count=self.clean_cycle_count_var.get(),
             sample_time=max(1.0, self.clean_sample_time_var.get()),
-            rinse_time=self.clean_rinse_time_var.get(),
+            purge_time=self.clean_purge_time_var.get(),
             project=self.clean_project_var.get(),
             module_id=self.clean_module_id_var.get(),
             solution=self.clean_solution_var.get(),

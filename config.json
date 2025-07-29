@@ -45,7 +45,7 @@
 
   "clean_sample_time": 1,
 
-  "clean_rinse_time": 20,
+  "clean_purge_time": 20,
 
   "clean_project": "",
   "clean_module_id": "",
