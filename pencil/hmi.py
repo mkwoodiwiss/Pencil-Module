@@ -725,6 +725,30 @@ class HMI(tk.Tk):
         elif not self.benchmark_bw_use_weight_var.get():
             self.benchmark_bw_use_weight_var.set(True)
 
+    def _toggle_clean_fwd_weight(self) -> None:
+        if self.clean_fwd_use_weight_var.get():
+            self.clean_fwd_use_time_var.set(False)
+        elif not self.clean_fwd_use_time_var.get():
+            self.clean_fwd_use_time_var.set(True)
+
+    def _toggle_clean_fwd_time(self) -> None:
+        if self.clean_fwd_use_time_var.get():
+            self.clean_fwd_use_weight_var.set(False)
+        elif not self.clean_fwd_use_weight_var.get():
+            self.clean_fwd_use_weight_var.set(True)
+
+    def _toggle_clean_bw_weight(self) -> None:
+        if self.clean_bw_use_weight_var.get():
+            self.clean_bw_use_time_var.set(False)
+        elif not self.clean_bw_use_time_var.get():
+            self.clean_bw_use_time_var.set(True)
+
+    def _toggle_clean_bw_time(self) -> None:
+        if self.clean_bw_use_time_var.get():
+            self.clean_bw_use_weight_var.set(False)
+        elif not self.clean_bw_use_weight_var.get():
+            self.clean_bw_use_weight_var.set(True)
+
     def _update_test_summary(self) -> None:
         target = (
             self.filt_target_weight_var.get()
@@ -881,15 +905,35 @@ class HMI(tk.Tk):
 
         tk.Label(win, text="Forward Target").grid(row=0, column=0, sticky="w")
         NumericEntry(win, textvariable=self.clean_fwd_target_weight_var, width=7).grid(row=0, column=1)
-        tk.Checkbutton(win, text="g", variable=self.clean_fwd_use_weight_var).grid(row=0, column=2, sticky="w")
+        tk.Checkbutton(
+            win,
+            text="g",
+            variable=self.clean_fwd_use_weight_var,
+            command=self._toggle_clean_fwd_weight,
+        ).grid(row=0, column=2, sticky="w")
         NumericEntry(win, textvariable=self.clean_fwd_target_time_var, width=7).grid(row=0, column=3)
-        tk.Checkbutton(win, text="s", variable=self.clean_fwd_use_time_var).grid(row=0, column=4, sticky="w")
+        tk.Checkbutton(
+            win,
+            text="s",
+            variable=self.clean_fwd_use_time_var,
+            command=self._toggle_clean_fwd_time,
+        ).grid(row=0, column=4, sticky="w")
 
         tk.Label(win, text="Backwash Target").grid(row=1, column=0, sticky="w")
         NumericEntry(win, textvariable=self.clean_bw_target_weight_var, width=7).grid(row=1, column=1)
-        tk.Checkbutton(win, text="g", variable=self.clean_bw_use_weight_var).grid(row=1, column=2, sticky="w")
+        tk.Checkbutton(
+            win,
+            text="g",
+            variable=self.clean_bw_use_weight_var,
+            command=self._toggle_clean_bw_weight,
+        ).grid(row=1, column=2, sticky="w")
         NumericEntry(win, textvariable=self.clean_bw_target_time_var, width=7).grid(row=1, column=3)
-        tk.Checkbutton(win, text="s", variable=self.clean_bw_use_time_var).grid(row=1, column=4, sticky="w")
+        tk.Checkbutton(
+            win,
+            text="s",
+            variable=self.clean_bw_use_time_var,
+            command=self._toggle_clean_bw_time,
+        ).grid(row=1, column=4, sticky="w")
 
         tk.Label(win, text="Soak Time").grid(row=2, column=0, sticky="w")
         NumericEntry(win, textvariable=self.clean_soak_var, width=7).grid(row=2, column=1)
