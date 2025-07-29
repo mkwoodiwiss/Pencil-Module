@@ -50,8 +50,7 @@ The collected data is used to evaluate filter performance, cleaning effectivenes
 - Project Name: Included in log file titles
 - Sample ID: Included in log file titles
 - Module ID: Included in log file titles
-- FWD Soak Time: Duration in seconds
-- BW Soak Time: Duration in seconds
+- Soak Time: Duration in seconds
 
 ## 6 - AUTOMATED PROCESSES
 ### Test Sequence
@@ -78,18 +77,26 @@ The collected data is used to evaluate filter performance, cleaning effectivenes
    - Zero both scales.
    - Begin data logging at defined sample time intervals.
 2. **Cycle Loop** (repeats for the defined Cycle Count)
-   - **Forward Clean Phase**
-     - Open Influent Supply Valve and Effluent Valve to run cleaning solution through the filter.
-     - Continue until either the Effluent Time or Effluent Weight setpoint is met.
-     - Close valves and soak for the configured FWD Soak Time.
-   - **Backwash Clean Phase**
-     - Open Backwash Supply Valve and Backwash Effluent Valve to run cleaning solution through the backwash line.
-     - Continue until either the Backwash Time or Backwash Weight setpoint is met.
-     - Close valves and soak for the configured BW Soak Time.
-3. **Rinse Phase**
-   - Prompt the operator to refill supply tanks with DI water.
-   - Perform Purge, Filter and Backwash phases as in the Test sequence.
-4. **Cycle Completion**
+  - **Forward Flush**
+    - Open Influent Supply Valve and Effluent Valve to run cleaning solution through the filter.
+    - Continue until either the Effluent Time or Effluent Weight setpoint is met.
+    - Close both valves.
+  - **Backwash Flush**
+    - Open Backwash Supply Valve and Backwash Effluent Valve to run cleaning solution through the backwash line.
+    - Continue until either the Backwash Time or Backwash Weight setpoint is met.
+    - Close both valves.
+  - **Soak Phase**
+    - Allow the module to soak with all valves closed for the configured Soak Time.
+  - **Rinse to Drain**
+    - Open Influent Supply Valve and Influent Water Drain Valve for the configured Rinse Time.
+    - Close both valves.
+  - **Rinse Effluent**
+    - Open Influent Supply Valve and Effluent Valve for the configured Rinse Time.
+    - Close both valves.
+  - **Rinse Backwash**
+    - Open Backwash Supply Valve and Backwash Effluent Valve for the configured Rinse Time.
+    - Close both valves.
+3. **Cycle Completion**
    - Stop all outputs.
    - End data logging.
    - Return to idle state.

@@ -27,10 +27,9 @@ class CleanConfig:
 
     forward_target: float
     forward_by_volume: bool
-    forward_soak: float
+    soak_time: float
     backwash_target: float
     backwash_by_volume: bool
-    backwash_soak: float
     cycle_count: int
     sample_time: float
     rinse_time: float

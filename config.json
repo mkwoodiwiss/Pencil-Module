@@ -29,8 +29,7 @@
   "clean_bw_use_weight": false,
   "clean_bw_use_time": true,
 
-  "clean_fwd_soak": 1,
-  "clean_bw_soak": 1,
+  "clean_soak": 1,
 
   "clean_cycle_count": 1,
 
