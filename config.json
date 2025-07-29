@@ -20,22 +20,22 @@
   "sample_id": "",
 
   "clean_fwd_target_weight": 1.0,
-  "clean_fwd_target_time": 1.0,
-  "clean_fwd_use_weight": false,
-  "clean_fwd_use_time": true,
+  "clean_fwd_target_time": 15,
+  "clean_fwd_use_weight": true,
+  "clean_fwd_use_time": false,
 
-  "clean_bw_target_weight": 1.0,
+  "clean_bw_target_weight": 5,
   "clean_bw_target_time": 1.0,
   "clean_bw_use_weight": false,
   "clean_bw_use_time": true,
 
-  "clean_soak": 1,
+  "clean_soak": 15,
 
   "clean_cycle_count": 1,
 
   "clean_sample_time": 1,
 
-  "clean_rinse_time": 1.0,
+  "clean_rinse_time": 20,
 
   "clean_project": "",
   "clean_module_id": "",
