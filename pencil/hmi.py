@@ -13,6 +13,7 @@ from .automation import (
     FiltrationTestSystem,
     CleanConfig,
     CleanTestSystem,
+    BenchmarkTestSystem,
 )
 from .hardware import PencilModule
 from .widgets import NumericEntry, NumericKeypad, OnScreenKeyboard, KeyboardEntry
@@ -56,6 +57,7 @@ class HMI(tk.Tk):
         self.temp_var = tk.StringVar()
         self.cycle_step_var = tk.StringVar(value="Idle")
         self.cycle_progress_var = tk.StringVar(value="")
+        self.cycle_time_var = tk.StringVar(value="")
 
         self.filt_target_weight_var = tk.DoubleVar(
             value=defaults.get("filt_target_weight", 1.0)
@@ -92,6 +94,8 @@ class HMI(tk.Tk):
         self.module_id_var = tk.StringVar(value=defaults.get("module_id", ""))
         self.sample_id_var = tk.StringVar(value=defaults.get("sample_id", ""))
         self.test_summary_var = tk.StringVar(value="")
+        self.step_start_time: float | None = None
+        self.step_target_time: float | None = None
 
         # Clean mode variables
         self.clean_fwd_target_weight_var = tk.DoubleVar(
@@ -309,6 +313,8 @@ class HMI(tk.Tk):
         ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame, textvariable=self.cycle_progress_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(cycle_frame, text="Time:").grid(row=2, column=0, sticky="w")
+        tk.Label(cycle_frame, textvariable=self.cycle_time_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
 
         tk.Label(
             settings,
@@ -387,6 +393,8 @@ class HMI(tk.Tk):
         ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame_b, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame_b, textvariable=self.cycle_progress_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(cycle_frame_b, text="Time:").grid(row=2, column=0, sticky="w")
+        tk.Label(cycle_frame_b, textvariable=self.cycle_time_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
 
         tk.Label(
             bench_settings,
@@ -465,6 +473,8 @@ class HMI(tk.Tk):
         ).grid(row=0, column=1, sticky="w")
         tk.Label(cycle_frame2, text="Cycle Count:").grid(row=1, column=0, sticky="w")
         tk.Label(cycle_frame2, textvariable=self.cycle_progress_var, font=("Arial", 12)).grid(row=1, column=1, sticky="w")
+        tk.Label(cycle_frame2, text="Time:").grid(row=2, column=0, sticky="w")
+        tk.Label(cycle_frame2, textvariable=self.cycle_time_var, font=("Arial", 12)).grid(row=2, column=1, sticky="w")
 
         summary_frame = tk.Frame(clean_settings)
         summary_frame.grid(row=0, column=0, columnspan=5, sticky="w", pady=(0, 2))
@@ -630,10 +640,58 @@ class HMI(tk.Tk):
                 pfd["solenoid_buttons"][idx].config(bg=bg)
             self._update_lines()
 
+    def _get_target_time(self, step: str) -> float | None:
+        """Return the target duration in seconds for the given step."""
+        if not hasattr(self, "test_system"):
+            return None
+        system = self.test_system
+        step_l = step.lower()
+        if isinstance(system, FiltrationTestSystem):
+            cfg = system.config
+            if step_l == "purge":
+                return cfg.refill_time
+            if step_l == "filter":
+                return None if cfg.filtration_by_volume else cfg.filtration_target
+            if step_l == "backwash":
+                return None if cfg.backwash_by_volume else cfg.backwash_target
+        elif isinstance(system, CleanTestSystem):
+            cfg = system.config
+            if "purge" in step_l:
+                return cfg.purge_time
+            if "soak" in step_l:
+                return cfg.soak_time
+            if "filter" in step_l:
+                if "rinse" in step_l:
+                    return None if cfg.rinse_forward_by_volume else cfg.rinse_forward_target
+                return None if cfg.forward_by_volume else cfg.forward_target
+            if "backwash" in step_l:
+                if "rinse" in step_l:
+                    return None if cfg.rinse_backwash_by_volume else cfg.rinse_backwash_target
+                return None if cfg.backwash_by_volume else cfg.backwash_target
+        elif isinstance(system, BenchmarkTestSystem):
+            cfg = system.config
+            if step_l == "benchmark":
+                return cfg.duration
+        return None
+
+    def _update_cycle_time(self) -> None:
+        """Refresh the cycle timer display."""
+        if self.step_start_time is None:
+            self.cycle_time_var.set("")
+            return
+        elapsed = time.time() - self.step_start_time
+        if self.step_target_time:
+            self.cycle_time_var.set(f"{elapsed:.0f} / {self.step_target_time:.0f} s")
+        else:
+            self.cycle_time_var.set(f"{elapsed:.0f} s")
+
     def _automation_progress(self, step: str, count: int, total: int) -> None:
         """Update cycle progress information."""
         self.cycle_step_var.set(step)
         self.cycle_progress_var.set(f"{count} of {total}")
+        self.step_start_time = time.time()
+        self.step_target_time = self._get_target_time(step)
+        self._update_cycle_time()
 
     def _open_valves(self, *valves: int) -> None:
         self._set_valves(True, *valves)
@@ -1327,6 +1385,9 @@ class HMI(tk.Tk):
         self.start_btn_benchmark.config(text="Start")
         self.cycle_step_var.set("Idle")
         self.cycle_progress_var.set("")
+        self.cycle_time_var.set("")
+        self.step_start_time = None
+        self.step_target_time = None
         self._enable_manual_controls()
 
     # Backwards compatibility
@@ -1419,6 +1480,7 @@ class HMI(tk.Tk):
             pfd["canvas"].itemconfig(pfd["effluent_weight_text"], text=weight)
             pfd["canvas"].itemconfig(pfd["backwash_weight_text"], text=bw_weight)
 
+        self._update_cycle_time()
         self._update_lines()
         self.after(1000, self.update_data)
 
