@@ -37,7 +37,9 @@ __all__ = [
 
 def main() -> None:
     """Start the MF/UF Membrane Evaluation Unit application."""
-    meu = MEU()
+    # PencilModule is retained as the patchable entry-point symbol for older
+    # integrations and tests. It is an alias of the preferred MEU class.
+    meu = PencilModule()
     config_path = os.path.join(os.path.dirname(__file__), "config.json")
     try:
         with open(config_path, "r", encoding="utf-8") as fp:
