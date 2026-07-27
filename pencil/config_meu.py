@@ -9,7 +9,7 @@ class FiltrationConfig:
     filtration_by_volume: bool
     backwash_target: float
     backwash_by_volume: bool
-    purge_time: float
+    refill_time: float
     cycle_count: int
     sample_time: float
     project: str
@@ -22,9 +22,9 @@ class FiltrationConfig:
     file_prefix: str = "Test"
 
     @property
-    def refill_time(self) -> float:
-        """Backward-compatible alias for the former purge-time field."""
-        return self.purge_time
+    def purge_time(self) -> float:
+        """Preferred name for the legacy refill-time setting."""
+        return self.refill_time
 
 
 @dataclass
