@@ -12,25 +12,23 @@ from tests.simulated_hardware import (
 
 # Always provide fake modules before importing the code under test so the
 # tests do not require real hardware libraries to be installed. This also
-# ensures the simulated hardware is used even when running on a Raspberry
-# Pi that may have the vendor packages installed.
-sys.modules['serial'] = types.SimpleNamespace(Serial=FakeSerial)
-sys.modules['lib8relind'] = FakeLib8Relind()
-sys.modules['multiio'] = types.SimpleNamespace(SMmultiio=FakeMultiIO)
+# ensures the simulated hardware is used even on a Raspberry Pi.
+sys.modules["serial"] = types.SimpleNamespace(Serial=FakeSerial)
+sys.modules["lib8relind"] = FakeLib8Relind()
+sys.modules["multiio"] = types.SimpleNamespace(SMmultiio=FakeMultiIO)
 
-from system_control import PencilModule
+from system_control import MEU
 
 
-class SimulatedPencilModule(PencilModule):
-    """A PencilModule that uses simulated hardware."""
+class SimulatedMEU(MEU):
+    """An MEU using simulated hardware interfaces."""
 
     def __init__(self):
-        # Do not call super().__init__ to avoid accessing real hardware
+        # Do not call super().__init__ to avoid accessing real hardware.
         self.effluent_ser = FakeSerial(port="/dev/ttyAMA3")
         self.backwash_ser = FakeSerial(port="/dev/ttyAMA2")
         self.effluent_lock = threading.Lock()
         self.backwash_lock = threading.Lock()
-        # Avoid delays when running tests
         self._read_delay = 0.0
         self.relay = FakeRelay8()
         self.io = FakeMultiIO()
@@ -39,9 +37,13 @@ class SimulatedPencilModule(PencilModule):
         self.temp_offset = 0.0
 
 
-class TestPencilModule(unittest.TestCase):
+# Compatibility alias for scripts that imported the previous test fixture name.
+SimulatedPencilModule = SimulatedMEU
+
+
+class TestMEU(unittest.TestCase):
     def setUp(self):
-        self.module = SimulatedPencilModule()
+        self.module = SimulatedMEU()
 
     def test_read_pressure(self):
         self.assertAlmostEqual(self.module.read_pressure(1), 15.0)
