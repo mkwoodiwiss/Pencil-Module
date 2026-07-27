@@ -3,6 +3,8 @@ import os
 import tempfile
 import unittest
 
+from pencil.config_meu import CleanConfig
+from pencil.hmi_meu import normalize_io_text
 from tests.test_interfaces import SimulatedPencilModule
 from system_control import FiltrationConfig, FiltrationTestSystem
 
@@ -22,10 +24,10 @@ class TestAutomation(unittest.TestCase):
     def make_config(self, **overrides):
         values = dict(
             filtration_target=0.01,
-            filtration_by_volume=False,
+            filtration_by_weight=False,
             backwash_target=0.01,
-            backwash_by_volume=False,
-            refill_time=0.01,
+            backwash_by_weight=False,
+            purge_time=0.01,
             cycle_count=1,
             sample_time=0.001,
             project="proj",
@@ -115,6 +117,54 @@ class TestAutomation(unittest.TestCase):
         self.assertEqual(mod.pressure_offset_in, 1.5)
         self.assertEqual(mod.pressure_offset_bw, -0.5)
         self.assertEqual(mod.temp_offset, 2.0)
+
+    def test_settings_use_weight_names(self):
+        config = self.make_config(filtration_by_weight=True, backwash_by_weight=True)
+        self.assertTrue(config.filtration_by_weight)
+        self.assertTrue(config.backwash_by_weight)
+        self.assertTrue(config.filtration_by_volume)
+        self.assertTrue(config.backwash_by_volume)
+
+    def test_historical_volume_keywords_remain_compatible(self):
+        config = FiltrationConfig(
+            filtration_target=1.0,
+            filtration_by_volume=True,
+            backwash_target=1.0,
+            backwash_by_volume=False,
+            refill_time=1.0,
+        )
+        self.assertTrue(config.filtration_by_weight)
+        self.assertFalse(config.backwash_by_weight)
+
+    def test_clean_config_uses_weight_names(self):
+        config = CleanConfig(
+            forward_target=1.0,
+            forward_by_weight=True,
+            soak_time=1.0,
+            backwash_target=1.0,
+            backwash_by_weight=True,
+            rinse_forward_target=1.0,
+            rinse_forward_by_weight=False,
+            rinse_backwash_target=1.0,
+            rinse_backwash_by_weight=False,
+            cycle_count=1,
+            sample_time=1.0,
+            purge_time=1.0,
+            project="p",
+            module_id="m",
+            solution="s",
+        )
+        self.assertTrue(config.forward_by_weight)
+        self.assertTrue(config.backwash_by_weight)
+        self.assertFalse(config.rinse_forward_by_weight)
+        self.assertFalse(config.rinse_backwash_by_weight)
+
+    def test_io_text_normalization_handles_labels_and_canvas_phrases(self):
+        text = "Influent Pressure / BW Pressure / Effluent Weight / Influent Drain"
+        self.assertEqual(
+            normalize_io_text(text),
+            "Feed Tank Pressure / Backwash Tank Pressure / Feed Weight / Waste",
+        )
 
 
 if __name__ == "__main__":

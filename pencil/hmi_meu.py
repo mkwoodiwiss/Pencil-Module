@@ -1,4 +1,4 @@
-"""MEU-branded HMI with corrected automation behavior."""
+"""MEU-branded HMI with corrected automation behavior and I/O-list naming."""
 
 from __future__ import annotations
 
@@ -11,16 +11,28 @@ from .config_meu import CleanConfig, FiltrationConfig
 from .hmi import HMI as _BaseHMI
 
 
-IO_LABEL_REPLACEMENTS = {
-    "Influent Pressure:": "Feed Tank Pressure:",
-    "BW Pressure:": "Backwash Tank Pressure:",
-    "Temperature:": "Feed Temperature:",
-    "Effluent Weight:": "Feed Weight:",
-    "BW Weight:": "Backwash Weight:",
-    "Influent Pressure Offset": "Feed Tank Pressure Offset",
-    "BW Pressure Offset": "Backwash Tank Pressure Offset",
-    "Temp Offset": "Feed Temperature Offset",
-}
+TEXT_REPLACEMENTS = (
+    ("Influent Supply Pressure", "Feed Tank Pressure"),
+    ("Influent Pressure", "Feed Tank Pressure"),
+    ("BW Supply Pressure", "Backwash Tank Pressure"),
+    ("BW Pressure", "Backwash Tank Pressure"),
+    ("Backwash Supply Pressure", "Backwash Tank Pressure"),
+    ("Influent Temperature", "Feed Temperature"),
+    ("Temperature", "Feed Temperature"),
+    ("Effluent Weight", "Feed Weight"),
+    ("BW Weight", "Backwash Weight"),
+    ("Influent Supply", "Feed"),
+    ("Influent Drain", "Waste"),
+    ("Effluent Valve", "Filtrate"),
+)
+
+
+def normalize_io_text(value: str) -> str:
+    """Replace legacy public-facing names with approved I/O-list terminology."""
+    result = value
+    for old, new in TEXT_REPLACEMENTS:
+        result = result.replace(old, new)
+    return result
 
 
 class HMI(_BaseHMI):
@@ -29,18 +41,32 @@ class HMI(_BaseHMI):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.title("MF/UF Membrane Evaluation Unit (MEU)")
-        self._rename_widgets(self)
+        self._normalize_visible_text(self)
         self._automation_error: str | None = None
 
-    def _rename_widgets(self, parent) -> None:
+    def _normalize_visible_text(self, parent) -> None:
+        """Normalize text in widgets and canvas items using I/O-list names."""
         for child in parent.winfo_children():
             try:
                 text = child.cget("text")
-                if text in IO_LABEL_REPLACEMENTS:
-                    child.config(text=IO_LABEL_REPLACEMENTS[text])
+                normalized = normalize_io_text(text)
+                if normalized != text:
+                    child.config(text=normalized)
             except Exception:
                 pass
-            self._rename_widgets(child)
+
+            if isinstance(child, tk.Canvas):
+                try:
+                    for item in child.find_all():
+                        if child.type(item) == "text":
+                            text = child.itemcget(item, "text")
+                            normalized = normalize_io_text(text)
+                            if normalized != text:
+                                child.itemconfigure(item, text=normalized)
+                except Exception:
+                    pass
+
+            self._normalize_visible_text(child)
 
     @staticmethod
     def _positive(value: float, label: str) -> float:
@@ -86,12 +112,12 @@ class HMI(_BaseHMI):
                     self.filt_target_weight_var.get() if filtration_by_weight else self.filt_target_time_var.get(),
                     "Filtration target",
                 ),
-                filtration_by_volume=filtration_by_weight,
+                filtration_by_weight=filtration_by_weight,
                 backwash_target=self._positive(
                     self.bw_target_weight_var.get() if backwash_by_weight else self.bw_target_time_var.get(),
                     "Backwash target",
                 ),
-                backwash_by_volume=backwash_by_weight,
+                backwash_by_weight=backwash_by_weight,
                 purge_time=self._positive(self.refill_time_var.get(), "Purge time"),
                 cycle_count=self._positive_count(self.cycle_count_var.get(), "Cycle count"),
                 sample_time=self._positive(self.sample_time_var.get(), "Sample time"),
@@ -126,12 +152,12 @@ class HMI(_BaseHMI):
                     self.benchmark_filt_target_weight_var.get() if filtration_by_weight else self.benchmark_filt_target_time_var.get(),
                     "Benchmark filtration target",
                 ),
-                filtration_by_volume=filtration_by_weight,
+                filtration_by_weight=filtration_by_weight,
                 backwash_target=self._positive(
                     self.benchmark_bw_target_weight_var.get() if backwash_by_weight else self.benchmark_bw_target_time_var.get(),
                     "Benchmark backwash target",
                 ),
-                backwash_by_volume=backwash_by_weight,
+                backwash_by_weight=backwash_by_weight,
                 purge_time=self._positive(self.benchmark_refill_time_var.get(), "Benchmark purge time"),
                 cycle_count=self._positive_count(self.benchmark_cycle_count_var.get(), "Benchmark cycle count"),
                 sample_time=self._positive(self.benchmark_sample_time_var.get(), "Benchmark sample time"),
@@ -168,23 +194,23 @@ class HMI(_BaseHMI):
                     self.clean_fwd_target_weight_var.get() if clean_filter_by_weight else self.clean_fwd_target_time_var.get(),
                     "Clean filter target",
                 ),
-                forward_by_volume=clean_filter_by_weight,
+                forward_by_weight=clean_filter_by_weight,
                 soak_time=self._positive(self.clean_soak_var.get(), "Soak time"),
                 backwash_target=self._positive(
                     self.clean_bw_target_weight_var.get() if clean_backwash_by_weight else self.clean_bw_target_time_var.get(),
                     "Clean backwash target",
                 ),
-                backwash_by_volume=clean_backwash_by_weight,
+                backwash_by_weight=clean_backwash_by_weight,
                 rinse_forward_target=self._positive(
                     self.rinse_fwd_target_weight_var.get() if rinse_filter_by_weight else self.rinse_fwd_target_time_var.get(),
                     "Rinse filter target",
                 ),
-                rinse_forward_by_volume=rinse_filter_by_weight,
+                rinse_forward_by_weight=rinse_filter_by_weight,
                 rinse_backwash_target=self._positive(
                     self.rinse_bw_target_weight_var.get() if rinse_backwash_by_weight else self.rinse_bw_target_time_var.get(),
                     "Rinse backwash target",
                 ),
-                rinse_backwash_by_volume=rinse_backwash_by_weight,
+                rinse_backwash_by_weight=rinse_backwash_by_weight,
                 cycle_count=self._positive_count(self.clean_cycle_count_var.get(), "Clean cycle count"),
                 sample_time=self._positive(self.clean_sample_time_var.get(), "Clean sample time"),
                 purge_time=self._positive(self.clean_purge_time_var.get(), "Clean purge time"),
