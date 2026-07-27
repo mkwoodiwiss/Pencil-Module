@@ -1,35 +1,34 @@
-# Pencil Module Control
+# MF/UF Membrane Evaluation Unit (MEU)
 
-This repository contains a sample Python application for running a pencil module on a Raspberry Pi 5.
+This repository contains the Python control application for the **MF/UF Membrane Evaluation Unit**, abbreviated **MEU**, running on a Raspberry Pi 5.
+
+The MEU is a bench-scale membrane evaluation system used to assess microfiltration and ultrafiltration membrane performance through filtration, backwash, cleaning, and benchmark test sequences. It records influent and backwash pressure, influent temperature, effluent weight, backwash weight, test settings, cycle status, and timestamps.
+
 It assumes the following hardware:
 
-* Sequent Microsystems **8-Relay** hat – controls solenoid valves.
-* Sequent Microsystems **Multi IO** hat – reads pressure and RTD sensors.
-* Two weight scales connected via RS232.
-  The effluent scale is typically available as ``/dev/ttyAMA3`` and the
-  backwash scale as ``/dev/ttyAMA2``.
-* A Raspberry Pi 7 inch touch screen display used as an HMI.
+* Sequent Microsystems **8-Relay** HAT for controlling solenoid valves.
+* Sequent Microsystems **Multi-IO** HAT for reading pressure transmitters and the RTD.
+* Two weight scales connected through RS232.
+  The effluent scale is typically available as `/dev/ttyAMA3` and the
+  backwash scale as `/dev/ttyAMA2`.
+* A Raspberry Pi 7-inch touchscreen used as the HMI.
 
-The application uses the vendor Python libraries (`lib8relind` and `multiio`).
-The 8-relay hat is controlled using the functions provided by ``lib8relind``
-while the Multi-IO hat is accessed through the ``SMmultiio`` class in the
-``multiio`` package.
+The application uses the vendor Python libraries `lib8relind` and `multiio`.
+The 8-Relay HAT is controlled through `lib8relind`, while the Multi-IO HAT is
+accessed through the `SMmultiio` class in the `multiio` package.
 
-http://github.com/SequentMicrosystems/8relind-rpi
+Vendor repositories:
 
-https://github.com/SequentMicrosystems/multiio-rpi
+* http://github.com/SequentMicrosystems/8relind-rpi
+* https://github.com/SequentMicrosystems/multiio-rpi
 
-The driver documentation for the Sequent Microsystems boards provides
-installation scripts. Run them on the Raspberry Pi to fetch the latest
-drivers for the **8 Relay** and **Multi IO** hats:
-
-Then run the controller:
+Install the vendor drivers on the Raspberry Pi, then run the MEU controller:
 
 ```bash
 python3 system_control.py
 ```
 
-The GUI provides live readings and buttons for operating the solenoids.
+The HMI provides live readings, automated test sequences, and manual solenoid controls.
 
 ## Testing
 
@@ -40,21 +39,19 @@ code can run without a Raspberry Pi. Execute the tests with:
 python3 -m unittest discover -s tests
 ```
 
-If you have the Pi's touch screen and weight scales connected you can also run an
-integration test that uses the real devices while simulating the other hardware:
+If the Pi touchscreen and weight scales are connected, an integration test can
+use the real devices while simulating the remaining hardware:
 
 ```bash
 python3 -m unittest tests.test_scale_display_integration
 ```
+
 The test automatically skips itself when no display is available, making it safe
 to include in the full suite on headless machines.
 
+## Manual HMI Testing
 
-## Manual GUI Testing
-
-You can experiment with the interface on any machine using simulated hardware.
-Run the `scripts/manual_hmi.py` script and interact with the GUI while all hardware
-calls are faked:
+The interface can be run on another machine with simulated hardware. Run:
 
 ```bash
 python3 scripts/manual_hmi.py
@@ -62,7 +59,8 @@ python3 scripts/manual_hmi.py
 
 ## Simple Weight Reader
 
-A lightweight script `scripts/weight_reader.py` is provided for quick testing of the RS232 scale. When run it prompts you to either read the current weight or send the zero (`Z`) command:
+Use `scripts/weight_reader.py` for quick RS232 scale testing. The script can read
+the current weight or send the zero command:
 
 ```bash
 python3 scripts/weight_reader.py
@@ -70,46 +68,42 @@ python3 scripts/weight_reader.py
 
 ## Relay Test Program
 
-Use `scripts/relay_test.py` to manually toggle the relays on the 8‑Relay hat. The
-script is handy for verifying wiring and confirming that the `lib8relind`
-driver is installed:
+Use `scripts/relay_test.py` to manually toggle the relays on the 8-Relay HAT:
 
 ```bash
 python3 scripts/relay_test.py
 ```
-Enter commands such as `on 1` or `off 1` to operate a relay. Type `q` to quit.
+
+Enter commands such as `on 1` or `off 1` to operate a relay. Enter `q` to quit.
 
 ## Continuous Scale Stress Test
 
-Run `stress_test_continuous.py` to listen to both scales for a fixed
-period of time. The script expects the scales to be connected to the Pi's
-RS232 ports with the effluent scale on `/dev/ttyAMA3` and the backwash scale on
-`/dev/ttyAMA2`. No commands are sent; the script simply logs each line
-received from the scales.
+Run `stress_test_continuous.py` to listen to both scales for a fixed period. The
+script expects the effluent scale on `/dev/ttyAMA3` and the backwash scale on
+`/dev/ttyAMA2`.
 
 ```bash
 python3 stress_test_continuous.py 60
 ```
 
-The optional argument specifies the duration in seconds (default is 60). Log
-messages are written to the `logs` directory using the filename pattern
+The optional argument specifies the duration in seconds. Log messages are written
+to the `logs` directory using the filename pattern
 `usb_scale_stress_test_<timestamp>.txt`.
 
 ## Troubleshooting Debug Logs
 
-When running without the Multi IO board or its `multiio` driver, hardware
-methods fall back to simulated values. In that case you may see messages such
-as:
+When the Multi-IO board or its driver is unavailable, hardware methods fall back
+to simulated values. Messages such as the following indicate that the pressure
+sensor could not be read:
 
-```
+```text
 [debug] read_pressure: ch=1, io unavailable, offset=0.00
 ```
-This indicates the pressure sensor could not be read because the driver or the
-board itself is not available. The returned value will simply be the calibration
-offset (zero by default). To obtain real sensor readings, install the vendor
-libraries and connect the Multi IO hat before starting the application.
 
-In normal operation the backwash and influent pressure sensors use the hat's
-4-20 mA inputs on Multi IO channels **1** and **2**, respectively.
+The returned value will be the calibration offset. Install the vendor libraries
+and connect the Multi-IO HAT to obtain real readings.
 
-If you see the "io unavailable" message even though the vendor drivers are installed, verify that the libraries were installed for the same Python interpreter you use to run the application. A mismatch in Python versions can prevent the `multiio` module from loading even when the files are present.
+The backwash and influent pressure transmitters use Multi-IO 4-20 mA input
+channels 1 and 2, respectively. If the driver is installed but remains
+unavailable, verify that it was installed for the same Python interpreter used
+to run the MEU application.
