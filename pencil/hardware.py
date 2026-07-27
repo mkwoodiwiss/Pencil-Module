@@ -1,4 +1,4 @@
-"""Hardware interface classes for the Pencil Module."""
+"""Hardware interface classes for the MF/UF Membrane Evaluation Unit."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ except Exception:  # pragma: no cover - running without hardware
 
 
 class _RelayWrapper:
-    """Wrap the 8-relay hat functions with a simple object API."""
+    """Wrap the 8-relay HAT functions with a simple object API."""
 
     def __init__(self, stack: int) -> None:
         self.stack = stack
@@ -36,8 +36,8 @@ class _RelayWrapper:
         lib8relind.set(self.stack, relay, 0)
 
 
-class PencilModule:
-    """Interface to the hardware boards."""
+class MEU:
+    """Interface to the MF/UF Membrane Evaluation Unit hardware."""
 
     def __init__(
         self,
@@ -48,35 +48,29 @@ class PencilModule:
         baud: int = 9600,
         read_delay: float = 0.25,
     ) -> None:
-        """Initialize connections to the hardware."""
-        # Individual serial connections to each scale
+        """Initialize connections to the MEU hardware."""
         self.effluent_ser = serial.Serial(effluent_port, baud, timeout=1)
         self.backwash_ser = serial.Serial(backwash_port, baud, timeout=1)
         self.effluent_lock = threading.Lock()
         self.backwash_lock = threading.Lock()
-        # Time to wait for a scale response after sending a command
         self._read_delay = read_delay
-        # Interfaces to the relay and IO boards if available
         if lib8relind:
             self.relay = _RelayWrapper(relay_stack)
         else:
             self.relay = None
         if multiio:
             try:
-                # Use the same initialization parameters as multiio_reader
                 self.io = multiio.SMmultiio(stack=io_stack, i2c=1)
             except Exception:  # pragma: no cover - hardware init failed
                 self.io = None
         else:
             self.io = None
-        # Calibration offsets
         self.pressure_offset_bw = 0.0
         self.pressure_offset_in = 0.0
         self.temp_offset = 0.0
 
     def read_pressure(self, channel: int) -> float:
         """Return pressure in PSI from a 4-20 mA input channel."""
-        # Channel numbers correspond to the Multi IO hat numbering (1/2)
         if channel == 1:
             offset = self.pressure_offset_bw
         elif channel == 2:
@@ -86,21 +80,18 @@ class PencilModule:
         if self.io:
             ma = self.io.get_i_in(channel)
             psi = (ma - 4.0) * (30.0 / 16.0)
-            value = psi + offset
-            return value
-        return 0.0 + offset
+            return psi + offset
+        return offset
 
     def read_rtd(self, channel: int) -> float:
-        """Return temperature value from an RTD channel."""
+        """Return temperature from an RTD input channel."""
         if self.io:
-            # Library channels are 1-indexed
             temp = self.io.get_rtd_temp(channel + 1)
-            value = temp + self.temp_offset
-            return value
-        return 0.0 + self.temp_offset
+            return temp + self.temp_offset
+        return self.temp_offset
 
     def set_solenoid(self, relay: int, state: bool) -> None:
-        """Activate or deactivate a solenoid."""
+        """Activate or deactivate a solenoid valve."""
         if self.relay:
             if state:
                 self.relay.on(relay)
@@ -108,7 +99,7 @@ class PencilModule:
                 self.relay.off(relay)
 
     def zero_scales(self) -> None:
-        """Issue a zeroing command for both scales."""
+        """Issue a zero command to both scales."""
         self.zero_scale(0)
         self.zero_scale(1)
 
@@ -123,8 +114,12 @@ class PencilModule:
         except Exception:
             pass
 
-    def apply_offsets(self, pressure_bw: float = 0.0, pressure_in: float = 0.0,
-                      temperature: float = 0.0) -> None:
+    def apply_offsets(
+        self,
+        pressure_bw: float = 0.0,
+        pressure_in: float = 0.0,
+        temperature: float = 0.0,
+    ) -> None:
         """Store calibration offsets for later readings."""
         self.pressure_offset_bw = pressure_bw
         self.pressure_offset_in = pressure_in
@@ -144,8 +139,8 @@ class PencilModule:
                 ser.write(cmd)
                 time.sleep(self._read_delay)
                 response = ser.read_until(b"\r\n").decode("ascii", errors="ignore")
-            cleaned = ''.join(c for c in response if c in string.printable)
-            match = re.search(r'([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)', cleaned)
+            cleaned = "".join(c for c in response if c in string.printable)
+            match = re.search(r"([ +-])\s*([\d\.]+)\s*([a-zA-Z]+)", cleaned)
             if match:
                 sign = match.group(1)
                 value = match.group(2)
@@ -156,3 +151,7 @@ class PencilModule:
         except Exception:
             pass
         return "--"
+
+
+# Backward-compatible alias for older scripts and saved integrations.
+PencilModule = MEU
