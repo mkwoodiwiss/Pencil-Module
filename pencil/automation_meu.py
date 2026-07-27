@@ -165,14 +165,14 @@ class _AutomationBase:
                 self._check_cancel()
                 current = self._parse_weight(self.module.read_scale(scale_index))
                 if current < start_weight - 0.1:
-                    raise AutomationError(f"{step} scale decreased below its starting value")
+                    raise AutomationError(f"{step} scale decreased more than 0.1 g below its starting value")
                 if current > last_weight + 0.01:
                     last_change = time.monotonic()
                     last_weight = current
                 if current - start_weight >= target:
                     break
                 if time.monotonic() - last_change > 30:
-                    raise AutomationError(f"{step} scale reading is stale or not increasing")
+                    raise AutomationError(f"{step} scale failed to increase by more than 0.01 g for 30 seconds")
                 if time.monotonic() - started > max_duration:
                     raise AutomationError(f"{step} exceeded its maximum duration")
                 self.log_cycle(step)
@@ -206,13 +206,13 @@ class FiltrationTestSystem(_AutomationBase):
                 self._timed_phase("Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
                 if self.progress_callback:
                     self.progress_callback("Filter", cycle + 1, self.config.cycle_count)
-                if self.config.filtration_by_volume:
+                if self.config.filtration_by_weight:
                     self._weight_phase("Filter", self.config.filtration_target, 0, (self.FEED, self.FILTRATE), self.config.sample_time, self.config.max_weight_phase_time)
                 else:
                     self._timed_phase("Filter", self.config.filtration_target, (self.FEED, self.FILTRATE), self.config.sample_time)
                 if self.progress_callback:
                     self.progress_callback("Backwash", cycle + 1, self.config.cycle_count)
-                if self.config.backwash_by_volume:
+                if self.config.backwash_by_weight:
                     self._weight_phase("Backwash", self.config.backwash_target, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT), self.config.sample_time, self.config.max_weight_phase_time)
                 else:
                     self._timed_phase("Backwash", self.config.backwash_target, (self.BACKWASH, self.BACKWASH_EFFLUENT), self.config.sample_time)
@@ -250,26 +250,26 @@ class CleanTestSystem(_AutomationBase):
             for cycle in range(self.config.cycle_count):
                 self._prompt("Fill the Feed tank with caustic solution, then confirm to continue.")
                 self._timed_phase("Caustic Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("Caustic Filter 1", self.config.forward_target, self.config.forward_by_volume, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Caustic Backwash 1", self.config.backwash_target, self.config.backwash_by_volume, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
+                self._process_phase("Caustic Filter 1", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
+                self._process_phase("Caustic Backwash 1", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
                 self._timed_phase("Caustic Soak", self.config.soak_time, tuple(), self.config.sample_time)
-                self._process_phase("Caustic Filter 2", self.config.forward_target, self.config.forward_by_volume, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Caustic Backwash 2", self.config.backwash_target, self.config.backwash_by_volume, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
+                self._process_phase("Caustic Filter 2", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
+                self._process_phase("Caustic Backwash 2", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
                 self._prompt("Replace the Feed tank contents with DI water, then confirm to continue.")
                 self._timed_phase("DI Rinse 1 Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("DI Rinse 1 Filter", self.config.rinse_forward_target, self.config.rinse_forward_by_volume, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("DI Rinse 1 Backwash", self.config.rinse_backwash_target, self.config.rinse_backwash_by_volume, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
+                self._process_phase("DI Rinse 1 Filter", self.config.rinse_forward_target, self.config.rinse_forward_by_weight, 0, (self.FEED, self.FILTRATE))
+                self._process_phase("DI Rinse 1 Backwash", self.config.rinse_backwash_target, self.config.rinse_backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
                 self._prompt("Fill the Feed tank with acid solution, then confirm to continue.")
                 self._timed_phase("Acid Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("Acid Filter 1", self.config.forward_target, self.config.forward_by_volume, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Acid Backwash 1", self.config.backwash_target, self.config.backwash_by_volume, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
+                self._process_phase("Acid Filter 1", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
+                self._process_phase("Acid Backwash 1", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
                 self._timed_phase("Acid Soak", self.config.soak_time, tuple(), self.config.sample_time)
-                self._process_phase("Acid Filter 2", self.config.forward_target, self.config.forward_by_volume, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Acid Backwash 2", self.config.backwash_target, self.config.backwash_by_volume, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
+                self._process_phase("Acid Filter 2", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
+                self._process_phase("Acid Backwash 2", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
                 self._prompt("Replace the acid in the Feed tank with DI water, then confirm before DI Rinse 2.")
                 self._timed_phase("DI Rinse 2 Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("DI Rinse 2 Filter", self.config.rinse_forward_target, self.config.rinse_forward_by_volume, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("DI Rinse 2 Backwash", self.config.rinse_backwash_target, self.config.rinse_backwash_by_volume, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
+                self._process_phase("DI Rinse 2 Filter", self.config.rinse_forward_target, self.config.rinse_forward_by_weight, 0, (self.FEED, self.FILTRATE))
+                self._process_phase("DI Rinse 2 Backwash", self.config.rinse_backwash_target, self.config.rinse_backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
         finally:
             self.stop_test()
 
