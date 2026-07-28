@@ -62,14 +62,55 @@ class HMI(_MEUHMI):
                 widget.config(command=lambda: self.module.zero_scale(1))
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
-        """Use a slightly larger centered settings dialog."""
+        """Use a larger, centered touchscreen-friendly settings dialog."""
         super()._style_settings_window(window)
+
+        def enlarge(parent: tk.Widget) -> None:
+            for child in parent.winfo_children():
+                try:
+                    if isinstance(child, tk.Button):
+                        child.config(font=("Arial", 16), height=2, padx=14, pady=7)
+                    elif isinstance(child, tk.Checkbutton):
+                        child.config(font=("Arial", 15), padx=9, pady=6)
+                    elif isinstance(child, tk.Entry):
+                        child.config(font=("Arial", 16), width=max(9, int(child.cget("width"))))
+                    elif isinstance(child, tk.Label):
+                        child.config(font=("Arial", 15))
+                except Exception:
+                    pass
+
+                try:
+                    manager = child.winfo_manager()
+                    if manager == "grid":
+                        info = child.grid_info()
+                        child.grid_configure(
+                            padx=max(7, int(info.get("padx", 0) or 0)),
+                            pady=max(5, int(info.get("pady", 0) or 0)),
+                        )
+                    elif manager == "pack":
+                        info = child.pack_info()
+                        child.pack_configure(
+                            padx=max(7, int(info.get("padx", 0) or 0)),
+                            pady=max(5, int(info.get("pady", 0) or 0)),
+                        )
+                except Exception:
+                    pass
+
+                enlarge(child)
+
+        enlarge(window)
+
         try:
+            window.grid_anchor("center")
             window.update_idletasks()
-            width = min(self.winfo_screenwidth() - 30, window.winfo_reqwidth() + 70)
-            height = min(self.winfo_screenheight() - 50, window.winfo_reqheight() + 55)
-            x = self.winfo_rootx() + max(0, (self.winfo_width() - width) // 2)
-            y = self.winfo_rooty() + max(0, (self.winfo_height() - height) // 2)
+
+            screen_width = self.winfo_screenwidth()
+            screen_height = self.winfo_screenheight()
+            width = min(screen_width - 24, max(600, window.winfo_reqwidth() + 100))
+            height = min(screen_height - 40, max(400, window.winfo_reqheight() + 80))
+
+            x = max(0, self.winfo_rootx() + (self.winfo_width() - width) // 2)
+            y = max(0, self.winfo_rooty() + (self.winfo_height() - height) // 2)
             window.geometry(f"{width}x{height}+{x}+{y}")
         except Exception:
             pass
