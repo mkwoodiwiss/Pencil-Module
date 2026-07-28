@@ -10,13 +10,24 @@ from .hardware import MEU as _BaseMEU
 class MEU(_BaseMEU):
     """MEU hardware interface with mandatory verified dual-scale tare."""
 
+    def zero_scale(self, channel: int) -> bool:
+        """Tare one scale with faster two-reading verification.
+
+        The serial worker still requires two consecutive fresh readings within
+        +/-0.2 g, but each attempt now has a shorter two-second verification
+        window and only one retry. This keeps successful tares quick without
+        weakening the two-reading confirmation.
+        """
+        manager = self._effluent_scale if channel == 0 else self._backwash_scale
+        return manager.tare(attempts=2, timeout=2.0)
+
     def zero_scales(self) -> bool:
         """Tare both scales concurrently and refuse to continue unless both verify.
 
-        Each scale manager waits for fresh, near-zero readings after issuing its
-        tare command. Running the two tare operations concurrently prevents one
-        slow scale from unnecessarily delaying the other while still blocking
-        the test sequence until both have completed.
+        Each scale manager waits for two fresh, near-zero readings after issuing
+        its tare command. Running both operations concurrently prevents one slow
+        scale from unnecessarily delaying the other while still blocking the run
+        until both have completed.
         """
         results = {0: False, 1: False}
 
