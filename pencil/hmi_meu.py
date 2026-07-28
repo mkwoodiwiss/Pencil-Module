@@ -18,6 +18,8 @@ EXACT_TEXT_REPLACEMENTS = {
     "Drain": "Waste",
     "Backwash": "BW Effluent",
     "Mini-module": "Membrane",
+    "Tare EFL": "Tare FIL",
+    "Tare BW": "Tare BW EFL",
 }
 
 TEXT_REPLACEMENTS = (
@@ -57,6 +59,7 @@ class HMI(_BaseHMI):
         self.title("MF/UF Membrane Evaluation Unit (MEU)")
         self._normalize_visible_text(self)
         self._automation_error: str | None = None
+        self._sync_all_valve_buttons()
 
     def _normalize_visible_text(self, parent) -> None:
         """Normalize text in widgets and canvas items using I/O-list names."""
@@ -81,6 +84,80 @@ class HMI(_BaseHMI):
                     pass
 
             self._normalize_visible_text(child)
+
+    def _sync_valve_button(self, channel: int) -> None:
+        """Keep a valve button's normal and active appearance in sync."""
+        state = bool(self.solenoid_states[channel])
+        color = "green" if state else "lightgray"
+        relief = "sunken" if state else "raised"
+        for pfd in self.pfds.values():
+            try:
+                pfd["solenoid_buttons"][channel].config(
+                    bg=color,
+                    activebackground=color,
+                    relief=relief,
+                )
+            except Exception:
+                pass
+
+    def _sync_all_valve_buttons(self) -> None:
+        for channel in range(len(self.solenoid_states)):
+            self._sync_valve_button(channel)
+
+    def toggle_solenoid(self, channel: int) -> None:
+        super().toggle_solenoid(channel)
+        self._sync_valve_button(channel)
+
+    def _set_valves(self, state: bool, *valves: int) -> None:
+        super()._set_valves(state, *valves)
+        for valve in valves:
+            self._sync_valve_button(valve - 1)
+
+    def _automation_valve_change(self, valve: int, state: bool) -> None:
+        super()._automation_valve_change(valve, state)
+        if 1 <= valve <= len(self.solenoid_states):
+            self._sync_valve_button(valve - 1)
+
+    def _style_settings_window(self, window: tk.Toplevel) -> None:
+        """Make settings dialogs and their controls easier to use by touch."""
+        try:
+            window.geometry("720x480")
+            window.minsize(640, 420)
+        except Exception:
+            pass
+
+        def style(parent) -> None:
+            for child in parent.winfo_children():
+                try:
+                    if isinstance(child, tk.Button):
+                        child.config(font=("Arial", 14), height=2, padx=8, pady=4)
+                    elif isinstance(child, tk.Checkbutton):
+                        child.config(font=("Arial", 13), padx=6, pady=4)
+                    elif isinstance(child, tk.Entry):
+                        child.config(font=("Arial", 14))
+                    elif isinstance(child, tk.Label):
+                        child.config(font=("Arial", 13))
+                except Exception:
+                    pass
+                style(child)
+
+        style(window)
+
+    def _open_and_style_settings(self, opener) -> None:
+        before = set(self.winfo_children())
+        opener()
+        for child in self.winfo_children():
+            if child not in before and isinstance(child, tk.Toplevel):
+                self._style_settings_window(child)
+
+    def _edit_test_settings(self) -> None:
+        self._open_and_style_settings(super()._edit_test_settings)
+
+    def _edit_clean_settings(self) -> None:
+        self._open_and_style_settings(super()._edit_clean_settings)
+
+    def _edit_benchmark_settings(self) -> None:
+        self._open_and_style_settings(super()._edit_benchmark_settings)
 
     @staticmethod
     def _positive(value: float, label: str) -> float:
