@@ -15,42 +15,34 @@ from .hardware import (
 
 
 class _RuntimeScaleManager(_ScaleManager):
-    """Scale manager that actively requests fresh readings after a tare."""
-
-    def __init__(self, *args, **kwargs) -> None:
-        self._tare_active = False
-        super().__init__(*args, **kwargs)
+    """Highland scale manager for continuous RS-232 output."""
 
     def _process_tare(self, payload: object) -> None:
-        """Send tare, then request and verify two genuinely new readings."""
+        """Send the Highland tare command and verify two fresh zero readings."""
         result, completed, attempts, timeout = payload  # type: ignore[misc]
         success = False
-        self._tare_active = True
         try:
             for _attempt in range(int(attempts)):
                 if self._serial is None and not self._open_serial(force=True):
                     time.sleep(0.2)
                     continue
 
+                # Remove readings that were already waiting before tare so only
+                # continuous-output lines received after T count as verification.
                 try:
                     self._serial.reset_input_buffer()
                 except Exception:
                     pass
 
-                if not self._write(b"Z\r\n"):
+                # Highland manual: T<CR><LF> performs the same tare as the front key.
+                if not self._write(b"T\r\n"):
                     time.sleep(0.2)
                     continue
 
                 deadline = time.monotonic() + float(timeout)
                 consecutive_zero = 0
-                next_request = time.monotonic() + 0.15
 
                 while time.monotonic() < deadline and not self._stop_event.is_set():
-                    now = time.monotonic()
-                    if now >= next_request:
-                        self._write(b"P\r\n")
-                        next_request = now + 0.30
-
                     try:
                         raw = self._readline()
                     except Exception as exc:
@@ -75,21 +67,21 @@ class _RuntimeScaleManager(_ScaleManager):
                 if success:
                     break
 
-                if self._serial is None:
-                    self._open_serial(force=True)
+                # A tare timeout can mean the balance was unstable and rejected
+                # the tare. Do not send P and do not reconnect a healthy stream.
                 time.sleep(0.2)
         finally:
-            self._tare_active = False
             result["success"] = success
             completed.set()
 
     def read(self) -> str:
-        """Keep showing the last valid weight while tare verification is active."""
-        if self._tare_active:
-            with self._state_lock:
-                if self._latest_time > 0:
-                    return self._latest_text
-        return super().read()
+        """Use continuous output only; never issue an automatic Print command."""
+        with self._state_lock:
+            text = self._latest_text
+            timestamp = self._latest_time
+        if timestamp > 0 and time.monotonic() - timestamp <= self.stale_after:
+            return text
+        return "--"
 
 
 class MEU(_BaseMEU):
@@ -151,8 +143,8 @@ class MEU(_BaseMEU):
         if failed:
             names = " and ".join(failed)
             raise RuntimeError(
-                f"{names} did not complete a verified tare. "
-                "The run was not started. Check the scale connection and try again."
+                f"{names} did not accept tare or did not become stable at zero. "
+                "The run was not started. Confirm the vessel and tubing are stable, then try again."
             )
         return True
 
