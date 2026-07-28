@@ -32,79 +32,82 @@ class ResultsManager(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self._close)
         self.attributes("-topmost", True)
 
-        outer = tk.Frame(self, padx=24, pady=18)
+        outer = tk.Frame(self, padx=18, pady=10)
         outer.pack(fill="both", expand=True)
 
         tk.Label(
             outer,
             text="TEST COMPLETE",
-            font=("Arial", 22, "bold"),
-        ).pack(pady=(0, 8))
+            font=("Arial", 19, "bold"),
+        ).pack(pady=(0, 3))
         tk.Label(
             outer,
             text="Results are saved locally on the MEU.",
-            font=("Arial", 15),
-        ).pack(pady=(0, 12))
+            font=("Arial", 13),
+        ).pack(pady=(0, 5))
 
         self.files_label = tk.Label(
             outer,
             text=self._file_summary(),
-            font=("Arial", 12),
+            font=("Arial", 11),
             justify="left",
-            wraplength=650,
+            wraplength=700,
         )
-        self.files_label.pack(fill="x", pady=(0, 10))
+        self.files_label.pack(fill="x", pady=(0, 5))
 
         drive_box = tk.LabelFrame(
             outer,
             text="USB Drive",
-            font=("Arial", 15, "bold"),
-            padx=12,
-            pady=10,
+            font=("Arial", 13, "bold"),
+            padx=9,
+            pady=5,
         )
-        drive_box.pack(fill="x", pady=8)
+        drive_box.pack(fill="x", pady=4)
         self.drive_frame = tk.Frame(drive_box)
         self.drive_frame.pack(fill="x")
 
         self.status_label = tk.Label(
             outer,
             textvariable=self.status_var,
-            font=("Arial", 14),
+            font=("Arial", 12),
             justify="center",
-            wraplength=650,
+            wraplength=700,
         )
-        self.status_label.pack(fill="x", pady=12)
+        self.status_label.pack(fill="x", pady=6)
 
         buttons = tk.Frame(outer)
-        buttons.pack(pady=(6, 0))
+        buttons.pack(pady=(2, 0))
         self.refresh_button = tk.Button(
             buttons,
             text="Refresh USB",
-            font=("Arial", 16),
+            font=("Arial", 14),
             width=13,
-            height=2,
+            height=1,
+            pady=5,
             command=self.refresh_drives,
         )
-        self.refresh_button.pack(side="left", padx=8)
+        self.refresh_button.pack(side="left", padx=5)
         self.export_button = tk.Button(
             buttons,
             text="Export to USB",
-            font=("Arial", 16, "bold"),
+            font=("Arial", 14, "bold"),
             width=14,
-            height=2,
+            height=1,
+            pady=5,
             state="disabled",
             command=self.export_selected,
         )
-        self.export_button.pack(side="left", padx=8)
+        self.export_button.pack(side="left", padx=5)
         self.done_button = tk.Button(
             buttons,
             text="Keep Locally",
-            font=("Arial", 16),
+            font=("Arial", 14),
             width=13,
-            height=2,
+            height=1,
+            pady=5,
             command=self._close,
         )
-        self.done_button.pack(side="left", padx=8)
+        self.done_button.pack(side="left", padx=5)
 
         self.update_idletasks()
         self._center_on_master(master)
@@ -118,14 +121,15 @@ class ResultsManager(tk.Toplevel):
     def _file_summary(self) -> str:
         if not self.result_files:
             return "No completed result files were found."
-        return "Files ready:\n" + "\n".join(path.name for path in self.result_files)
+        names = [path.name for path in self.result_files]
+        return "Files ready: " + "  |  ".join(names)
 
     def _center_on_master(self, master: tk.Widget) -> None:
         try:
             screen_width = self.winfo_screenwidth()
             screen_height = self.winfo_screenheight()
-            width = min(screen_width - 30, max(700, self.winfo_reqwidth()))
-            height = min(screen_height - 40, max(420, self.winfo_reqheight()))
+            width = min(screen_width - 24, max(700, self.winfo_reqwidth()))
+            height = min(screen_height - 70, max(330, self.winfo_reqheight()))
             x = max(0, master.winfo_rootx() + (master.winfo_width() - width) // 2)
             y = max(0, master.winfo_rooty() + (master.winfo_height() - height) // 2)
             self.geometry(f"{width}x{height}+{x}+{y}")
@@ -152,8 +156,8 @@ class ResultsManager(tk.Toplevel):
             tk.Label(
                 self.drive_frame,
                 text="No mounted USB drive detected",
-                font=("Arial", 15),
-            ).pack(pady=8)
+                font=("Arial", 13),
+            ).pack(pady=4)
             self.status_var.set("Insert a USB drive, wait a few seconds, then press Refresh USB.")
             self.export_button.config(state="disabled")
             return
@@ -167,10 +171,10 @@ class ResultsManager(tk.Toplevel):
                 text=text,
                 variable=self.selected_drive,
                 value=index,
-                font=("Arial", 14),
+                font=("Arial", 12),
                 anchor="w",
-                padx=8,
-                pady=6,
+                padx=6,
+                pady=3,
             ).pack(fill="x")
         self.status_var.set("USB drive detected. Press Export to USB to copy and verify the files.")
         self.export_button.config(state="normal" if self.result_files else "disabled")
