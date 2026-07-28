@@ -1,6 +1,6 @@
 """MF/UF Membrane Evaluation Unit package."""
 
-from .hardware import MEU, PencilModule
+from .hardware_runtime import MEU, PencilModule
 from .config_meu import FiltrationConfig, CleanConfig, BenchmarkConfig
 from .automation_meu import (
     AutomationError,
