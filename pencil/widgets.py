@@ -13,6 +13,7 @@ class NumericKeypad(tk.Toplevel):
         self.resizable(False, False)
         self.allow_negative = allow_negative
         self.value = tk.StringVar(value=str(variable.get()))
+        self._replace_on_next_input = True
         col_span = 4 if allow_negative else 3
         tk.Entry(self, textvariable=self.value, width=10, justify="right").grid(row=0, column=0, columnspan=col_span, pady=5)
         buttons = [
@@ -38,18 +39,31 @@ class NumericKeypad(tk.Toplevel):
 
     def _press(self, char: str) -> None:
         if char == "<-":
-            self.value.set(self.value.get()[:-1])
-        elif char == "-" and self.allow_negative:
-            val = self.value.get()
-            if val.startswith("-"):
-                self.value.set(val[1:])
+            if self._replace_on_next_input:
+                self.value.set("")
+                self._replace_on_next_input = False
             else:
-                self.value.set("-" + val)
+                self.value.set(self.value.get()[:-1])
+        elif char == "-" and self.allow_negative:
+            if self._replace_on_next_input:
+                self.value.set("-")
+                self._replace_on_next_input = False
+            else:
+                val = self.value.get()
+                if val.startswith("-"):
+                    self.value.set(val[1:])
+                else:
+                    self.value.set("-" + val)
         else:
-            self.value.set(self.value.get() + char)
+            if self._replace_on_next_input:
+                self.value.set(char)
+                self._replace_on_next_input = False
+            else:
+                self.value.set(self.value.get() + char)
 
     def _clear(self) -> None:
         self.value.set("")
+        self._replace_on_next_input = False
 
     def _apply(self) -> None:
         try:
@@ -87,6 +101,7 @@ class OnScreenKeyboard(tk.Toplevel):
         self.title("Input")
         self.resizable(False, False)
         self.value = tk.StringVar(value=str(variable.get()))
+        self._replace_on_next_input = True
         tk.Entry(self, textvariable=self.value, width=20).pack(pady=5)
 
         keys_frame = tk.Frame(self)
@@ -121,12 +136,21 @@ class OnScreenKeyboard(tk.Toplevel):
 
     def _press(self, char: str) -> None:
         if char == "<-":
-            self.value.set(self.value.get()[:-1])
+            if self._replace_on_next_input:
+                self.value.set("")
+                self._replace_on_next_input = False
+            else:
+                self.value.set(self.value.get()[:-1])
         else:
-            self.value.set(self.value.get() + char)
+            if self._replace_on_next_input:
+                self.value.set(char)
+                self._replace_on_next_input = False
+            else:
+                self.value.set(self.value.get() + char)
 
     def _clear(self) -> None:
         self.value.set("")
+        self._replace_on_next_input = False
 
     def _apply(self) -> None:
         self.var.set(self.value.get())
