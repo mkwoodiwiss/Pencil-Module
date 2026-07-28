@@ -94,6 +94,24 @@ class _AutomationBase:
             raise AutomationError(f"Invalid scale response: {text!r}")
         return float(match.group(1))
 
+    def _read_weight(self, scale_index: int, attempts: int = 5) -> float:
+        """Read a scale with retries for temporary serial dropouts."""
+        last_response = "--"
+
+        for attempt in range(attempts):
+            self._check_cancel()
+            last_response = self.module.read_scale(scale_index)
+            try:
+                return self._parse_weight(last_response)
+            except AutomationError:
+                if attempt < attempts - 1:
+                    time.sleep(0.25)
+
+        raise AutomationError(
+            f"Scale {scale_index + 1} response unavailable after "
+            f"{attempts} attempts. Last response: {last_response!r}"
+        )
+
     def _apply_offsets(self, config) -> None:
         self.module.apply_offsets(
             pressure_in=config.feed_tank_pressure_offset,
@@ -125,8 +143,8 @@ class _AutomationBase:
             self.module.read_rtd(0),
             self.module.read_pressure(2),
             self.module.read_pressure(1),
-            self._parse_weight(self.module.read_scale(0)),
-            self._parse_weight(self.module.read_scale(1)),
+            self._read_weight(0),
+            self._read_weight(1),
             step,
         ])
         self.data_file.flush()
@@ -155,7 +173,7 @@ class _AutomationBase:
     ) -> None:
         if target <= 0 or max_duration <= 0:
             raise AutomationError(f"{step} target and maximum duration must be greater than zero")
-        start_weight = self._parse_weight(self.module.read_scale(scale_index))
+        start_weight = self._read_weight(scale_index)
         last_weight = start_weight
         last_change = time.monotonic()
         started = time.monotonic()
@@ -163,7 +181,7 @@ class _AutomationBase:
         try:
             while True:
                 self._check_cancel()
-                current = self._parse_weight(self.module.read_scale(scale_index))
+                current = self._read_weight(scale_index)
                 if current < start_weight - 0.1:
                     raise AutomationError(f"{step} scale decreased more than 0.1 g below its starting value")
                 if current > last_weight + 0.01:
@@ -200,6 +218,7 @@ class FiltrationTestSystem(_AutomationBase):
             self._open_logs(self.config.file_prefix, self.config.project, self.config.module_id, self.config.sample_id, self.config)
             self._apply_offsets(self.config)
             self.module.zero_scales()
+            time.sleep(1.0)
             for cycle in range(self.config.cycle_count):
                 if self.progress_callback:
                     self.progress_callback("Purge", cycle + 1, self.config.cycle_count)
@@ -247,6 +266,7 @@ class CleanTestSystem(_AutomationBase):
             self._open_logs("Clean", self.config.project, self.config.module_id, self.config.solution, self.config)
             self._apply_offsets(self.config)
             self.module.zero_scales()
+            time.sleep(1.0)
             for cycle in range(self.config.cycle_count):
                 self._prompt("Fill the Feed tank with caustic solution, then confirm to continue.")
                 self._timed_phase("Caustic Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
