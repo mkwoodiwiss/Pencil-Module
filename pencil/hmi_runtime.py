@@ -99,20 +99,27 @@ class HMI(_MEUHMI):
         self._bind_settings_action_buttons()
         self._sync_all_valve_buttons()
 
+    def _finish_start_attempt(self) -> None:
+        if getattr(self, "is_running", False):
+            self._disable_manual_controls()
+        else:
+            self._run_started = False
+            self._enable_manual_controls()
+
     def start_test(self) -> None:
         self._run_started = True
         super().start_test()
-        self._disable_manual_controls()
+        self._finish_start_attempt()
 
     def start_benchmark(self) -> None:
         self._run_started = True
         super().start_benchmark()
-        self._disable_manual_controls()
+        self._finish_start_attempt()
 
     def start_clean(self) -> None:
         self._run_started = True
         super().start_clean()
-        self._disable_manual_controls()
+        self._finish_start_attempt()
 
     def _latest_saved_files(self) -> list[str]:
         """Return the newest data/settings files from the active log directory."""
