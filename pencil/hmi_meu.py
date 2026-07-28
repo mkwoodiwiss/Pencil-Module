@@ -11,6 +11,15 @@ from .config_meu import CleanConfig, FiltrationConfig
 from .hmi import HMI as _BaseHMI
 
 
+EXACT_TEXT_REPLACEMENTS = {
+    "BW water": "BW Tank",
+    "Influent water": "Feed Tank",
+    "Effluent": "Filtrate",
+    "Drain": "Waste",
+    "Backwash": "BW Effluent",
+    "Mini-module": "Membrane",
+}
+
 TEXT_REPLACEMENTS = (
     ("Influent Supply Pressure", "Feed Tank Pressure"),
     ("Influent Pressure", "Feed Tank Pressure"),
@@ -19,8 +28,10 @@ TEXT_REPLACEMENTS = (
     ("Backwash Supply Pressure", "Backwash Tank Pressure"),
     ("Influent Temperature", "Feed Temperature"),
     ("Temperature", "Feed Temperature"),
-    ("Effluent Weight", "Feed Weight"),
-    ("BW Weight", "Backwash Weight"),
+    ("Effluent Weight", "Filtrate Weight"),
+    ("Feed Weight", "Filtrate Weight"),
+    ("BW Weight", "BW Effluent Weight"),
+    ("Backwash Weight", "BW Effluent Weight"),
     ("Influent Supply", "Feed"),
     ("Influent Drain", "Waste"),
     ("Effluent Valve", "Filtrate"),
@@ -28,7 +39,10 @@ TEXT_REPLACEMENTS = (
 
 
 def normalize_io_text(value: str) -> str:
-    """Replace legacy public-facing names with approved I/O-list terminology."""
+    """Replace legacy public-facing names with approved MEU terminology."""
+    if value in EXACT_TEXT_REPLACEMENTS:
+        return EXACT_TEXT_REPLACEMENTS[value]
+
     result = value
     for old, new in TEXT_REPLACEMENTS:
         result = result.replace(old, new)
