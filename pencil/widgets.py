@@ -4,7 +4,7 @@ import tkinter as tk
 
 
 class NumericKeypad(tk.Toplevel):
-    """Simple on-screen keypad for numeric entry."""
+    """Large on-screen keypad for numeric entry."""
 
     def __init__(self, master: tk.Widget, variable: tk.Variable, allow_negative: bool = False) -> None:
         super().__init__(master)
@@ -15,7 +15,15 @@ class NumericKeypad(tk.Toplevel):
         self.value = tk.StringVar(value=str(variable.get()))
         self._replace_on_next_input = True
         col_span = 4 if allow_negative else 3
-        tk.Entry(self, textvariable=self.value, width=10, justify="right").grid(row=0, column=0, columnspan=col_span, pady=5)
+
+        tk.Entry(
+            self,
+            textvariable=self.value,
+            width=12,
+            justify="right",
+            font=("Arial", 20),
+        ).grid(row=0, column=0, columnspan=col_span, padx=8, pady=8, sticky="ew")
+
         buttons = [
             ("7", 1, 0), ("8", 1, 1), ("9", 1, 2),
             ("4", 2, 0), ("5", 2, 1), ("6", 2, 2),
@@ -24,18 +32,51 @@ class NumericKeypad(tk.Toplevel):
         ]
         if allow_negative:
             buttons.append(("-", 4, 3))
-        for text, r, c in buttons:
-            action = lambda ch=text: self._press(ch)
-            tk.Button(self, text=text, width=4, command=action).grid(row=r, column=c, padx=2, pady=2)
-        tk.Button(self, text="Clear", width=6, command=self._clear).grid(row=5, column=0, pady=2)
-        tk.Button(self, text="Cancel", width=6, command=self.destroy).grid(row=5, column=1, pady=2)
-        tk.Button(self, text="OK", width=6, command=self._apply).grid(row=5, column=2, pady=2)
+
+        for text, row, column in buttons:
+            tk.Button(
+                self,
+                text=text,
+                width=5,
+                height=2,
+                font=("Arial", 18),
+                command=lambda ch=text: self._press(ch),
+            ).grid(row=row, column=column, padx=4, pady=4)
+
+        action_frame = tk.Frame(self)
+        action_frame.grid(row=5, column=0, columnspan=col_span, pady=(5, 8))
+        for text, command in (
+            ("Clear", self._clear),
+            ("Cancel", self.destroy),
+            ("OK", self._apply),
+        ):
+            tk.Button(
+                action_frame,
+                text=text,
+                width=7,
+                height=2,
+                font=("Arial", 15),
+                command=command,
+            ).pack(side="left", padx=4)
+
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.attributes("-topmost", True)
         self.transient(master)
+        self.update_idletasks()
+        self._center_over_master(master)
         self.focus_set()
         self.wait_visibility()
+
+    def _center_over_master(self, master: tk.Widget) -> None:
+        try:
+            width = self.winfo_reqwidth()
+            height = self.winfo_reqheight()
+            x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
+            y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 2)
+            self.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception:
+            pass
 
     def _press(self, char: str) -> None:
         if char == "<-":
@@ -49,11 +90,8 @@ class NumericKeypad(tk.Toplevel):
                 self.value.set("-")
                 self._replace_on_next_input = False
             else:
-                val = self.value.get()
-                if val.startswith("-"):
-                    self.value.set(val[1:])
-                else:
-                    self.value.set("-" + val)
+                value = self.value.get()
+                self.value.set(value[1:] if value.startswith("-") else "-" + value)
         else:
             if self._replace_on_next_input:
                 self.value.set(char)
@@ -93,7 +131,7 @@ class NumericEntry(tk.Entry):
 
 
 class OnScreenKeyboard(tk.Toplevel):
-    """Simple keyboard popup for text entry."""
+    """Large keyboard popup for text entry."""
 
     def __init__(self, master: tk.Widget, variable: tk.Variable) -> None:
         super().__init__(master)
@@ -102,10 +140,11 @@ class OnScreenKeyboard(tk.Toplevel):
         self.resizable(False, False)
         self.value = tk.StringVar(value=str(variable.get()))
         self._replace_on_next_input = True
-        tk.Entry(self, textvariable=self.value, width=20).pack(pady=5)
+
+        tk.Entry(self, textvariable=self.value, width=28, font=("Arial", 18)).pack(padx=8, pady=8)
 
         keys_frame = tk.Frame(self)
-        keys_frame.pack()
+        keys_frame.pack(padx=6, pady=(0, 6))
 
         rows = [
             list("1234567890"),
@@ -116,23 +155,53 @@ class OnScreenKeyboard(tk.Toplevel):
         for keys in rows:
             row_frame = tk.Frame(keys_frame)
             row_frame.pack(anchor="center")
-            for ch in keys:
-                tk.Button(row_frame, text=ch, width=3, command=lambda ch=ch: self._press(ch)).pack(side="left", padx=1, pady=1)
+            for char in keys:
+                tk.Button(
+                    row_frame,
+                    text=char,
+                    width=3,
+                    height=2,
+                    font=("Arial", 14),
+                    command=lambda ch=char: self._press(ch),
+                ).pack(side="left", padx=2, pady=2)
 
         bottom = tk.Frame(keys_frame)
-        bottom.pack(anchor="center")
-        tk.Button(bottom, text="_", width=3, command=lambda: self._press("_")).pack(side="left", padx=1, pady=1)
-        tk.Button(bottom, text="Backspace", width=9, command=lambda: self._press("<-")).pack(side="left", padx=1, pady=1)
-        tk.Button(bottom, text="Clear", width=5, command=self._clear).pack(side="left", padx=1, pady=1)
-        tk.Button(bottom, text="Cancel", width=5, command=self.destroy).pack(side="left", padx=1, pady=1)
-        tk.Button(bottom, text="OK", width=5, command=self._apply).pack(side="left", padx=1, pady=1)
+        bottom.pack(anchor="center", pady=(3, 0))
+        controls = (
+            ("_", 4, lambda: self._press("_")),
+            ("Backspace", 10, lambda: self._press("<-")),
+            ("Clear", 7, self._clear),
+            ("Cancel", 7, self.destroy),
+            ("OK", 7, self._apply),
+        )
+        for text, width, command in controls:
+            tk.Button(
+                bottom,
+                text=text,
+                width=width,
+                height=2,
+                font=("Arial", 13),
+                command=command,
+            ).pack(side="left", padx=2, pady=2)
 
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.attributes("-topmost", True)
         self.transient(master)
+        self.update_idletasks()
+        self._center_over_master(master)
         self.focus_set()
         self.wait_visibility()
+
+    def _center_over_master(self, master: tk.Widget) -> None:
+        try:
+            width = self.winfo_reqwidth()
+            height = self.winfo_reqheight()
+            x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
+            y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 2)
+            self.geometry(f"{width}x{height}+{x}+{y}")
+        except Exception:
+            pass
 
     def _press(self, char: str) -> None:
         if char == "<-":
@@ -166,5 +235,5 @@ class KeyboardEntry(tk.Entry):
         self.bind("<Button-1>", self._open_keyboard)
 
     def _open_keyboard(self, _event=None) -> None:
-        kb = OnScreenKeyboard(self, self._var)
-        self.wait_window(kb)
+        keyboard = OnScreenKeyboard(self, self._var)
+        self.wait_window(keyboard)
