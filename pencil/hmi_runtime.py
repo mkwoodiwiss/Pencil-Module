@@ -1,12 +1,11 @@
 """Runtime fixes for the MEU touchscreen HMI."""
 
 from __future__ import annotations
-
 import os
 import tkinter as tk
-from tkinter import messagebox
 
 from .hmi_meu import HMI as _MEUHMI
+from .results_manager import open_results_manager
 
 
 class HMI(_MEUHMI):
@@ -193,9 +192,4 @@ class HMI(_MEUHMI):
         self._run_started = False
 
         if completed:
-            if saved_files:
-                file_text = "\n".join(saved_files)
-                message = f"Test complete. Files saved:\n\n{file_text}"
-            else:
-                message = "Test complete. The run files were saved in the logs folder."
-            messagebox.showinfo("MEU Test Complete", message)
+            open_results_manager(self, saved_files)
