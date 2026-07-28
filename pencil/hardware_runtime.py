@@ -11,15 +11,15 @@ class MEU(_BaseMEU):
     """MEU hardware interface with mandatory verified dual-scale tare."""
 
     def zero_scale(self, channel: int) -> bool:
-        """Tare one scale with faster two-reading verification.
+        """Tare one scale and verify two consecutive fresh zero readings.
 
-        The serial worker still requires two consecutive fresh readings within
-        +/-0.2 g, but each attempt now has a shorter two-second verification
-        window and only one retry. This keeps successful tares quick without
-        weakening the two-reading confirmation.
+        The scale output cadence can be slower than one reading per second after
+        processing a tare command. A four-second verification window gives the
+        worker enough time to receive two post-command readings while retaining
+        the two-reading confirmation. One retry remains available.
         """
         manager = self._effluent_scale if channel == 0 else self._backwash_scale
-        return manager.tare(attempts=2, timeout=2.0)
+        return manager.tare(attempts=2, timeout=4.0)
 
     def zero_scales(self) -> bool:
         """Tare both scales concurrently and refuse to continue unless both verify.
