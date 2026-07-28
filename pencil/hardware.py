@@ -17,9 +17,12 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for tests
 # so the code falls back to ``None`` which tests patch as needed.
 try:
     import lib8relind  # type: ignore
-    import multiio  # type: ignore
-except Exception:  # pragma: no cover - running without hardware
+except Exception:  # pragma: no cover
     lib8relind = None
+
+try:
+    import multiio  # type: ignore
+except Exception:  # pragma: no cover
     multiio = None
 
 
