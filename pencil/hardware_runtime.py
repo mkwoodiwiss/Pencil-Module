@@ -15,34 +15,57 @@ from .hardware import (
 
 
 class _RuntimeScaleManager(_ScaleManager):
-    """Highland scale manager for continuous RS-232 output."""
+    """Highland scale manager with continuous receive and controlled polling fallback."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        self._tare_active = False
+        super().__init__(*args, **kwargs)
 
     def _process_tare(self, payload: object) -> None:
-        """Send the Highland tare command and verify two fresh zero readings."""
+        """Send T and verify two post-tare readings without flooding Print commands."""
         result, completed, attempts, timeout = payload  # type: ignore[misc]
         success = False
+        self._tare_active = True
         try:
             for _attempt in range(int(attempts)):
                 if self._serial is None and not self._open_serial(force=True):
                     time.sleep(0.2)
                     continue
 
-                # Remove readings that were already waiting before tare so only
-                # continuous-output lines received after T count as verification.
+                # Discard only lines received before the command. The worker remains
+                # the sole serial owner, so no other reader can consume the reply.
                 try:
                     self._serial.reset_input_buffer()
                 except Exception:
                     pass
 
-                # Highland manual: T<CR><LF> performs the same tare as the front key.
+                # Highland manual: T<CR><LF> is the remote equivalent of the tare key.
                 if not self._write(b"T\r\n"):
                     time.sleep(0.2)
                     continue
 
-                deadline = time.monotonic() + float(timeout)
+                started = time.monotonic()
+                deadline = started + float(timeout)
                 consecutive_zero = 0
+                received_after_tare = 0
+                print_requests = 0
+                next_print_fallback = started + 0.75
 
                 while time.monotonic() < deadline and not self._stop_event.is_set():
+                    now = time.monotonic()
+
+                    # Some Highland configurations pause continuous output after T,
+                    # or are configured for requested output. Ask for at most two
+                    # readings, and only if no fresh line has arrived in time.
+                    if (
+                        received_after_tare < 2
+                        and print_requests < 2
+                        and now >= next_print_fallback
+                    ):
+                        if self._write(b"P\r\n"):
+                            print_requests += 1
+                        next_print_fallback = now + 0.75
+
                     try:
                         raw = self._readline()
                     except Exception as exc:
@@ -54,6 +77,7 @@ class _RuntimeScaleManager(_ScaleManager):
                     if parsed is None:
                         continue
 
+                    received_after_tare += 1
                     self._record(parsed)
                     _text, value, _unit = parsed
                     if abs(value) <= 0.2:
@@ -67,21 +91,25 @@ class _RuntimeScaleManager(_ScaleManager):
                 if success:
                     break
 
-                # A tare timeout can mean the balance was unstable and rejected
-                # the tare. Do not send P and do not reconnect a healthy stream.
+                # A timeout can mean tare was rejected because the scale was unstable.
+                # Reconnect only when the serial object actually failed.
+                if self._serial is None:
+                    self._open_serial(force=True)
                 time.sleep(0.2)
         finally:
+            self._tare_active = False
             result["success"] = success
             completed.set()
 
     def read(self) -> str:
-        """Use continuous output only; never issue an automatic Print command."""
-        with self._state_lock:
-            text = self._latest_text
-            timestamp = self._latest_time
-        if timestamp > 0 and time.monotonic() - timestamp <= self.stale_after:
-            return text
-        return "--"
+        """Return cached data, using one queued Print request only when stale."""
+        if self._tare_active:
+            with self._state_lock:
+                if self._latest_time > 0:
+                    return self._latest_text
+        # The base implementation queues one P command when stale and waits for a
+        # genuinely newer reading. It prevents repeated overlapping requests.
+        return super().read()
 
 
 class MEU(_BaseMEU):
@@ -143,8 +171,8 @@ class MEU(_BaseMEU):
         if failed:
             names = " and ".join(failed)
             raise RuntimeError(
-                f"{names} did not accept tare or did not become stable at zero. "
-                "The run was not started. Confirm the vessel and tubing are stable, then try again."
+                f"{names} did not accept tare or did not return two verified zero readings. "
+                "The run was not started. Confirm the scale is stable and communicating, then try again."
             )
         return True
 
