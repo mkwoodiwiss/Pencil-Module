@@ -189,8 +189,8 @@ class _AutomationBase:
                     last_weight = current
                 if current - start_weight >= target:
                     break
-                if time.monotonic() - last_change > 30:
-                    raise AutomationError(f"{step} scale failed to increase by more than 0.01 g for 30 seconds")
+                if time.monotonic() - last_change > 60:
+                    raise AutomationError(f"{step} scale failed to increase by more than 0.01 g for 60 seconds")
                 if time.monotonic() - started > max_duration:
                     raise AutomationError(f"{step} exceeded its maximum duration")
                 self.log_cycle(step)
