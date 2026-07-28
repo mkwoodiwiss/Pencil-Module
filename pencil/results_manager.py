@@ -110,12 +110,17 @@ class ResultsManager(tk.Toplevel):
         self.done_button.pack(side="left", padx=5)
 
         self.update_idletasks()
-        self._center_on_master(master)
+        self._center_on_screen()
         try:
-            self.grab_set()
+            self.wait_visibility()
+            self.lift()
             self.focus_force()
+            self.grab_set()
         except Exception:
             pass
+        # Some Pi window managers reposition a Toplevel while decorating it.
+        # Reapply the screen-centered geometry after the window is mapped.
+        self.after_idle(self._center_on_screen)
         self.after(150, self.refresh_drives)
 
     def _file_summary(self) -> str:
@@ -124,14 +129,16 @@ class ResultsManager(tk.Toplevel):
         names = [path.name for path in self.result_files]
         return "Files ready: " + "  |  ".join(names)
 
-    def _center_on_master(self, master: tk.Widget) -> None:
+    def _center_on_screen(self) -> None:
+        """Center against the physical screen rather than the parent window."""
         try:
+            self.update_idletasks()
             screen_width = self.winfo_screenwidth()
             screen_height = self.winfo_screenheight()
             width = min(screen_width - 24, max(700, self.winfo_reqwidth()))
             height = min(screen_height - 70, max(330, self.winfo_reqheight()))
-            x = max(0, master.winfo_rootx() + (master.winfo_width() - width) // 2)
-            y = max(0, master.winfo_rooty() + (master.winfo_height() - height) // 2)
+            x = max(0, (screen_width - width) // 2)
+            y = max(0, (screen_height - height) // 2)
             self.geometry(f"{width}x{height}+{x}+{y}")
         except Exception:
             pass
