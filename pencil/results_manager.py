@@ -190,11 +190,14 @@ class ResultsManager(tk.Toplevel):
             try:
                 result = export_test_results(self.result_files, drive, unmount=True)
             except USBExportError as exc:
-                self.after(0, lambda: self._export_failed(str(exc)))
+                message = str(exc)
+                self.after(0, lambda message=message: self._export_failed(message))
             except Exception as exc:
-                self.after(0, lambda: self._export_failed(f"Unexpected export error: {exc}"))
+                message = f"Unexpected export error: {exc}"
+                self.after(0, lambda message=message: self._export_failed(message))
             else:
-                self.after(0, lambda: self._export_complete(result.unmounted))
+                unmounted = result.unmounted
+                self.after(0, lambda unmounted=unmounted: self._export_complete(unmounted))
 
         threading.Thread(target=worker, daemon=True).start()
 
