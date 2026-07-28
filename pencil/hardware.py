@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import queue
 import re
 import threading
 import time
@@ -12,8 +13,6 @@ try:
 except ModuleNotFoundError:  # pragma: no cover - fallback for tests
     from . import serial_stub as serial
 
-# Optional vendor libraries. These are unavailable in the test environment,
-# so the code falls back to ``None`` which tests patch as needed.
 try:
     import lib8relind  # type: ignore
 except Exception:  # pragma: no cover
@@ -42,7 +41,7 @@ class _RelayWrapper:
 
 
 class _ScaleManager:
-    """Continuously read, cache, monitor, and recover one serial scale."""
+    """Own one scale serial port and serialize every read and command."""
 
     def __init__(
         self,
@@ -56,9 +55,12 @@ class _ScaleManager:
         self.baud = baud
         self.stale_after = stale_after
         self.reconnect_after = reconnect_after
+
+        # Compatibility lock only. The worker thread is the sole serial owner.
         self.lock = threading.RLock()
         self._state_lock = threading.Lock()
         self._stop_event = threading.Event()
+        self._commands: queue.Queue[tuple[str, object]] = queue.Queue()
         self._serial = None
         self._latest_text = "--"
         self._latest_value: Optional[float] = None
@@ -66,8 +68,9 @@ class _ScaleManager:
         self._latest_time = 0.0
         self._last_open_attempt = 0.0
         self._last_error = ""
-        self._open_serial()
-        self._thread = threading.Thread(target=self._reader_loop, daemon=True)
+        self._print_pending = False
+
+        self._thread = threading.Thread(target=self._worker_loop, daemon=True)
         self._thread.start()
 
     @property
@@ -77,10 +80,7 @@ class _ScaleManager:
 
     @staticmethod
     def _parse(raw: bytes | str) -> Optional[tuple[str, float, str]]:
-        if isinstance(raw, bytes):
-            text = raw.decode("ascii", errors="ignore")
-        else:
-            text = raw
+        text = raw.decode("ascii", errors="ignore") if isinstance(raw, bytes) else raw
         match = _WEIGHT_RE.search(text)
         if not match:
             return None
@@ -94,39 +94,63 @@ class _ScaleManager:
         sign = "+" if value >= 0 else "-"
         return f"{sign}{abs(value):.1f} {unit}", value, unit
 
-    def _open_serial(self) -> bool:
+    def _open_serial(self, force: bool = False) -> bool:
         now = time.monotonic()
-        if now - self._last_open_attempt < 1.0:
+        if not force and now - self._last_open_attempt < 1.0:
             return False
         self._last_open_attempt = now
+        old = self._serial
+        self._serial = None
+        if old is not None:
+            try:
+                old.close()
+            except Exception:
+                pass
         try:
-            with self.lock:
-                old = self._serial
-                self._serial = None
-                if old is not None:
-                    try:
-                        old.close()
-                    except Exception:
-                        pass
-                self._serial = serial.Serial(self.port, self.baud, timeout=0.5)
-                try:
-                    self._serial.reset_input_buffer()
-                except Exception:
-                    pass
+            self._serial = serial.Serial(self.port, self.baud, timeout=0.25)
+            try:
+                self._serial.reset_input_buffer()
+            except Exception:
+                pass
             self._last_error = ""
             return True
         except Exception as exc:
             self._last_error = repr(exc)
+            self._serial = None
             return False
 
+    def _close_serial(self) -> None:
+        ser = self._serial
+        self._serial = None
+        if ser is not None:
+            try:
+                ser.close()
+            except Exception:
+                pass
+
     def _readline(self) -> bytes:
-        with self.lock:
-            ser = self._serial
-            if ser is None:
-                return b""
-            if hasattr(ser, "readline"):
-                return ser.readline()
-            return ser.read_until(b"\r\n")
+        ser = self._serial
+        if ser is None:
+            return b""
+        if hasattr(ser, "readline"):
+            return ser.readline()
+        return ser.read_until(b"\r\n")
+
+    def _write(self, command: bytes) -> bool:
+        ser = self._serial
+        if ser is None and not self._open_serial(force=True):
+            return False
+        try:
+            self._serial.write(command)
+            try:
+                self._serial.flush()
+            except Exception:
+                pass
+            return True
+        except Exception as exc:
+            self._last_error = repr(exc)
+            self._close_serial()
+            return False
 
     def _record(self, parsed: tuple[str, float, str]) -> None:
         text, value, unit = parsed
@@ -136,11 +160,90 @@ class _ScaleManager:
             self._latest_unit = unit
             self._latest_time = time.monotonic()
 
-    def _reader_loop(self) -> None:
+    def _process_tare(self, payload: object) -> None:
+        result, completed, attempts, timeout = payload  # type: ignore[misc]
+        success = False
+        try:
+            for _attempt in range(int(attempts)):
+                if self._serial is None and not self._open_serial(force=True):
+                    time.sleep(0.25)
+                    continue
+
+                # The worker has just finished a complete receive cycle. Clear
+                # queued pre-tare lines, then send the one documented tare command.
+                try:
+                    self._serial.reset_input_buffer()
+                except Exception:
+                    pass
+
+                if not self._write(b"Z\r\n"):
+                    time.sleep(0.25)
+                    continue
+
+                command_time = time.monotonic()
+                deadline = command_time + float(timeout)
+                consecutive_zero = 0
+
+                while time.monotonic() < deadline and not self._stop_event.is_set():
+                    try:
+                        raw = self._readline()
+                    except Exception as exc:
+                        self._last_error = repr(exc)
+                        self._close_serial()
+                        break
+
+                    parsed = self._parse(raw)
+                    if parsed is None:
+                        continue
+                    self._record(parsed)
+                    _text, value, _unit = parsed
+
+                    # Only lines physically received by this worker after the
+                    # command was transmitted can count toward verification.
+                    if time.monotonic() >= command_time and abs(value) <= 0.2:
+                        consecutive_zero += 1
+                        if consecutive_zero >= 2:
+                            success = True
+                            break
+                    else:
+                        consecutive_zero = 0
+
+                if success:
+                    break
+                self._open_serial(force=True)
+                time.sleep(0.25)
+        finally:
+            result["success"] = success
+            completed.set()
+
+    def _process_command(self, command: str, payload: object) -> None:
+        if command == "tare":
+            self._process_tare(payload)
+        elif command == "print":
+            self._write(b"P\r\n")
+            with self._state_lock:
+                self._print_pending = False
+        elif command == "reconnect":
+            self._open_serial(force=True)
+        elif command == "stop":
+            self._stop_event.set()
+
+    def _worker_loop(self) -> None:
+        self._open_serial(force=True)
         while not self._stop_event.is_set():
+            try:
+                command, payload = self._commands.get_nowait()
+            except queue.Empty:
+                command = ""
+                payload = None
+
+            if command:
+                self._process_command(command, payload)
+                continue
+
             if self._serial is None:
                 self._open_serial()
-                self._stop_event.wait(0.25)
+                self._stop_event.wait(0.1)
                 continue
 
             try:
@@ -148,22 +251,14 @@ class _ScaleManager:
                 parsed = self._parse(raw)
                 if parsed is not None:
                     self._record(parsed)
-                    continue
             except Exception as exc:
                 self._last_error = repr(exc)
-                with self.lock:
-                    try:
-                        if self._serial is not None:
-                            self._serial.close()
-                    except Exception:
-                        pass
-                    self._serial = None
+                self._close_serial()
 
-            age = self.age()
-            if age > self.reconnect_after:
+            if self.age() > self.reconnect_after:
                 self._open_serial()
-            else:
-                self._stop_event.wait(0.05)
+
+        self._close_serial()
 
     def age(self) -> float:
         with self._state_lock:
@@ -172,79 +267,31 @@ class _ScaleManager:
             return time.monotonic() - self._latest_time
 
     def read(self) -> str:
-        """Return the newest valid reading, preserving brief stream dropouts."""
+        """Return the latest valid reading and queue a print request if stale."""
         with self._state_lock:
             text = self._latest_text
             timestamp = self._latest_time
-        if timestamp > 0 and time.monotonic() - timestamp <= self.stale_after:
-            return text
+            if timestamp > 0 and time.monotonic() - timestamp <= self.stale_after:
+                return text
+            if not self._print_pending:
+                self._print_pending = True
+                self._commands.put(("print", None))
 
-        # Prompt the scale only when its continuous stream has genuinely gone stale.
-        self.send(b"P\r\n")
         deadline = time.monotonic() + 1.0
         while time.monotonic() < deadline:
             with self._state_lock:
                 if self._latest_time > timestamp:
                     return self._latest_text
             time.sleep(0.05)
-
-        if self.age() > self.reconnect_after:
-            self._open_serial()
         return "--"
 
-    def send(self, command: bytes) -> bool:
-        try:
-            with self.lock:
-                if self._serial is None and not self._open_serial():
-                    return False
-                self._serial.write(command)
-                try:
-                    self._serial.flush()
-                except Exception:
-                    pass
-            return True
-        except Exception as exc:
-            self._last_error = repr(exc)
-            with self.lock:
-                try:
-                    if self._serial is not None:
-                        self._serial.close()
-                except Exception:
-                    pass
-                self._serial = None
-            return False
-
-    def tare(self, attempts: int = 3, timeout: float = 3.0) -> bool:
-        """Tare with retries and verify that fresh readings reach near zero."""
-        commands = (b"Z\r\n", b"T\r\n")
-        for attempt in range(attempts):
-            before_time = self._latest_time
-            command = commands[min(attempt, len(commands) - 1)]
-            if not self.send(command):
-                self._open_serial()
-                time.sleep(0.25)
-                continue
-
-            deadline = time.monotonic() + timeout
-            consecutive_zero = 0
-            last_seen = before_time
-            while time.monotonic() < deadline:
-                with self._state_lock:
-                    value = self._latest_value
-                    reading_time = self._latest_time
-                if reading_time > last_seen:
-                    last_seen = reading_time
-                    if value is not None and abs(value) <= 0.2:
-                        consecutive_zero += 1
-                        if consecutive_zero >= 2:
-                            return True
-                    else:
-                        consecutive_zero = 0
-                time.sleep(0.05)
-
-            self._open_serial()
-            time.sleep(0.25)
-        return False
+    def tare(self, attempts: int = 3, timeout: float = 5.0) -> bool:
+        """Queue a tare and wait for the serial-owner worker to verify it."""
+        completed = threading.Event()
+        result = {"success": False}
+        self._commands.put(("tare", (result, completed, attempts, timeout)))
+        completed.wait(attempts * (timeout + 1.0) + 2.0)
+        return bool(result["success"])
 
     def health(self) -> dict:
         """Return diagnostic state for HMI messages and troubleshooting."""
@@ -257,14 +304,10 @@ class _ScaleManager:
         }
 
     def close(self) -> None:
+        self._commands.put(("stop", None))
         self._stop_event.set()
-        with self.lock:
-            try:
-                if self._serial is not None:
-                    self._serial.close()
-            except Exception:
-                pass
-            self._serial = None
+        self._thread.join(timeout=1.0)
+        self._close_serial()
 
 
 class MEU:
@@ -285,14 +328,11 @@ class MEU:
         self.effluent_lock = self._effluent_scale.lock
         self.backwash_lock = self._backwash_scale.lock
         self._read_delay = read_delay
-        if lib8relind:
-            self.relay = _RelayWrapper(relay_stack)
-        else:
-            self.relay = None
+        self.relay = _RelayWrapper(relay_stack) if lib8relind else None
         if multiio:
             try:
                 self.io = multiio.SMmultiio(stack=io_stack, i2c=1)
-            except Exception:  # pragma: no cover - hardware init failed
+            except Exception:  # pragma: no cover
                 self.io = None
         else:
             self.io = None
@@ -318,24 +358,19 @@ class MEU:
             offset = 0.0
         if self.io:
             ma = self.io.get_i_in(channel)
-            psi = (ma - 4.0) * (30.0 / 16.0)
-            return psi + offset
+            return (ma - 4.0) * (30.0 / 16.0) + offset
         return offset
 
     def read_rtd(self, channel: int) -> float:
         """Return temperature from an RTD input channel."""
         if self.io:
-            temp = self.io.get_rtd_temp(channel + 1)
-            return temp + self.temp_offset
+            return self.io.get_rtd_temp(channel + 1) + self.temp_offset
         return self.temp_offset
 
     def set_solenoid(self, relay: int, state: bool) -> None:
         """Activate or deactivate a solenoid valve."""
         if self.relay:
-            if state:
-                self.relay.on(relay)
-            else:
-                self.relay.off(relay)
+            self.relay.on(relay) if state else self.relay.off(relay)
 
     def zero_scales(self) -> bool:
         """Tare both scales and return True only when both verify near zero."""
@@ -344,7 +379,7 @@ class MEU:
         return effluent_ok and backwash_ok
 
     def zero_scale(self, channel: int) -> bool:
-        """Tare one scale with retries, verification, and reconnection."""
+        """Tare one scale through its serial-owner worker."""
         manager = self._effluent_scale if channel == 0 else self._backwash_scale
         return manager.tare()
 
@@ -359,7 +394,6 @@ class MEU:
         pressure_in: float = 0.0,
         temperature: float = 0.0,
     ) -> None:
-        """Store calibration offsets for later readings."""
         self.pressure_offset_bw = pressure_bw
         self.pressure_offset_in = pressure_in
         self.temp_offset = temperature
@@ -375,5 +409,4 @@ class MEU:
         self._backwash_scale.close()
 
 
-# Backward-compatible alias for older scripts and saved integrations.
 PencilModule = MEU
