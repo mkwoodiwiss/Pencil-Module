@@ -3,6 +3,21 @@
 import tkinter as tk
 
 
+def _center_on_screen(window: tk.Toplevel) -> None:
+    """Center a popup on screen and keep it inside the visible work area."""
+    window.update_idletasks()
+    width = window.winfo_reqwidth()
+    height = window.winfo_reqheight()
+    screen_width = window.winfo_screenwidth()
+    screen_height = window.winfo_screenheight()
+
+    width = min(width, max(200, screen_width - 20))
+    height = min(height, max(200, screen_height - 30))
+    x = max(0, (screen_width - width) // 2)
+    y = max(0, (screen_height - height) // 2)
+    window.geometry(f"{width}x{height}+{x}+{y}")
+
+
 class NumericKeypad(tk.Toplevel):
     """Large on-screen keypad for numeric entry."""
 
@@ -21,8 +36,8 @@ class NumericKeypad(tk.Toplevel):
             textvariable=self.value,
             width=12,
             justify="right",
-            font=("Arial", 20),
-        ).grid(row=0, column=0, columnspan=col_span, padx=8, pady=8, sticky="ew")
+            font=("Arial", 19),
+        ).grid(row=0, column=0, columnspan=col_span, padx=8, pady=(7, 5), sticky="ew")
 
         buttons = [
             ("7", 1, 0), ("8", 1, 1), ("9", 1, 2),
@@ -38,13 +53,13 @@ class NumericKeypad(tk.Toplevel):
                 self,
                 text=text,
                 width=5,
-                height=2,
-                font=("Arial", 18),
+                height=1,
+                font=("Arial", 17),
                 command=lambda ch=text: self._press(ch),
-            ).grid(row=row, column=column, padx=4, pady=4)
+            ).grid(row=row, column=column, padx=4, pady=3, ipadx=5, ipady=7)
 
         action_frame = tk.Frame(self)
-        action_frame.grid(row=5, column=0, columnspan=col_span, pady=(5, 8))
+        action_frame.grid(row=5, column=0, columnspan=col_span, pady=(3, 7))
         for text, command in (
             ("Clear", self._clear),
             ("Cancel", self.destroy),
@@ -54,29 +69,18 @@ class NumericKeypad(tk.Toplevel):
                 action_frame,
                 text=text,
                 width=7,
-                height=2,
-                font=("Arial", 15),
+                height=1,
+                font=("Arial", 14),
                 command=command,
-            ).pack(side="left", padx=4)
+            ).pack(side="left", padx=4, ipady=6)
 
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.attributes("-topmost", True)
-        self.transient(master)
-        self.update_idletasks()
-        self._center_over_master(master)
+        self.transient(master.winfo_toplevel())
+        _center_on_screen(self)
         self.focus_set()
         self.wait_visibility()
-
-    def _center_over_master(self, master: tk.Widget) -> None:
-        try:
-            width = self.winfo_reqwidth()
-            height = self.winfo_reqheight()
-            x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
-            y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 2)
-            self.geometry(f"{width}x{height}+{x}+{y}")
-        except Exception:
-            pass
 
     def _press(self, char: str) -> None:
         if char == "<-":
@@ -141,10 +145,10 @@ class OnScreenKeyboard(tk.Toplevel):
         self.value = tk.StringVar(value=str(variable.get()))
         self._replace_on_next_input = True
 
-        tk.Entry(self, textvariable=self.value, width=28, font=("Arial", 18)).pack(padx=8, pady=8)
+        tk.Entry(self, textvariable=self.value, width=28, font=("Arial", 17)).pack(padx=8, pady=(7, 5))
 
         keys_frame = tk.Frame(self)
-        keys_frame.pack(padx=6, pady=(0, 6))
+        keys_frame.pack(padx=6, pady=(0, 5))
 
         rows = [
             list("1234567890"),
@@ -160,13 +164,13 @@ class OnScreenKeyboard(tk.Toplevel):
                     row_frame,
                     text=char,
                     width=3,
-                    height=2,
-                    font=("Arial", 14),
+                    height=1,
+                    font=("Arial", 13),
                     command=lambda ch=char: self._press(ch),
-                ).pack(side="left", padx=2, pady=2)
+                ).pack(side="left", padx=2, pady=2, ipady=5)
 
         bottom = tk.Frame(keys_frame)
-        bottom.pack(anchor="center", pady=(3, 0))
+        bottom.pack(anchor="center", pady=(2, 0))
         controls = (
             ("_", 4, lambda: self._press("_")),
             ("Backspace", 10, lambda: self._press("<-")),
@@ -179,29 +183,18 @@ class OnScreenKeyboard(tk.Toplevel):
                 bottom,
                 text=text,
                 width=width,
-                height=2,
-                font=("Arial", 13),
+                height=1,
+                font=("Arial", 12),
                 command=command,
-            ).pack(side="left", padx=2, pady=2)
+            ).pack(side="left", padx=2, pady=2, ipady=5)
 
         self.bind("<Return>", lambda _e: self._apply())
         self.bind("<KP_Enter>", lambda _e: self._apply())
         self.attributes("-topmost", True)
-        self.transient(master)
-        self.update_idletasks()
-        self._center_over_master(master)
+        self.transient(master.winfo_toplevel())
+        _center_on_screen(self)
         self.focus_set()
         self.wait_visibility()
-
-    def _center_over_master(self, master: tk.Widget) -> None:
-        try:
-            width = self.winfo_reqwidth()
-            height = self.winfo_reqheight()
-            x = master.winfo_rootx() + max(0, (master.winfo_width() - width) // 2)
-            y = master.winfo_rooty() + max(0, (master.winfo_height() - height) // 2)
-            self.geometry(f"{width}x{height}+{x}+{y}")
-        except Exception:
-            pass
 
     def _press(self, char: str) -> None:
         if char == "<-":
