@@ -1,8 +1,11 @@
 """Runtime fixes for the MEU touchscreen HMI."""
 
 from __future__ import annotations
+
 import os
+import threading
 import tkinter as tk
+from tkinter import messagebox
 
 from .hmi_meu import HMI as _MEUHMI
 from .results_manager import open_results_manager
@@ -13,6 +16,7 @@ class HMI(_MEUHMI):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        self._manual_tare_channels: set[int] = set()
         self._bind_settings_action_buttons()
         self._run_started = False
 
@@ -56,9 +60,61 @@ class HMI(_MEUHMI):
             elif text == "Calibrate":
                 widget.config(command=self.calibrate)
             elif text == "Tare FIL":
-                widget.config(command=lambda: self.module.zero_scale(0))
+                widget.config(command=lambda button=widget: self._start_manual_tare(0, button))
             elif text == "Tare BW EFL":
-                widget.config(command=lambda: self.module.zero_scale(1))
+                widget.config(command=lambda button=widget: self._start_manual_tare(1, button))
+
+    def _start_manual_tare(self, channel: int, button: tk.Button) -> None:
+        """Tare one scale on a worker thread so the touchscreen stays responsive."""
+        if channel in self._manual_tare_channels or getattr(self, "is_running", False):
+            return
+
+        self._manual_tare_channels.add(channel)
+        normal_text = "Tare FIL" if channel == 0 else "Tare BW EFL"
+        try:
+            button.config(text="Taring...", state="disabled")
+        except Exception:
+            pass
+
+        def worker() -> None:
+            error = ""
+            success = False
+            try:
+                success = bool(self.module.zero_scale(channel))
+            except Exception as exc:
+                error = str(exc)
+            self.after(
+                0,
+                lambda: self._manual_tare_finished(
+                    channel, button, normal_text, success, error
+                ),
+            )
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _manual_tare_finished(
+        self,
+        channel: int,
+        button: tk.Button,
+        normal_text: str,
+        success: bool,
+        error: str,
+    ) -> None:
+        self._manual_tare_channels.discard(channel)
+        try:
+            button.config(text=normal_text, state="normal")
+        except Exception:
+            pass
+
+        scale_name = "Filtrate scale" if channel == 0 else "BW Effluent scale"
+        if error:
+            messagebox.showerror("Scale Tare Failed", f"{scale_name}: {error}")
+        elif not success:
+            messagebox.showerror(
+                "Scale Tare Failed",
+                f"{scale_name} did not accept tare or did not return two verified zero readings. "
+                "Confirm the reading is stable and try again.",
+            )
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
         """Use a larger, centered touchscreen-friendly settings dialog."""
