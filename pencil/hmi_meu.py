@@ -60,6 +60,7 @@ class HMI(_BaseHMI):
         self._normalize_visible_text(self)
         self._automation_error: str | None = None
         self._sync_all_valve_buttons()
+        self._layout_settings_actions()
 
     def _normalize_visible_text(self, parent) -> None:
         """Normalize text in widgets and canvas items using I/O-list names."""
@@ -84,6 +85,85 @@ class HMI(_BaseHMI):
                     pass
 
             self._normalize_visible_text(child)
+
+    def _walk_widgets(self, parent):
+        for child in parent.winfo_children():
+            yield child
+            yield from self._walk_widgets(child)
+
+    def _layout_settings_actions(self) -> None:
+        """Arrange settings actions in a centered two-row touchscreen layout."""
+        for settings in self._walk_widgets(self):
+            if not isinstance(settings, tk.LabelFrame):
+                continue
+            try:
+                if settings.cget("text") != "Settings":
+                    continue
+            except Exception:
+                continue
+
+            edit_button = None
+            old_button_frame = None
+            action_buttons = {}
+
+            for child in settings.winfo_children():
+                if isinstance(child, tk.Button):
+                    try:
+                        if child.cget("text") == "Edit Settings":
+                            edit_button = child
+                    except Exception:
+                        pass
+                elif isinstance(child, tk.Frame):
+                    found = {}
+                    for button in child.winfo_children():
+                        if isinstance(button, tk.Button):
+                            try:
+                                found[button.cget("text")] = button
+                            except Exception:
+                                pass
+                    if "Calibrate" in found:
+                        old_button_frame = child
+                        action_buttons = found
+
+            if edit_button is None or old_button_frame is None:
+                continue
+
+            edit_command = edit_button.cget("command")
+            calibrate_command = action_buttons["Calibrate"].cget("command")
+            tare_fil_command = action_buttons.get("Tare FIL", action_buttons.get("Tare EFL")).cget("command")
+            tare_bw_command = action_buttons.get("Tare BW EFL", action_buttons.get("Tare BW")).cget("command")
+
+            edit_button.destroy()
+            old_button_frame.destroy()
+
+            action_frame = tk.Frame(settings)
+            action_frame.grid(row=1, column=0, columnspan=5, pady=(4, 8), sticky="ew")
+            action_frame.columnconfigure((0, 1), weight=1)
+
+            tk.Button(
+                action_frame,
+                text="Edit Settings",
+                command=edit_command,
+                width=13,
+            ).grid(row=0, column=0, padx=5, pady=(0, 5))
+            tk.Button(
+                action_frame,
+                text="Calibrate",
+                command=calibrate_command,
+                width=13,
+            ).grid(row=0, column=1, padx=5, pady=(0, 5))
+            tk.Button(
+                action_frame,
+                text="Tare FIL",
+                command=tare_fil_command,
+                width=13,
+            ).grid(row=1, column=0, padx=5)
+            tk.Button(
+                action_frame,
+                text="Tare BW EFL",
+                command=tare_bw_command,
+                width=13,
+            ).grid(row=1, column=1, padx=5)
 
     def _sync_valve_button(self, channel: int) -> None:
         """Keep a valve button's normal and active appearance in sync."""
@@ -119,20 +199,14 @@ class HMI(_BaseHMI):
             self._sync_valve_button(valve - 1)
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
-        """Make settings dialogs and their controls easier to use by touch."""
-        try:
-            window.geometry("720x480")
-            window.minsize(640, 420)
-        except Exception:
-            pass
-
+        """Style, size to content, and center a settings dialog."""
         def style(parent) -> None:
             for child in parent.winfo_children():
                 try:
                     if isinstance(child, tk.Button):
-                        child.config(font=("Arial", 14), height=2, padx=8, pady=4)
+                        child.config(font=("Arial", 14), height=1, padx=10, pady=5)
                     elif isinstance(child, tk.Checkbutton):
-                        child.config(font=("Arial", 13), padx=6, pady=4)
+                        child.config(font=("Arial", 13), padx=5, pady=3)
                     elif isinstance(child, tk.Entry):
                         child.config(font=("Arial", 14))
                     elif isinstance(child, tk.Label):
@@ -142,6 +216,26 @@ class HMI(_BaseHMI):
                 style(child)
 
         style(window)
+        window.update_idletasks()
+
+        width = window.winfo_reqwidth() + 28
+        height = window.winfo_reqheight() + 28
+        max_width = max(320, self.winfo_screenwidth() - 30)
+        max_height = max(240, self.winfo_screenheight() - 60)
+        width = min(width, max_width)
+        height = min(height, max_height)
+
+        parent_x = self.winfo_rootx()
+        parent_y = self.winfo_rooty()
+        parent_width = self.winfo_width()
+        parent_height = self.winfo_height()
+        x = parent_x + max(0, (parent_width - width) // 2)
+        y = parent_y + max(0, (parent_height - height) // 2)
+
+        window.geometry(f"{width}x{height}+{x}+{y}")
+        window.resizable(False, False)
+        window.lift()
+        window.focus_force()
 
     def _open_and_style_settings(self, opener) -> None:
         before = set(self.winfo_children())
