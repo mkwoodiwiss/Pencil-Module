@@ -103,6 +103,109 @@ class HMI(_BaseHMI):
             "feed_temperature_offset": self.module.temp_offset,
         }
 
+    def _center_prime_window(self) -> None:
+        """Center the prime popup on the physical display after layout."""
+        if not self.prime_frame:
+            return
+        self.prime_frame.update_idletasks()
+        width = self.prime_frame.winfo_reqwidth()
+        height = self.prime_frame.winfo_reqheight()
+        x = max(0, (self.prime_frame.winfo_screenwidth() - width) // 2)
+        y = max(0, (self.prime_frame.winfo_screenheight() - height) // 2)
+        self.prime_frame.geometry(f"{width}x{height}+{x}+{y}")
+
+    def _build_prime_popup(self, title: str, action_text: str, action_command) -> None:
+        """Build the current prime stage in the dedicated popup window."""
+        if not self.prime_frame:
+            return
+        for widget in self.prime_frame.winfo_children():
+            widget.destroy()
+
+        content = tk.Frame(self.prime_frame, padx=24, pady=20)
+        content.pack(fill="both", expand=True)
+        tk.Label(content, text=title, font=("Arial", 18, "bold")).pack(pady=(0, 18))
+
+        buttons = tk.Frame(content)
+        buttons.pack()
+        tk.Button(
+            buttons,
+            text="Cancel",
+            command=self._cancel_prime,
+            font=("Arial", 14),
+            width=10,
+            height=2,
+        ).pack(side="left", padx=8)
+        tk.Button(
+            buttons,
+            text=action_text,
+            command=action_command,
+            font=("Arial", 14),
+            width=10,
+            height=2,
+        ).pack(side="left", padx=8)
+        self._center_prime_window()
+
+    def prime(self) -> None:
+        """Open the prime sequence in a centered modal popup."""
+        if self.prime_frame and self.prime_frame.winfo_exists():
+            self.prime_frame.lift()
+            self.prime_frame.focus_force()
+            return
+
+        self.prime_stage = 1
+        self.prime_frame = tk.Toplevel(self)
+        self.prime_frame.title("Prime Sequence")
+        self.prime_frame.resizable(False, False)
+        self.prime_frame.transient(self)
+        self.prime_frame.protocol("WM_DELETE_WINDOW", self._cancel_prime)
+        self.prime_frame.grab_set()
+        self._build_prime_popup("Confirm Prime", "Start", self._start_prime)
+        self.prime_frame.lift()
+        self.prime_frame.focus_force()
+
+    def _cancel_prime(self) -> None:
+        self._close_all_valves()
+        if self.prime_frame:
+            try:
+                self.prime_frame.grab_release()
+            except tk.TclError:
+                pass
+            self.prime_frame.destroy()
+            self.prime_frame = None
+        self.prime_stage = 0
+
+    def _start_prime(self) -> None:
+        self.prime_stage = 2
+        self._show_prime_stage()
+
+    def _advance_prime(self) -> None:
+        self.prime_stage += 1
+        if self.prime_stage > 4:
+            self._finish_prime()
+        else:
+            self._show_prime_stage()
+
+    def _show_prime_stage(self) -> None:
+        if not self.prime_frame:
+            return
+        step_text = {2: "Step 1", 3: "Step 2", 4: "Step 3"}
+        self._close_all_valves()
+        if self.prime_stage == 2:
+            self._open_valves(2, 3, 4)
+        elif self.prime_stage == 3:
+            self._open_valves(1, 5)
+        elif self.prime_stage == 4:
+            self._open_valves(2, 4)
+        action_text = "Continue" if self.prime_stage < 4 else "Finish"
+        self._build_prime_popup(
+            step_text.get(self.prime_stage, "Prime"),
+            action_text,
+            self._advance_prime,
+        )
+
+    def _finish_prime(self) -> None:
+        self._cancel_prime()
+
     def _thread_safe_prompt(self, message: str) -> bool:
         completed = threading.Event()
         result = {"accepted": False}
