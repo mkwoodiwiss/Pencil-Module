@@ -42,18 +42,37 @@ class HMI(_MEUHMI):
         canvas.create_text(65, 95, text="BW Tank")
         pi1_text = canvas.create_text(65, 145, text="-- PSI")
 
-        # Keep the original 180 px membrane length, shifted left for a clear outlet area.
-        # Both vertical ports are inset 15 px from their respective membrane ends.
-        membrane_left = 270
-        membrane_right = 450
+        # Keep the membrane 180 px long. Move it right enough to reduce the
+        # membrane-to-valve-column gap by one third, and down to give the feed
+        # inlet a clear vertical approach above the downward arrow.
+        membrane_left = 293
+        membrane_right = 473
         membrane_center = (membrane_left + membrane_right) / 2
         top_port_center = membrane_left + 22.5
         lower_port_center = membrane_right - 22.5
+        membrane_top = 55
+        membrane_bottom = 75
+        top_port_top = 35
+        lower_port_bottom = 95
 
-        canvas.create_rectangle(membrane_left, 45, membrane_right, 65, fill="lightgray")
-        canvas.create_rectangle(top_port_center - 7.5, 25, top_port_center + 7.5, 45, fill="lightgray")
-        canvas.create_rectangle(lower_port_center - 7.5, 65, lower_port_center + 7.5, 85, fill="lightgray")
-        canvas.create_text(membrane_center, 35, text="Membrane")
+        canvas.create_rectangle(
+            membrane_left, membrane_top, membrane_right, membrane_bottom, fill="lightgray"
+        )
+        canvas.create_rectangle(
+            top_port_center - 7.5,
+            top_port_top,
+            top_port_center + 7.5,
+            membrane_top,
+            fill="lightgray",
+        )
+        canvas.create_rectangle(
+            lower_port_center - 7.5,
+            membrane_bottom,
+            lower_port_center + 7.5,
+            lower_port_bottom,
+            fill="lightgray",
+        )
+        canvas.create_text(membrane_center, 45, text="Membrane")
 
         # Outlet vessels with labels kept clear of all valve buttons and piping.
         canvas.create_rectangle(600, 20, 650, 70, fill="lightblue")
@@ -78,33 +97,47 @@ class HMI(_MEUHMI):
         }
 
         # V1: BW Tank to the membrane left-end port.
-        lines[0] = canvas.create_line(105, 130, 245, 130, fill="gray", width=2)
-        lines["v1_vert"] = canvas.create_line(245, 130, 245, 55, fill="gray", width=2)
-        lines["v1_end"] = canvas.create_line(245, 55, membrane_left, 55, arrow="last", fill="gray", width=2)
+        lines[0] = canvas.create_line(105, 130, 260, 130, fill="gray", width=2)
+        lines["v1_vert"] = canvas.create_line(260, 130, 260, 65, fill="gray", width=2)
+        lines["v1_end"] = canvas.create_line(
+            260, 65, membrane_left, 65, arrow="last", fill="gray", width=2
+        )
         valve_labels["V1"] = canvas.create_text(165, 130, text="V1")
 
-        # V2: Feed Tank rises above the top port, then points downward into it.
+        # V2: Feed Tank rises above the top port, runs horizontally, then has a
+        # short visible vertical section before the downward arrow enters the port.
+        feed_header_y = 25
         lines[1] = canvas.create_line(105, 50, 220, 50, fill="gray", width=2)
-        lines["v2_rise"] = canvas.create_line(220, 50, 220, 20, fill="gray", width=2)
-        lines["v2_top"] = canvas.create_line(220, 20, top_port_center, 20, fill="gray", width=2)
-        lines["v2_drop"] = canvas.create_line(top_port_center, 20, top_port_center, 25, arrow="last", fill="gray", width=2)
+        lines["v2_rise"] = canvas.create_line(220, 50, 220, feed_header_y, fill="gray", width=2)
+        lines["v2_top"] = canvas.create_line(
+            220, feed_header_y, top_port_center, feed_header_y, fill="gray", width=2
+        )
+        lines["v2_drop"] = canvas.create_line(
+            top_port_center,
+            feed_header_y,
+            top_port_center,
+            top_port_top,
+            arrow="last",
+            fill="gray",
+            width=2,
+        )
         valve_labels["V2"] = canvas.create_text(165, 50, text="V2")
-        canvas.create_rectangle(225, 12.5, 280, 27.5, fill="white", outline="black")
-        te_text = canvas.create_text(252.5, 20, text="-- C")
+        canvas.create_rectangle(225, 17.5, 280, 32.5, fill="white", outline="black")
+        te_text = canvas.create_text(252.5, 25, text="-- C")
 
         # V3, V4, and V5 use one aligned valve column.
         outlet_valve_x = 520
 
         lines[2] = canvas.create_line(lower_port_center, 140, 600, 140, arrow="last", fill="gray", width=2)
-        lines["v3_vert1"] = canvas.create_line(lower_port_center, 95, lower_port_center, 140, fill="gray", width=2)
-        lines["v3_vert2"] = canvas.create_line(lower_port_center, 85, lower_port_center, 95, fill="gray", width=2)
+        lines["v3_vert1"] = canvas.create_line(lower_port_center, 105, lower_port_center, 140, fill="gray", width=2)
+        lines["v3_vert2"] = canvas.create_line(lower_port_center, lower_port_bottom, lower_port_center, 105, fill="gray", width=2)
         valve_labels["V3"] = canvas.create_text(outlet_valve_x, 140, text="V3")
 
-        lines[3] = canvas.create_line(lower_port_center, 95, 690, 95, arrow="last", fill="gray", width=2)
-        valve_labels["V4"] = canvas.create_text(outlet_valve_x, 95, text="V4")
+        lines[3] = canvas.create_line(lower_port_center, 105, 690, 105, arrow="last", fill="gray", width=2)
+        valve_labels["V4"] = canvas.create_text(outlet_valve_x, 105, text="V4")
 
-        lines[4] = canvas.create_line(membrane_right, 55, 600, 55, arrow="last", fill="gray", width=2)
-        valve_labels["V5"] = canvas.create_text(outlet_valve_x, 55, text="V5")
+        lines[4] = canvas.create_line(membrane_right, 65, 600, 65, arrow="last", fill="gray", width=2)
+        valve_labels["V5"] = canvas.create_text(outlet_valve_x, 65, text="V5")
 
         solenoid_buttons = []
         valve_keys = ["V1", "V2", "V3", "V4", "V5"]
@@ -121,7 +154,7 @@ class HMI(_MEUHMI):
             solenoid_buttons.append(btn)
 
         prime_btn = tk.Button(canvas, text="Prime", command=self.prime)
-        canvas.create_window(membrane_center, 100, window=prime_btn)
+        canvas.create_window(membrane_center, 110, window=prime_btn)
 
         return {
             "canvas": canvas,
