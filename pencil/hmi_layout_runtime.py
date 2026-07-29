@@ -27,7 +27,6 @@ class HMI(_RuntimeHMI):
         close_btn.pack(side="left", ipadx=4, ipady=4)
         canvas.create_window(770, 10, window=btn_frame, anchor="ne")
 
-        # Inlet tanks.
         canvas.create_rectangle(25, 85, 105, 135, fill="lightblue")
         canvas.create_text(65, 75, text="Feed Tank")
         pi2_text = canvas.create_text(65, 125, text="-- PSI")
@@ -36,26 +35,22 @@ class HMI(_RuntimeHMI):
         canvas.create_text(65, 150, text="BW Tank")
         pi1_text = canvas.create_text(65, 200, text="-- PSI")
 
-        # Vertical membrane, rotated 90 degrees counterclockwise.
         membrane_left = 360
         membrane_right = 380
         membrane_top = 35
         membrane_bottom = 185
         membrane_center_x = (membrane_left + membrane_right) / 2
-        membrane_center_y = (membrane_top + membrane_bottom) / 2
 
         canvas.create_rectangle(
             membrane_left, membrane_top, membrane_right, membrane_bottom, fill="lightgray"
         )
 
-        # V2 side port near the bottom, V3/V4 side port near the top.
         v2_port_y = 150
         outlet_port_y = 75
         canvas.create_rectangle(340, v2_port_y - 7.5, membrane_left, v2_port_y + 7.5, fill="lightgray")
         canvas.create_rectangle(membrane_right, outlet_port_y - 7.5, 400, outlet_port_y + 7.5, fill="lightgray")
         canvas.create_text(membrane_center_x, 22, text="Membrane")
 
-        # Outlet vessels.
         canvas.create_rectangle(600, 20, 650, 70, fill="lightblue")
         canvas.create_text(625, 10, text="Filtrate")
         effluent_weight_text = canvas.create_text(625, 60, text="-- g")
@@ -77,7 +72,6 @@ class HMI(_RuntimeHMI):
             4: [4, "v5_rise"],
         }
 
-        # V1 enters the bottom end of the membrane.
         lines[0] = canvas.create_line(105, 185, 300, 185, fill="gray", width=2)
         lines["v1_bottom"] = canvas.create_line(
             300, 185, 300, 210, membrane_center_x, 210, membrane_center_x, membrane_bottom,
@@ -85,14 +79,14 @@ class HMI(_RuntimeHMI):
         )
         valve_labels["V1"] = canvas.create_text(185, 185, text="V1")
 
-        # V2 enters the left side near the bottom.
-        lines[1] = canvas.create_line(105, 110, 340, 110, 340, v2_port_y, membrane_left, v2_port_y,
-                                      arrow="last", fill="gray", width=2)
+        lines[1] = canvas.create_line(
+            105, 110, 340, 110, 340, v2_port_y, membrane_left, v2_port_y,
+            arrow="last", fill="gray", width=2
+        )
         valve_labels["V2"] = canvas.create_text(185, 110, text="V2")
         canvas.create_rectangle(235, 102.5, 290, 117.5, fill="white", outline="black")
         te_text = canvas.create_text(262.5, 110, text="-- C")
 
-        # V5 exits from the top end of the membrane.
         lines["v5_rise"] = canvas.create_line(
             membrane_center_x, membrane_top, membrane_center_x, 20, fill="gray", width=2
         )
@@ -101,10 +95,13 @@ class HMI(_RuntimeHMI):
         )
         valve_labels["V5"] = canvas.create_text(500, 20, text="V5")
 
-        # V3 and V4 share the right-side outlet near the top.
-        lines["outlet_header"] = canvas.create_line(400, outlet_port_y, 455, outlet_port_y, fill="gray", width=2)
-        lines[3] = canvas.create_line(455, outlet_port_y, 690, outlet_port_y, 690, 100,
-                                      arrow="last", fill="gray", width=2)
+        lines["outlet_header"] = canvas.create_line(
+            400, outlet_port_y, 455, outlet_port_y, fill="gray", width=2
+        )
+        lines[3] = canvas.create_line(
+            455, outlet_port_y, 690, outlet_port_y, 690, 100,
+            arrow="last", fill="gray", width=2
+        )
         valve_labels["V4"] = canvas.create_text(520, outlet_port_y, text="V4")
 
         lines["v3_drop"] = canvas.create_line(455, outlet_port_y, 455, 180, fill="gray", width=2)
@@ -141,6 +138,19 @@ class HMI(_RuntimeHMI):
             "solenoid_buttons": solenoid_buttons,
             "prime_btn": prime_btn,
         }
+
+    def _update_lines(self) -> None:
+        """Color the custom PFD without relying on legacy line-key names."""
+        for pfd in self.pfds.values():
+            canvas = pfd["canvas"]
+            lines = pfd["lines"]
+            for line_key, line_id in lines.items():
+                active = False
+                for valve_index, line_keys in pfd["valve_to_lines"].items():
+                    if line_key in line_keys and self.solenoid_states[valve_index]:
+                        active = True
+                        break
+                canvas.itemconfig(line_id, fill="green" if active else "gray")
 
     def _anchor_bottom_panels(self) -> None:
         """Anchor PFDs at the top and information panels at the screen bottom."""
@@ -190,7 +200,6 @@ class HMI(_RuntimeHMI):
                 except Exception:
                     pass
 
-            # The common lower area expands between the top PFD and bottom panels.
             for child in tab.winfo_children():
                 if isinstance(child, tk.Frame):
                     try:
