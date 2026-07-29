@@ -15,6 +15,7 @@ class HMI(_ValidatedHMI):
     PFD_HEIGHT = 225
     PFD_SCALE_X = 0.90
     TAB_STRIP_OFFSET = 30
+    TOP_MARGIN = 8
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -29,7 +30,7 @@ class HMI(_ValidatedHMI):
         self.update_idletasks()
 
     def _hide_native_tabs(self) -> None:
-        """Physically clip the ttk tab strip while preserving notebook switching."""
+        """Clip the ttk tab strip while retaining a clean top screen margin."""
         style = ttk.Style(self)
         style.layout(
             "MEU.Hidden.TNotebook",
@@ -43,19 +44,21 @@ class HMI(_ValidatedHMI):
         )
         self.notebook.configure(style="MEU.Hidden.TNotebook")
 
-        # Some Raspberry Pi ttk themes continue drawing the tab strip even when
-        # the style omits it. Move only that strip above the visible viewport and
-        # add the same amount to the notebook height so no content is lost below.
+        # Some Raspberry Pi ttk themes continue drawing the native tab strip.
+        # Move that strip above the viewport, but retain an 8 px top margin. The
+        # notebook height is compensated so no lower controls are pushed off-screen.
         try:
             self.notebook.pack_forget()
         except Exception:
             pass
+        visible_y = self.TOP_MARGIN - self.TAB_STRIP_OFFSET
+        height_compensation = self.TAB_STRIP_OFFSET - self.TOP_MARGIN
         self.notebook.place(
             x=0,
-            y=-self.TAB_STRIP_OFFSET,
+            y=visible_y,
             relwidth=1.0,
             relheight=1.0,
-            height=self.TAB_STRIP_OFFSET,
+            height=height_compensation,
         )
 
     def _remove_legacy_help_controls(self) -> None:
