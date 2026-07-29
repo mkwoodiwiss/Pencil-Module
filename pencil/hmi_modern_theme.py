@@ -1,9 +1,4 @@
-"""Classic MEU HMI styling with selected visual accents.
-
-The original HMI appearance and geometry are preserved. Process-vessel colors,
-outlines, Exit and Cancel colors, classic top-navigation tabs, and the post-run
-USB export dialog are customized.
-"""
+"""Classic MEU HMI styling and reliable post-run USB export."""
 
 from __future__ import annotations
 
@@ -20,20 +15,22 @@ from .hmi_lower_panel_fix import HMI as _LayoutHMI
 
 
 class HMI(_LayoutHMI):
-    """MEU HMI using the original style with selected retained accents."""
+    """MEU HMI using classic file-folder tabs and selected visual accents."""
 
     VESSEL_FILL = "#D5EAF2"
-    MEMBRANE_FILL = "#D9E1E7"
+    MEMBRANE_FILL = "#DCE4E9"
     VESSEL_OUTLINE = "#9FB0BC"
     DANGER = "#B94747"
     DANGER_ACTIVE = "#963A3A"
-    TAB_IDLE = "#D9D9D9"
-    TAB_ACTIVE = "#F7F7F7"
-    TAB_HOVER = "#E8E8E8"
+    TAB_IDLE = "#CFCFCC"
+    TAB_ACTIVE = "#F4F4F1"
+    TAB_HOVER = "#E4E4E1"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._run_started_at: float | None = None
+        self._run_log_snapshot: set[Path] = set()
+        self._run_was_cancelled = False
         self._usb_dialog_run_token: float | None = None
         self._usb_export_window: tk.Toplevel | None = None
         self._apply_selected_accents(self)
@@ -41,7 +38,6 @@ class HMI(_LayoutHMI):
         self.bind_all("<Map>", self._style_mapped_widget, add="+")
 
     def _style_mapped_widget(self, event) -> None:
-        """Style newly opened dialogs without changing their layout or theme."""
         widget = event.widget
         try:
             widget.after_idle(lambda target=widget: self._apply_selected_accents(target))
@@ -49,7 +45,6 @@ class HMI(_LayoutHMI):
             pass
 
     def _style_button(self, button: tk.Button) -> None:
-        """Retain red treatment only for Exit and Cancel actions."""
         try:
             text = str(button.cget("text")).strip().lower()
             if text not in {"exit", "cancel"}:
@@ -64,7 +59,7 @@ class HMI(_LayoutHMI):
             pass
 
     def _style_navigation_button(self, button: tk.Button, selected: bool) -> None:
-        """Present the existing top controls as classic raised navigation tabs."""
+        """Make each top control resemble a classic file-cabinet folder tab."""
         try:
             label = str(button.cget("text")).strip().lower()
             if label == "exit":
@@ -74,9 +69,11 @@ class HMI(_LayoutHMI):
                     activebackground=self.DANGER_ACTIVE,
                     activeforeground="white",
                     relief="raised",
+                    overrelief="raised",
                     borderwidth=2,
                     highlightthickness=0,
                     font=self.NAV_FONT,
+                    anchor="s",
                 )
                 return
 
@@ -85,16 +82,19 @@ class HMI(_LayoutHMI):
                 fg="black",
                 activebackground=self.TAB_ACTIVE if selected else self.TAB_HOVER,
                 activeforeground="black",
-                relief="sunken" if selected else "raised",
-                borderwidth=2,
+                relief="raised",
+                overrelief="raised",
+                borderwidth=3 if selected else 2,
                 highlightthickness=0,
                 font=self.NAV_FONT_ACTIVE if selected else self.NAV_FONT,
+                anchor="s",
             )
+            if selected:
+                button.lift()
         except tk.TclError:
             pass
 
     def _refresh_navigation_rails(self) -> None:
-        """Retain navigation geometry while presenting controls as tabs."""
         active_index = {
             self.test_tab: 0,
             self.benchmark_tab: 1,
@@ -110,12 +110,14 @@ class HMI(_LayoutHMI):
                 )
 
     def _style_vessels(self, canvas: tk.Canvas) -> None:
-        """Retain modern vessel fills and outlines on the classic PFD."""
+        """Apply vessel colors and reduce the membrane module thickness."""
         for item in canvas.find_all():
             try:
                 if canvas.type(item) != "rectangle":
                     continue
                 fill = str(canvas.itemcget(item, "fill")).lower()
+                coords = canvas.coords(item)
+
                 if fill in {"lightblue", self.VESSEL_FILL.lower()}:
                     canvas.itemconfigure(
                         item,
@@ -123,18 +125,31 @@ class HMI(_LayoutHMI):
                         outline=self.VESSEL_OUTLINE,
                         width=1,
                     )
-                elif fill in {"lightgray", self.MEMBRANE_FILL.lower()}:
-                    canvas.itemconfigure(
-                        item,
-                        fill=self.MEMBRANE_FILL,
-                        outline=self.VESSEL_OUTLINE,
-                        width=1,
-                    )
+                    continue
+
+                if fill not in {"lightgray", self.MEMBRANE_FILL.lower()}:
+                    continue
+
+                canvas.itemconfigure(
+                    item,
+                    fill=self.MEMBRANE_FILL,
+                    outline=self.VESSEL_OUTLINE,
+                    width=1,
+                )
+
+                # Main membrane body: retain its centerline and length while
+                # reducing its height from 20 px to 12 px.
+                if len(coords) == 4 and coords[0] == 265 and coords[2] == 445:
+                    canvas.coords(item, 265, 49, 445, 61)
+                # Narrow support legs so the complete module reads lighter too.
+                elif len(coords) == 4 and coords[0] == 275 and coords[2] == 290:
+                    canvas.coords(item, 278, 61, 287, 78)
+                elif len(coords) == 4 and coords[0] == 420 and coords[2] == 435:
+                    canvas.coords(item, 423, 61, 432, 78)
             except tk.TclError:
                 continue
 
     def _apply_selected_accents(self, parent: tk.Widget) -> None:
-        """Apply only the requested accents and leave all other styling intact."""
         try:
             if isinstance(parent, tk.Button):
                 self._style_button(parent)
@@ -150,9 +165,27 @@ class HMI(_LayoutHMI):
         for child in children:
             self._apply_selected_accents(child)
 
+    @staticmethod
+    def _csv_snapshot(log_dir: Path) -> set[Path]:
+        try:
+            return {path.resolve() for path in log_dir.glob("*.csv") if path.is_file()}
+        except OSError:
+            return set()
+
+    def _current_log_dir(self) -> Path:
+        if hasattr(self, "test_system"):
+            return Path(getattr(self.test_system, "log_dir", "logs")).expanduser()
+        return Path("logs")
+
     def _mark_run_start(self) -> None:
+        # A previous stopped run can leave _automation_error populated until its
+        # finish callback executes. Reset it before every new run so a later
+        # successful completion is not incorrectly treated as failed.
+        self._automation_error = None
         self._run_started_at = time.time()
+        self._run_was_cancelled = False
         self._usb_dialog_run_token = None
+        self._run_log_snapshot = self._csv_snapshot(Path("logs"))
 
     def start_test(self) -> None:
         self._mark_run_start()
@@ -166,31 +199,50 @@ class HMI(_LayoutHMI):
         self._mark_run_start()
         super().start_clean()
 
-    def _completed_log_files(self) -> tuple[Path, ...]:
-        """Return CSV files created by the run that just finished."""
-        started_at = self._run_started_at
-        if started_at is None or not hasattr(self, "test_system"):
-            return ()
+    def cancel_test(self) -> None:
+        self._run_was_cancelled = True
+        super().cancel_test()
 
-        log_dir = Path(getattr(self.test_system, "log_dir", "logs")).expanduser()
+    def _completed_log_files(self) -> tuple[Path, ...]:
+        """Find files from this run without relying on one timestamp test alone."""
+        log_dir = self._current_log_dir()
+        current = self._csv_snapshot(log_dir)
+        new_files = current - self._run_log_snapshot
+        if new_files:
+            return tuple(sorted(new_files, key=lambda path: path.stat().st_mtime))
+
+        started_at = self._run_started_at
+        if started_at is not None:
+            try:
+                modified = [
+                    path.resolve()
+                    for path in log_dir.glob("*.csv")
+                    if path.is_file() and path.stat().st_mtime >= started_at - 5.0
+                ]
+                if modified:
+                    return tuple(sorted(modified, key=lambda path: path.stat().st_mtime))
+            except OSError:
+                pass
+
+        # Final fallback for filesystems with coarse or unexpected timestamps.
         try:
-            candidates = [
-                path
-                for path in log_dir.glob("*.csv")
-                if path.is_file() and path.stat().st_mtime >= started_at - 2.0
-            ]
+            latest = sorted(
+                (path.resolve() for path in log_dir.glob("*.csv") if path.is_file()),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )[:2]
+            return tuple(reversed(latest))
         except OSError:
             return ()
-        return tuple(sorted(candidates, key=lambda path: path.stat().st_mtime))
 
     @staticmethod
     def _find_usb_drives() -> tuple[Path, ...]:
-        """Find writable removable-media mount points used by Raspberry Pi OS."""
         username = getpass.getuser()
         roots = (
             Path("/media") / username,
             Path("/run/media") / username,
             Path("/mnt"),
+            Path("/media"),
         )
         drives: list[Path] = []
         seen: set[str] = set()
@@ -204,12 +256,12 @@ class HMI(_LayoutHMI):
                 try:
                     resolved = child.resolve()
                     key = str(resolved)
-                    if (
-                        key not in seen
-                        and child.is_dir()
-                        and os.path.ismount(child)
-                        and os.access(child, os.W_OK)
-                    ):
+                    if key in seen or not child.is_dir() or not os.access(child, os.W_OK):
+                        continue
+                    # Raspberry Pi OS normally mounts USB media as a mount point.
+                    # Also accept writable child directories under standard media
+                    # roots because some desktop automounters use bind mounts.
+                    if os.path.ismount(child) or root in {Path("/mnt"), Path("/media")}:
                         seen.add(key)
                         drives.append(child)
                 except OSError:
@@ -230,6 +282,13 @@ class HMI(_LayoutHMI):
         files: tuple[Path, ...],
         status_var: tk.StringVar,
     ) -> None:
+        if not files:
+            messagebox.showerror(
+                "No Test Files",
+                "The test completed, but no CSV files could be located.",
+                parent=self._usb_export_window,
+            )
+            return
         try:
             destination = drive / "MEU Test Data"
             destination.mkdir(parents=True, exist_ok=True)
@@ -261,8 +320,9 @@ class HMI(_LayoutHMI):
             )
 
     def _open_usb_export_window(self, files: tuple[Path, ...]) -> None:
-        """Open the post-run USB export window on every successful completion."""
+        """Always show a visible completion window after a successful run."""
         if self._usb_export_window and self._usb_export_window.winfo_exists():
+            self._usb_export_window.deiconify()
             self._usb_export_window.lift()
             self._usb_export_window.focus_force()
             return
@@ -281,11 +341,12 @@ class HMI(_LayoutHMI):
         content = tk.Frame(window, padx=22, pady=18)
         content.pack(fill="both", expand=True)
         tk.Label(content, text="Test Complete", font=("Arial", 16, "bold")).pack()
-        tk.Label(
-            content,
-            text=f"{len(files)} test files are ready to save.",
-            font=("Arial", 11),
-        ).pack(pady=(5, 12))
+        file_message = (
+            f"{len(files)} test files are ready to save."
+            if files
+            else "The run finished, but no CSV files were found."
+        )
+        tk.Label(content, text=file_message, font=("Arial", 11)).pack(pady=(5, 12))
 
         status_var = tk.StringVar(value="")
         drive_frame = tk.Frame(content)
@@ -307,9 +368,7 @@ class HMI(_LayoutHMI):
                     drive_frame,
                     text=f"Save to {drive.name}",
                     command=lambda selected=drive: self._copy_run_files_to_usb(
-                        selected,
-                        files,
-                        status_var,
+                        selected, files, status_var
                     ),
                     font=("Arial", 12, "bold"),
                     width=24,
@@ -334,23 +393,34 @@ class HMI(_LayoutHMI):
 
         self._apply_selected_accents(window)
         self._center_window(window)
+        window.deiconify()
         window.lift()
+        window.attributes("-topmost", True)
         window.focus_force()
+        window.after(500, lambda: window.attributes("-topmost", False) if window.winfo_exists() else None)
 
     def _test_finished(self) -> None:
         had_error = bool(getattr(self, "_automation_error", None))
-        files = self._completed_log_files() if not had_error else ()
+        was_cancelled = self._run_was_cancelled
         run_token = self._run_started_at
+        files = self._completed_log_files() if not had_error and not was_cancelled else ()
         super()._test_finished()
 
         if (
             not had_error
-            and files
+            and not was_cancelled
             and run_token is not None
             and self._usb_dialog_run_token != run_token
         ):
             self._usb_dialog_run_token = run_token
-            self.after(100, lambda completed=files: self._open_usb_export_window(completed))
+            # Use after_idle plus a short delay so any final automation dialog and
+            # control reset are fully processed before this window is raised.
+            self.after_idle(
+                lambda completed=files: self.after(
+                    250,
+                    lambda: self._open_usb_export_window(completed),
+                )
+            )
 
     def _build_prime_popup(self, title: str, action_text: str, action_command) -> None:
         super()._build_prime_popup(title, action_text, action_command)
