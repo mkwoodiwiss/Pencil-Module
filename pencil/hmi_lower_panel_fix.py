@@ -61,7 +61,7 @@ class HMI(_TopNavigationHMI):
         return settings, sensors, cycle_status
 
     def _arrange_lower_panels(self) -> None:
-        """Position lower panels from measured visible boundaries."""
+        """Align Settings and Sensors at the same rendered top position."""
         self.update_idletasks()
 
         tab_data = (
@@ -69,62 +69,13 @@ class HMI(_TopNavigationHMI):
             (self.benchmark_tab, self.pfds.get("benchmark", {})),
             (self.clean_tab, self.pfds.get("clean", {})),
         )
-        window_bottom = self.winfo_rooty() + self.winfo_height()
 
-        for tab, pfd in tab_data:
+        for tab, _pfd in tab_data:
             settings, sensors, cycle_status = self._find_lower_frames(tab)
 
-            if settings is not None:
-                try:
-                    left_column = settings.master
-                    lower_area = left_column.master
-                    left_column.pack_configure(fill="y", expand=False, pady=0, anchor="n")
-                    lower_area.pack_configure(pady=0)
-                    self.update_idletasks()
-
-                    settings_width = settings.winfo_reqwidth()
-                    settings_height = settings.winfo_reqheight()
-                    left_column.configure(width=settings_width)
-                    left_column.pack_propagate(False)
-                    self.update_idletasks()
-
-                    top_section = pfd.get("top_section")
-                    pfd_bottom = (
-                        top_section.winfo_rooty() + top_section.winfo_height()
-                        if top_section is not None
-                        else lower_area.winfo_rooty()
-                    )
-                    area_top = lower_area.winfo_rooty()
-                    area_bottom = area_top + lower_area.winfo_height()
-                    visible_top = max(pfd_bottom, area_top)
-                    visible_bottom = min(window_bottom, area_bottom)
-
-                    available_height = max(0, visible_bottom - visible_top)
-                    target_top_root = visible_top + max(
-                        0,
-                        (available_height - settings_height) / 2.0,
-                    )
-                    target_top_local = target_top_root - left_column.winfo_rooty()
-
-                    settings.pack_forget()
-                    settings.place(
-                        x=settings_width / 2.0,
-                        y=target_top_local,
-                        anchor="n",
-                    )
-                    self.update_idletasks()
-
-                    actual_top_gap = settings.winfo_rooty() - visible_top
-                    actual_bottom_gap = visible_bottom - (
-                        settings.winfo_rooty() + settings.winfo_height()
-                    )
-                    correction = (actual_top_gap - actual_bottom_gap) / 2.0
-                    if abs(correction) >= 0.5:
-                        current_y = float(settings.place_info().get("y", target_top_local))
-                        settings.place_configure(y=current_y - correction)
-                except Exception:
-                    pass
-
+            # Establish the right-side stack first. Its rendered top becomes the
+            # reference used to position Settings, so both frames start at exactly
+            # the same screen height regardless of differing parent geometry.
             if sensors is not None:
                 try:
                     right_column = sensors.master
@@ -137,11 +88,6 @@ class HMI(_TopNavigationHMI):
 
                     sensors.configure(height=natural_height + self.SENSOR_FRAME_EXTRA_HEIGHT)
                     sensors.pack_propagate(False)
-
-                    # The inherited layout packed these frames from the bottom. Merely
-                    # changing pady left the entire stack bottom-anchored and created
-                    # the large blank band below the PFD. Repack both frames from the
-                    # top so the requested gap is the actual rendered gap.
                     sensors.pack_forget()
                     if cycle_status is not None:
                         cycle_status.pack_forget()
@@ -158,6 +104,44 @@ class HMI(_TopNavigationHMI):
                             pady=(0, 0),
                             anchor="n",
                         )
+                except Exception:
+                    pass
+
+            self.update_idletasks()
+
+            if settings is not None:
+                try:
+                    left_column = settings.master
+                    lower_area = left_column.master
+                    left_column.pack_configure(fill="y", expand=False, pady=0, anchor="n")
+                    lower_area.pack_configure(pady=0)
+                    self.update_idletasks()
+
+                    settings_width = settings.winfo_reqwidth()
+                    left_column.configure(width=settings_width)
+                    left_column.pack_propagate(False)
+                    self.update_idletasks()
+
+                    if sensors is not None:
+                        target_top_root = sensors.winfo_rooty()
+                    else:
+                        target_top_root = lower_area.winfo_rooty() + self.LOWER_PANEL_TOP_GAP
+
+                    target_top_local = target_top_root - left_column.winfo_rooty()
+                    settings.pack_forget()
+                    settings.place(
+                        x=settings_width / 2.0,
+                        y=target_top_local,
+                        anchor="n",
+                    )
+                    self.update_idletasks()
+
+                    # Correct any one-pixel theme rounding after placement.
+                    if sensors is not None:
+                        delta = settings.winfo_rooty() - sensors.winfo_rooty()
+                        if delta:
+                            current_y = float(settings.place_info().get("y", target_top_local))
+                            settings.place_configure(y=current_y - delta)
                 except Exception:
                     pass
 
