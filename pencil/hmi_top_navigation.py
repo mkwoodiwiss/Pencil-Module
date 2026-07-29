@@ -11,7 +11,7 @@ from .hmi_navigation_fix import HMI as _PreviousHMI
 class HMI(_PreviousHMI):
     """MEU HMI with uniform top navigation and a centered PFD."""
 
-    TOP_MARGIN = 8
+    TOP_MARGIN = 0
     NAV_HEIGHT = 34
     PFD_HEIGHT = 217
     PFD_WIDTH = 780
@@ -37,7 +37,7 @@ class HMI(_PreviousHMI):
             bd=0,
             highlightthickness=0,
         )
-        section.pack(side="top", anchor="n", padx=10, pady=(2, 0))
+        section.pack(side="top", anchor="n", padx=10, pady=0)
         section.pack_propagate(False)
 
         nav = tk.Frame(
