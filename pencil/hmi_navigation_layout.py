@@ -93,7 +93,7 @@ class HMI(_ValidatedHMI):
 
     @staticmethod
     def _resize_pfd_vessels(canvas: tk.Canvas) -> None:
-        """Make all three outlet vessels match the 80 px supply-vessel width."""
+        """Make outlet vessels match the 80 px supply-vessel width."""
         for item in canvas.find_all():
             try:
                 item_type = canvas.type(item)
@@ -119,8 +119,43 @@ class HMI(_ValidatedHMI):
                 canvas.coords(item, 700, 80)
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
-        """Create separate navigation and PFD sections without changing rail size."""
-        pfd = super()._create_pfd(parent)
+        """Create true sibling navigation and PFD sections in one fixed row."""
+        top_section = tk.Frame(
+            parent,
+            width=self.NAV_WIDTH + self.PFD_WIDTH,
+            height=self.PFD_HEIGHT,
+            bg=parent.cget("bg"),
+            bd=0,
+            highlightthickness=0,
+        )
+        top_section.pack(side="top", anchor="n", pady=(2, 0))
+        top_section.pack_propagate(False)
+
+        rail = tk.Frame(
+            top_section,
+            width=self.NAV_WIDTH,
+            height=self.PFD_HEIGHT,
+            bg=parent.cget("bg"),
+            bd=0,
+            highlightthickness=0,
+        )
+        rail.pack(side="left", fill="y")
+        rail.pack_propagate(False)
+
+        pfd_holder = tk.Frame(
+            top_section,
+            width=self.PFD_WIDTH,
+            height=self.PFD_HEIGHT,
+            bg="white",
+            bd=0,
+            highlightthickness=0,
+        )
+        pfd_holder.pack(side="left", fill="y")
+        pfd_holder.pack_propagate(False)
+
+        # Build the PFD with the correct parent from the start. Tk widgets cannot
+        # be reparented after creation, which is why the previous layout broke.
+        pfd = super()._create_pfd(pfd_holder)
         canvas = pfd["canvas"]
 
         for widget in list(self._walk_widgets(canvas)):
@@ -137,25 +172,8 @@ class HMI(_ValidatedHMI):
 
         self._resize_pfd_vessels(canvas)
         canvas.scale("all", 0, 0, self.PFD_SCALE_X, 1.0)
-
-        canvas.pack_forget()
-        top_section = tk.Frame(parent, height=self.PFD_HEIGHT, bg=parent.cget("bg"))
-        top_section.pack(side="top", fill="x", anchor="n", pady=(2, 0))
-        top_section.pack_propagate(False)
-
-        rail = tk.Frame(
-            top_section,
-            width=self.NAV_WIDTH,
-            height=self.PFD_HEIGHT,
-            bg=parent.cget("bg"),
-            bd=0,
-            highlightthickness=0,
-        )
-        rail.pack(side="left", fill="y")
-        rail.pack_propagate(False)
-
         canvas.configure(width=self.PFD_WIDTH, height=self.PFD_HEIGHT)
-        canvas.pack(side="left", fill="y", anchor="n")
+        canvas.pack_configure(side="top", anchor="n", pady=0)
 
         pfd["top_section"] = top_section
         pfd["navigation_rail"] = rail
