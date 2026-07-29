@@ -20,7 +20,7 @@ class HMI(_PreviousHMI):
     NAV_FONT = ("Arial", 9)
     NAV_FONT_ACTIVE = ("Arial", 9, "bold")
     START_FONT = ("Arial", 15, "bold")
-    SENSOR_FRAME_EXTRA_HEIGHT = 8
+    SENSOR_FRAME_EXTRA_HEIGHT = 11
 
     def _remove_native_tabs(self) -> None:
         """Remove native tabs and flatten the notebook client styling."""
@@ -105,13 +105,11 @@ class HMI(_PreviousHMI):
             pass
 
     def _arrange_lower_panels(self) -> None:
-        """Center Settings vertically and guarantee full Sensors-frame height.
+        """Precisely center Settings and guarantee full Sensors-frame height.
 
-        The lower operator area is the space between the PFD and the bottom edge of
-        the display. Each Settings frame is centered in that space. The right column
-        uses minimal vertical padding so the Sensors frame can retain its complete
-        requested height, including the Feed Temp row, without pushing Cycle Status
-        below the viewport.
+        Settings is placed at the geometric center of the complete left-column area,
+        rather than relying on pack expansion. Sensor height is based on one stored
+        natural height so repeated idle-layout passes cannot accumulate extra pixels.
         """
         self.update_idletasks()
         for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
@@ -136,8 +134,19 @@ class HMI(_PreviousHMI):
             if settings is not None:
                 try:
                     left_column = settings.master
-                    left_column.pack_configure(fill="y", pady=0, anchor="n")
-                    settings.pack_configure(expand=True, anchor="center", pady=0)
+                    left_column.pack_configure(fill="y", expand=False, pady=0, anchor="n")
+                    self.update_idletasks()
+
+                    settings_width = settings.winfo_reqwidth()
+                    left_column.configure(width=settings_width)
+                    left_column.pack_propagate(False)
+
+                    settings.pack_forget()
+                    settings.place(
+                        relx=0.5,
+                        rely=0.5,
+                        anchor="center",
+                    )
                 except Exception:
                     pass
 
@@ -145,8 +154,18 @@ class HMI(_PreviousHMI):
                 try:
                     right_column = sensors.master
                     right_column.pack_configure(fill="y", pady=0)
+
+                    natural_height = getattr(
+                        sensors,
+                        "_meu_natural_height",
+                        None,
+                    )
+                    if natural_height is None:
+                        natural_height = sensors.winfo_reqheight()
+                        sensors._meu_natural_height = natural_height
+
                     sensors.configure(
-                        height=sensors.winfo_reqheight() + self.SENSOR_FRAME_EXTRA_HEIGHT
+                        height=natural_height + self.SENSOR_FRAME_EXTRA_HEIGHT
                     )
                     sensors.pack_propagate(False)
                     sensors.pack_configure(padx=5, pady=(0, 2), anchor="n")
