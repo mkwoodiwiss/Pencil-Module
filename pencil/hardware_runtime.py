@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections import deque
+from datetime import datetime
+import os
 import threading
 import time
 
@@ -15,101 +18,182 @@ from .hardware import (
 
 
 class _RuntimeScaleManager(_ScaleManager):
-    """Highland scale manager with continuous receive and controlled polling fallback."""
+    """Highland scale manager with deterministic tare verification.
 
-    def __init__(self, *args, **kwargs) -> None:
+    The scale worker remains the sole owner of the serial port. Tare does not
+    clear the input buffer, issue Print commands, or reconnect a healthy port.
+    Every command and received line is written to a commissioning trace.
+    """
+
+    def __init__(self, *args, scale_name: str, **kwargs) -> None:
+        self.scale_name = scale_name
         self._tare_active = False
+        self._reading_sequence = 0
+        self._recent_values: deque[tuple[float, float]] = deque(maxlen=12)
+        self._last_tare_error = ""
+        self._trace_lock = threading.Lock()
+        self._trace_path = os.path.join("logs", "scale_serial_trace.log")
         super().__init__(*args, **kwargs)
+        self._trace("STATE", f"manager started port={self.port} baud={self.baud}")
+
+    def _trace(self, direction: str, message: str) -> None:
+        """Append a timestamped scale communication entry without affecting I/O."""
+        try:
+            os.makedirs(os.path.dirname(self._trace_path), exist_ok=True)
+            stamp = datetime.now().isoformat(timespec="milliseconds")
+            line = f"{stamp} [{self.scale_name}] {direction} {message}\n"
+            with self._trace_lock:
+                with open(self._trace_path, "a", encoding="utf-8") as handle:
+                    handle.write(line)
+        except Exception:
+            # Diagnostics must never interrupt scale operation.
+            pass
+
+    def _readline(self) -> bytes:
+        raw = super()._readline()
+        if raw:
+            self._trace("RX", repr(raw))
+        return raw
+
+    def _write(self, command: bytes) -> bool:
+        self._trace("TX", repr(command))
+        success = super()._write(command)
+        if not success:
+            self._trace("ERROR", f"write failed: {self._last_error}")
+        return success
+
+    def _record(self, parsed: tuple[str, float, str]) -> None:
+        super()._record(parsed)
+        _text, value, _unit = parsed
+        with self._state_lock:
+            self._reading_sequence += 1
+            self._recent_values.append((time.monotonic(), value))
+
+    def _wait_for_stable_input(self, timeout: float = 5.0) -> tuple[bool, str]:
+        """Wait for a fresh, stable group of readings before sending tare."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline and not self._stop_event.is_set():
+            now = time.monotonic()
+            with self._state_lock:
+                recent = [
+                    value
+                    for timestamp, value in self._recent_values
+                    if now - timestamp <= 2.0
+                ]
+                latest_time = self._latest_time
+
+            if latest_time <= 0 or now - latest_time > self.stale_after:
+                time.sleep(0.05)
+                continue
+
+            # Three recent readings within a 0.2 g band provide a software
+            # stability check before asking the Highland to tare.
+            if len(recent) >= 3 and max(recent) - min(recent) <= 0.2:
+                return True, ""
+            time.sleep(0.05)
+
+        with self._state_lock:
+            latest_time = self._latest_time
+        if latest_time <= 0 or time.monotonic() - latest_time > self.stale_after:
+            return False, "no fresh serial readings before tare"
+        return False, "weight was not stable before tare"
 
     def _process_tare(self, payload: object) -> None:
-        """Send T and verify two post-tare readings without flooding Print commands."""
-        result, completed, attempts, timeout = payload  # type: ignore[misc]
+        """Send one Highland T command and verify two new near-zero readings."""
+        result, completed, _attempts, timeout = payload  # type: ignore[misc]
         success = False
         self._tare_active = True
+        self._last_tare_error = ""
+
         try:
-            for _attempt in range(int(attempts)):
-                if self._serial is None and not self._open_serial(force=True):
-                    time.sleep(0.2)
-                    continue
+            if self._serial is None and not self._open_serial(force=True):
+                self._last_tare_error = f"serial port unavailable: {self._last_error}"
+                return
 
-                # Discard only lines received before the command. The worker remains
-                # the sole serial owner, so no other reader can consume the reply.
+            stable, reason = self._wait_for_stable_input(timeout=5.0)
+            if not stable:
+                self._last_tare_error = reason
+                self._trace("TARE", f"rejected before command: {reason}")
+                return
+
+            # Mark the last parsed reading. We deliberately do not clear the
+            # receive buffer. Only readings parsed after this sequence number
+            # can verify the command.
+            with self._state_lock:
+                sequence_before_tare = self._reading_sequence
+
+            self._trace("TARE", f"sending T after sequence={sequence_before_tare}")
+            if not self._write(b"T\r\n"):
+                self._last_tare_error = f"tare command write failed: {self._last_error}"
+                return
+
+            deadline = time.monotonic() + max(float(timeout), 8.0)
+            consecutive_zero = 0
+            post_tare_readings = 0
+
+            while time.monotonic() < deadline and not self._stop_event.is_set():
                 try:
-                    self._serial.reset_input_buffer()
-                except Exception:
-                    pass
-
-                # Highland manual: T<CR><LF> is the remote equivalent of the tare key.
-                if not self._write(b"T\r\n"):
-                    time.sleep(0.2)
-                    continue
-
-                started = time.monotonic()
-                deadline = started + float(timeout)
-                consecutive_zero = 0
-                received_after_tare = 0
-                print_requests = 0
-                next_print_fallback = started + 0.75
-
-                while time.monotonic() < deadline and not self._stop_event.is_set():
-                    now = time.monotonic()
-
-                    # Some Highland configurations pause continuous output after T,
-                    # or are configured for requested output. Ask for at most two
-                    # readings, and only if no fresh line has arrived in time.
-                    if (
-                        received_after_tare < 2
-                        and print_requests < 2
-                        and now >= next_print_fallback
-                    ):
-                        if self._write(b"P\r\n"):
-                            print_requests += 1
-                        next_print_fallback = now + 0.75
-
-                    try:
-                        raw = self._readline()
-                    except Exception as exc:
-                        self._last_error = repr(exc)
-                        self._close_serial()
-                        break
-
-                    parsed = self._parse(raw)
-                    if parsed is None:
-                        continue
-
-                    received_after_tare += 1
-                    self._record(parsed)
-                    _text, value, _unit = parsed
-                    if abs(value) <= 0.2:
-                        consecutive_zero += 1
-                        if consecutive_zero >= 2:
-                            success = True
-                            break
-                    else:
-                        consecutive_zero = 0
-
-                if success:
+                    raw = self._readline()
+                except Exception as exc:
+                    self._last_error = repr(exc)
+                    self._last_tare_error = f"serial read failed after tare: {exc!r}"
+                    self._trace("ERROR", self._last_tare_error)
+                    self._close_serial()
                     break
 
-                # A timeout can mean tare was rejected because the scale was unstable.
-                # Reconnect only when the serial object actually failed.
-                if self._serial is None:
-                    self._open_serial(force=True)
-                time.sleep(0.2)
+                parsed = self._parse(raw)
+                if parsed is None:
+                    continue
+
+                self._record(parsed)
+                with self._state_lock:
+                    current_sequence = self._reading_sequence
+
+                if current_sequence <= sequence_before_tare:
+                    continue
+
+                post_tare_readings += 1
+                _text, value, _unit = parsed
+                if abs(value) <= 0.2:
+                    consecutive_zero += 1
+                    if consecutive_zero >= 2:
+                        success = True
+                        self._trace(
+                            "TARE",
+                            f"verified after {post_tare_readings} post-command readings",
+                        )
+                        break
+                else:
+                    consecutive_zero = 0
+
+            if not success and not self._last_tare_error:
+                if post_tare_readings == 0:
+                    self._last_tare_error = "no serial readings received after tare command"
+                else:
+                    self._last_tare_error = (
+                        f"received {post_tare_readings} readings after tare, but not two at zero"
+                    )
+                self._trace("TARE", f"failed: {self._last_tare_error}")
         finally:
             self._tare_active = False
             result["success"] = success
+            result["reason"] = self._last_tare_error
             completed.set()
 
     def read(self) -> str:
-        """Return cached data, using one queued Print request only when stale."""
-        if self._tare_active:
-            with self._state_lock:
-                if self._latest_time > 0:
-                    return self._latest_text
-        # The base implementation queues one P command when stale and waits for a
-        # genuinely newer reading. It prevents repeated overlapping requests.
-        return super().read()
+        """Return the latest continuous reading without issuing Print commands."""
+        with self._state_lock:
+            text = self._latest_text
+            timestamp = self._latest_time
+        if self._tare_active and timestamp > 0:
+            return text
+        if timestamp > 0 and time.monotonic() - timestamp <= self.stale_after:
+            return text
+        return "--"
+
+    @property
+    def last_tare_error(self) -> str:
+        return self._last_tare_error
 
 
 class MEU(_BaseMEU):
@@ -124,8 +208,12 @@ class MEU(_BaseMEU):
         baud: int = 9600,
         read_delay: float = 0.25,
     ) -> None:
-        self._effluent_scale = _RuntimeScaleManager(effluent_port, baud)
-        self._backwash_scale = _RuntimeScaleManager(backwash_port, baud)
+        self._effluent_scale = _RuntimeScaleManager(
+            effluent_port, baud, scale_name="Filtrate"
+        )
+        self._backwash_scale = _RuntimeScaleManager(
+            backwash_port, baud, scale_name="BW Effluent"
+        )
         self.effluent_lock = self._effluent_scale.lock
         self.backwash_lock = self._backwash_scale.lock
         self._read_delay = read_delay
@@ -142,12 +230,12 @@ class MEU(_BaseMEU):
         self.temp_offset = 0.0
 
     def zero_scale(self, channel: int) -> bool:
-        """Tare one scale and verify two consecutive fresh zero readings."""
+        """Tare one scale using the deterministic Highland state machine."""
         manager = self._effluent_scale if channel == 0 else self._backwash_scale
-        return manager.tare(attempts=2, timeout=4.0)
+        return manager.tare(attempts=1, timeout=8.0)
 
     def zero_scales(self) -> bool:
-        """Tare both scales concurrently and refuse to run unless both verify."""
+        """Automatically tare both scales at test start and verify both."""
         results = {0: False, 1: False}
 
         def tare_one(channel: int) -> None:
@@ -164,15 +252,15 @@ class MEU(_BaseMEU):
 
         failed = []
         if not results[0]:
-            failed.append("Filtrate scale")
+            failed.append(f"Filtrate scale: {self._effluent_scale.last_tare_error}")
         if not results[1]:
-            failed.append("BW Effluent scale")
+            failed.append(f"BW Effluent scale: {self._backwash_scale.last_tare_error}")
 
         if failed:
-            names = " and ".join(failed)
+            details = "; ".join(failed)
             raise RuntimeError(
-                f"{names} did not accept tare or did not return two verified zero readings. "
-                "The run was not started. Confirm the scale is stable and communicating, then try again."
+                f"Verified automatic tare failed. {details}. "
+                "The run was not started. See logs/scale_serial_trace.log for the raw RS-232 trace."
             )
         return True
 
