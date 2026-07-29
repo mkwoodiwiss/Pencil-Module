@@ -52,13 +52,7 @@ class HMI(_PreviousHMI):
         self.after_idle(self._arrange_lower_panels)
 
     def _align_notebook_client_to_screen(self) -> None:
-        """Remove the real ttk client inset instead of guessing with padding.
-
-        Raspberry Pi themes can retain several pixels above the notebook client even
-        when borderwidth and padding are zero. Measure that rendered offset and move
-        the notebook upward by exactly that amount. The page height is compensated
-        so no controls are pushed off the bottom of the 800 x 480 viewport.
-        """
+        """Remove the real ttk client inset instead of guessing with padding."""
         self.update_idletasks()
         try:
             page = self._active_tab
@@ -105,12 +99,7 @@ class HMI(_PreviousHMI):
             pass
 
     def _arrange_lower_panels(self) -> None:
-        """Precisely center Settings and guarantee full Sensors-frame height.
-
-        Settings is placed at the geometric center of the complete left-column area,
-        rather than relying on pack expansion. Sensor height is based on one stored
-        natural height so repeated idle-layout passes cannot accumulate extra pixels.
-        """
+        """Precisely center Settings and guarantee full Sensors-frame height."""
         self.update_idletasks()
         for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
             settings = None
@@ -217,15 +206,18 @@ class HMI(_PreviousHMI):
         pfd = _ValidatedHMI._create_pfd(self, pfd_holder)
         canvas = pfd["canvas"]
 
+        # Info and Exit are now full-size navigation buttons, so remove the
+        # legacy controls that were drawn over the PFD canvas.
         for widget in list(self._walk_widgets(canvas)):
             if not isinstance(widget, tk.Button):
                 continue
             try:
-                if widget.cget("text") == "?":
-                    owner = widget.master
-                    widget.destroy()
-                    if isinstance(owner, tk.Frame) and not owner.winfo_children():
-                        owner.destroy()
+                if widget.cget("text") not in {"?", "X"}:
+                    continue
+                owner = widget.master
+                widget.destroy()
+                if isinstance(owner, tk.Frame) and not owner.winfo_children():
+                    owner.destroy()
             except Exception:
                 pass
 
@@ -241,8 +233,8 @@ class HMI(_PreviousHMI):
     def _populate_top_navigation(
         self, nav: tk.Frame, current_tab: tk.Widget
     ) -> list[tk.Button]:
-        """Create four equal-size top navigation buttons."""
-        nav.columnconfigure((0, 1, 2, 3), weight=1, uniform="meu_nav")
+        """Create five equal-size top navigation buttons."""
+        nav.columnconfigure((0, 1, 2, 3, 4), weight=1, uniform="meu_nav")
         nav.rowconfigure(0, weight=1)
         buttons: list[tk.Button] = []
         items = (
@@ -254,6 +246,7 @@ class HMI(_PreviousHMI):
             ),
             ("Clean", self.clean_tab, lambda: self._select_tab(self.clean_tab)),
             ("Info", None, self._show_control_narrative),
+            ("Exit", None, self._confirm_exit),
         )
 
         for column, (label, tab, command) in enumerate(items):
