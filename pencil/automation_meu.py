@@ -122,6 +122,7 @@ class _AutomationBase:
     def _open_logs(self, prefix: str, project: str, module_id: str, final_id: str, config) -> None:
         os.makedirs(self.log_dir, exist_ok=True)
         stamp = time.strftime("%Y%m%d_%H%M%S")
+        test_date = time.strftime("%Y-%m-%d")
         base = os.path.join(
             self.log_dir,
             f"{_safe_name(prefix)}_{_safe_name(project)}_{_safe_name(module_id)}_{_safe_name(final_id)}_{stamp}",
@@ -132,6 +133,7 @@ class _AutomationBase:
         self.data_file.flush()
         with open(base + "_settings.csv", "w", newline="", encoding="utf-8") as settings:
             writer = csv.writer(settings)
+            writer.writerow(["test_date", test_date])
             for key, value in asdict(config).items():
                 writer.writerow([key, value])
 
@@ -139,7 +141,7 @@ class _AutomationBase:
         if not self.data_writer or not self.data_file:
             return
         self.data_writer.writerow([
-            time.time(),
+            time.strftime("%H:%M:%S"),
             self.module.read_rtd(0),
             self.module.read_pressure(2),
             self.module.read_pressure(1),
