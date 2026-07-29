@@ -8,7 +8,7 @@ from .automation_meu import (
     CleanTestSystem,
     BenchmarkTestSystem,
 )
-from .hmi_navigation_fix import HMI
+from .hmi_top_navigation import HMI
 
 __all__ = [
     "MEU",
