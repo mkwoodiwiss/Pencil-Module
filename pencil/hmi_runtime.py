@@ -20,6 +20,111 @@ class HMI(_MEUHMI):
         self._bind_settings_action_buttons()
         self._run_started = False
 
+    def _create_pfd(self, parent: tk.Widget) -> dict:
+        """Create the MEU PFD with separated feed and backwash inlet routing."""
+        canvas = tk.Canvas(parent, width=780, height=175, bg="white")
+        canvas.pack(pady=(2, 0))
+
+        btn_opts = {"width": 2, "height": 1}
+        btn_frame = tk.Frame(canvas, bg="white")
+        help_btn = tk.Button(btn_frame, text="?", command=self._show_control_narrative, **btn_opts)
+        close_btn = tk.Button(btn_frame, text="X", command=self._confirm_exit, **btn_opts)
+        help_btn.pack(side="left", padx=(0, 2), ipadx=4, ipady=4)
+        close_btn.pack(side="left", ipadx=4, ipady=4)
+        canvas.create_window(770, 10, window=btn_frame, anchor="ne")
+
+        # Feed train is above the backwash train.
+        canvas.create_rectangle(25, 25, 105, 75, fill="lightblue")
+        canvas.create_text(65, 15, text="Feed Tank")
+        pi2_text = canvas.create_text(65, 65, text="-- PSI")
+
+        canvas.create_rectangle(25, 110, 105, 160, fill="lightblue")
+        canvas.create_text(65, 100, text="BW Tank")
+        pi1_text = canvas.create_text(65, 150, text="-- PSI")
+
+        # Membrane body with a new top-left feed port. V1 still enters the left end.
+        canvas.create_rectangle(320, 65, 600, 95, fill="lightgray")
+        canvas.create_rectangle(335, 45, 355, 65, fill="lightgray")
+        canvas.create_rectangle(345, 95, 365, 120, fill="lightgray")
+        canvas.create_rectangle(565, 95, 585, 120, fill="lightgray")
+        canvas.create_text(460, 53, text="Membrane")
+
+        canvas.create_rectangle(625, 25, 685, 75, fill="lightblue")
+        canvas.create_text(655, 15, text="Filtrate")
+        effluent_weight_text = canvas.create_text(655, 65, text="-- g")
+
+        canvas.create_rectangle(625, 120, 685, 170, fill="lightblue")
+        canvas.create_text(655, 110, text="BW Effluent")
+        backwash_weight_text = canvas.create_text(655, 160, text="-- g")
+
+        canvas.create_rectangle(710, 75, 760, 125, fill="lightblue")
+        canvas.create_text(735, 65, text="Waste")
+
+        lines = {}
+        valve_labels = {}
+        valve_to_lines = {
+            0: [0, "v1_vert", "v1_end"],
+            1: [1, "v2_drop"],
+            2: [2, "v3_vert1", "v3_vert2"],
+            3: [3, "v3_vert2"],
+            4: [4],
+        }
+
+        # V1: BW Tank to the membrane's existing left end port.
+        lines[0] = canvas.create_line(105, 135, 285, 135, fill="gray", width=2)
+        lines["v1_vert"] = canvas.create_line(285, 135, 285, 80, fill="gray", width=2)
+        lines["v1_end"] = canvas.create_line(285, 80, 320, 80, arrow="last", fill="gray", width=2)
+        valve_labels["V1"] = canvas.create_text(205, 135, text="V1")
+
+        # V2: Feed Tank to the new top-left membrane port.
+        lines[1] = canvas.create_line(105, 50, 345, 50, fill="gray", width=2)
+        lines["v2_drop"] = canvas.create_line(345, 50, 345, 65, arrow="last", fill="gray", width=2)
+        valve_labels["V2"] = canvas.create_text(205, 50, text="V2")
+        canvas.create_rectangle(250, 42.5, 305, 57.5, fill="white", outline="black")
+        te_text = canvas.create_text(277.5, 50, text="-- C")
+
+        lines[2] = canvas.create_line(575, 145, 625, 145, arrow="last", fill="gray", width=2)
+        lines["v3_vert1"] = canvas.create_line(575, 120, 575, 145, fill="gray", width=2)
+        lines["v3_vert2"] = canvas.create_line(575, 95, 575, 120, fill="gray", width=2)
+        valve_labels["V3"] = canvas.create_text(602, 145, text="V3")
+
+        lines[3] = canvas.create_line(575, 100, 710, 100, arrow="last", fill="gray", width=2)
+        valve_labels["V4"] = canvas.create_text(650, 100, text="V4")
+
+        lines[4] = canvas.create_line(600, 80, 625, 80, 625, 50, arrow="last", fill="gray", width=2)
+        valve_labels["V5"] = canvas.create_text(615, 80, text="V5")
+
+        solenoid_buttons = []
+        valve_keys = ["V1", "V2", "V3", "V4", "V5"]
+        for i in range(5):
+            btn = tk.Button(
+                canvas,
+                text=f"V{i + 1}",
+                width=3,
+                bg="lightgray",
+                command=lambda ch=i: self.toggle_solenoid(ch),
+            )
+            x, y = canvas.coords(valve_labels[valve_keys[i]])
+            canvas.create_window(x, y, window=btn)
+            solenoid_buttons.append(btn)
+
+        prime_btn = tk.Button(canvas, text="Prime", command=self.prime)
+        canvas.create_window(460, 130, window=prime_btn)
+
+        return {
+            "canvas": canvas,
+            "pi1_text": pi1_text,
+            "pi2_text": pi2_text,
+            "te_text": te_text,
+            "effluent_weight_text": effluent_weight_text,
+            "backwash_weight_text": backwash_weight_text,
+            "lines": lines,
+            "valve_labels": valve_labels,
+            "valve_to_lines": valve_to_lines,
+            "solenoid_buttons": solenoid_buttons,
+            "prime_btn": prime_btn,
+        }
+
     @staticmethod
     def _is_descendant(widget: tk.Widget, ancestor: tk.Widget) -> bool:
         current = widget
