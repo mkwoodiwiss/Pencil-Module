@@ -14,6 +14,7 @@ class HMI(_ValidatedHMI):
     NAV_WIDTH = 72
     PFD_HEIGHT = 225
     PFD_SCALE_X = 0.90
+    TAB_STRIP_OFFSET = 30
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -21,12 +22,14 @@ class HMI(_ValidatedHMI):
         self.after_idle(self._finish_navigation_layout)
 
     def _finish_navigation_layout(self) -> None:
-        """Reapply the hidden-tab style after Tk finishes constructing the notebook."""
+        """Finish tab removal after Tk has calculated the notebook geometry."""
         self._hide_native_tabs()
+        self._remove_legacy_help_controls()
         self._refresh_navigation_rails()
+        self.update_idletasks()
 
     def _hide_native_tabs(self) -> None:
-        """Remove the horizontal ttk tab row while preserving notebook switching."""
+        """Physically clip the ttk tab strip while preserving notebook switching."""
         style = ttk.Style(self)
         style.layout(
             "MEU.Hidden.TNotebook",
@@ -40,6 +43,39 @@ class HMI(_ValidatedHMI):
         )
         self.notebook.configure(style="MEU.Hidden.TNotebook")
 
+        # Some Raspberry Pi ttk themes continue drawing the tab strip even when
+        # the style omits it. Move only that strip above the visible viewport and
+        # add the same amount to the notebook height so no content is lost below.
+        try:
+            self.notebook.pack_forget()
+        except Exception:
+            pass
+        self.notebook.place(
+            x=0,
+            y=-self.TAB_STRIP_OFFSET,
+            relwidth=1.0,
+            relheight=1.0,
+            height=self.TAB_STRIP_OFFSET,
+        )
+
+    def _remove_legacy_help_controls(self) -> None:
+        """Remove every legacy question-mark button, including nested buttons."""
+        for pfd in self.pfds.values():
+            canvas = pfd.get("canvas")
+            if canvas is None:
+                continue
+            for widget in list(self._walk_widgets(canvas)):
+                if not isinstance(widget, tk.Button):
+                    continue
+                try:
+                    if widget.cget("text") == "?":
+                        parent = widget.master
+                        widget.destroy()
+                        if isinstance(parent, tk.Frame) and not parent.winfo_children():
+                            parent.destroy()
+                except Exception:
+                    pass
+
     def _select_tab(self, tab: tk.Widget) -> None:
         self.notebook.select(tab)
         self.after_idle(self._refresh_navigation_rails)
@@ -49,13 +85,17 @@ class HMI(_ValidatedHMI):
         pfd = super()._create_pfd(parent)
         canvas = pfd["canvas"]
 
-        # Remove the former help button. Info in the side rail replaces it.
-        for child in list(canvas.winfo_children()):
-            if not isinstance(child, tk.Button):
+        # Remove the former help button before the first rendered frame. The
+        # Info side button replaces it.
+        for widget in list(self._walk_widgets(canvas)):
+            if not isinstance(widget, tk.Button):
                 continue
             try:
-                if child.cget("text") == "?":
-                    child.destroy()
+                if widget.cget("text") == "?":
+                    owner = widget.master
+                    widget.destroy()
+                    if isinstance(owner, tk.Frame) and not owner.winfo_children():
+                        owner.destroy()
             except Exception:
                 pass
 
