@@ -1,7 +1,7 @@
 """Classic MEU HMI styling with selected visual accents.
 
-The original HMI appearance is preserved. Only process-vessel colors and
-outlines, plus Exit and Cancel button colors, are customized.
+The original HMI appearance and geometry are preserved. Process-vessel colors,
+outlines, Exit and Cancel colors, and top-navigation tab styling are customized.
 """
 
 from __future__ import annotations
@@ -19,10 +19,15 @@ class HMI(_LayoutHMI):
     VESSEL_OUTLINE = "#9FB0BC"
     DANGER = "#B94747"
     DANGER_ACTIVE = "#963A3A"
+    TAB_IDLE = "#E2E2E2"
+    TAB_ACTIVE = "#FFFFFF"
+    TAB_HOVER = "#D4D4D4"
+    TAB_BORDER = "#9A9A9A"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._apply_selected_accents(self)
+        self._refresh_navigation_rails()
         self.bind_all("<Map>", self._style_mapped_widget, add="+")
 
     def _style_mapped_widget(self, event) -> None:
@@ -47,6 +52,53 @@ class HMI(_LayoutHMI):
             )
         except tk.TclError:
             pass
+
+    def _style_navigation_button(self, button: tk.Button, selected: bool) -> None:
+        """Make a top navigation control read visually as a tab."""
+        try:
+            label = str(button.cget("text")).strip().lower()
+            if label == "exit":
+                button.configure(
+                    bg=self.DANGER,
+                    fg="white",
+                    activebackground=self.DANGER_ACTIVE,
+                    activeforeground="white",
+                    relief="flat",
+                    borderwidth=1,
+                    highlightthickness=1,
+                    highlightbackground=self.TAB_BORDER,
+                )
+                return
+
+            button.configure(
+                bg=self.TAB_ACTIVE if selected else self.TAB_IDLE,
+                fg="black",
+                activebackground=self.TAB_ACTIVE if selected else self.TAB_HOVER,
+                activeforeground="black",
+                relief="flat",
+                borderwidth=1,
+                highlightthickness=1,
+                highlightbackground=self.TAB_BORDER,
+                font=self.NAV_FONT_ACTIVE if selected else self.NAV_FONT,
+            )
+        except tk.TclError:
+            pass
+
+    def _refresh_navigation_rails(self) -> None:
+        """Retain navigation geometry while presenting controls as tabs."""
+        active_index = {
+            self.test_tab: 0,
+            self.benchmark_tab: 1,
+            self.clean_tab: 2,
+        }.get(self._active_tab)
+
+        for pfd in getattr(self, "pfds", {}).values():
+            buttons = pfd.get("navigation_buttons", [])
+            for index, button in enumerate(buttons):
+                self._style_navigation_button(
+                    button,
+                    selected=index == active_index and index < 3,
+                )
 
     def _style_vessels(self, canvas: tk.Canvas) -> None:
         """Retain modern vessel fills and outlines on the classic PFD."""
