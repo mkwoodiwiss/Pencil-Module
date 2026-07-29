@@ -20,6 +20,7 @@ class HMI(_PreviousHMI):
     NAV_FONT = ("Arial", 9)
     NAV_FONT_ACTIVE = ("Arial", 9, "bold")
     START_FONT = ("Arial", 15, "bold")
+    SENSOR_FRAME_EXTRA_HEIGHT = 8
 
     def _remove_native_tabs(self) -> None:
         """Remove native tabs and flatten the notebook client styling."""
@@ -43,10 +44,12 @@ class HMI(_PreviousHMI):
         super()._finish_navigation_layout()
         self._remove_native_tabs()
         self._enlarge_start_buttons()
+        self._arrange_lower_panels()
         self._refresh_navigation_rails()
         self.update_idletasks()
         self._align_notebook_client_to_screen()
         self.after_idle(self._verify_top_spacing)
+        self.after_idle(self._arrange_lower_panels)
 
     def _align_notebook_client_to_screen(self) -> None:
         """Remove the real ttk client inset instead of guessing with padding.
@@ -100,6 +103,61 @@ class HMI(_PreviousHMI):
             )
         except Exception:
             pass
+
+    def _arrange_lower_panels(self) -> None:
+        """Center Settings vertically and guarantee full Sensors-frame height.
+
+        The lower operator area is the space between the PFD and the bottom edge of
+        the display. Each Settings frame is centered in that space. The right column
+        uses minimal vertical padding so the Sensors frame can retain its complete
+        requested height, including the Feed Temp row, without pushing Cycle Status
+        below the viewport.
+        """
+        self.update_idletasks()
+        for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
+            settings = None
+            sensors = None
+            cycle_status = None
+
+            for widget in self._walk_widgets(tab):
+                if not isinstance(widget, tk.LabelFrame):
+                    continue
+                try:
+                    title = str(widget.cget("text"))
+                except Exception:
+                    continue
+                if title == "Settings":
+                    settings = widget
+                elif title == "Sensors":
+                    sensors = widget
+                elif title == "Cycle Status":
+                    cycle_status = widget
+
+            if settings is not None:
+                try:
+                    left_column = settings.master
+                    left_column.pack_configure(fill="y", pady=0, anchor="n")
+                    settings.pack_configure(expand=True, anchor="center", pady=0)
+                except Exception:
+                    pass
+
+            if sensors is not None:
+                try:
+                    right_column = sensors.master
+                    right_column.pack_configure(fill="y", pady=0)
+                    sensors.configure(
+                        height=sensors.winfo_reqheight() + self.SENSOR_FRAME_EXTRA_HEIGHT
+                    )
+                    sensors.pack_propagate(False)
+                    sensors.pack_configure(padx=5, pady=(0, 2), anchor="n")
+                except Exception:
+                    pass
+
+            if cycle_status is not None:
+                try:
+                    cycle_status.pack_configure(pady=(2, 0), anchor="n")
+                except Exception:
+                    pass
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
         """Create a centered PFD with equal spacing above and below the tabs."""
