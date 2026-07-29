@@ -10,11 +10,14 @@ from .hmi_layout_validated import HMI as _ValidatedHMI
 class HMI(_ValidatedHMI):
     """MEU HMI with compact left-side navigation and no native tab strip."""
 
-    NAV_WIDTH = 72
+    NAV_WIDTH = 58
     PFD_HEIGHT = 225
-    PFD_WIDTH = 708
-    PFD_SCALE_X = 0.90
+    PFD_WIDTH = 722
+    PFD_SCALE_X = PFD_WIDTH / 780.0
     TOP_MARGIN = 8
+    PANEL_FONT = ("Arial", 9)
+    PANEL_VALUE_FONT = ("Arial", 10)
+    NAV_FONT = ("Arial", 8)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -27,7 +30,7 @@ class HMI(_ValidatedHMI):
         self._remove_native_tabs()
         self._show_page(self._active_tab)
         self._remove_legacy_help_controls()
-        self._compact_sensor_labels()
+        self._apply_compact_panel_fonts()
         self._refresh_navigation_rails()
         self.update_idletasks()
 
@@ -75,25 +78,68 @@ class HMI(_ValidatedHMI):
                 except Exception:
                     pass
 
-    def _compact_sensor_labels(self) -> None:
-        """Keep the feed-temperature row inside every Sensors frame."""
+    def _apply_compact_panel_fonts(self) -> None:
+        """Use one readable compact font throughout all non-PFD panels."""
+        excluded_roots = {
+            pfd.get("top_section")
+            for pfd in self.pfds.values()
+            if pfd.get("top_section") is not None
+        }
+
+        for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
+            for widget in self._walk_widgets(tab):
+                if any(self._is_descendant(widget, root) for root in excluded_roots):
+                    continue
+                try:
+                    if isinstance(widget, tk.LabelFrame):
+                        widget.configure(font=self.PANEL_FONT)
+                    elif isinstance(widget, tk.Label):
+                        text = str(widget.cget("text"))
+                        if text == "Temperature:":
+                            widget.configure(text="Feed Temp:")
+                        widget.configure(font=self.PANEL_FONT)
+                    elif isinstance(widget, tk.Button):
+                        widget.configure(font=self.PANEL_FONT)
+                except Exception:
+                    pass
+
+        # Keep live sensor and cycle values slightly larger than their labels.
+        value_vars = {
+            str(self.weight_var),
+            str(self.backwash_weight_var),
+            str(self.pressure_bw_var),
+            str(self.pressure_raw_var),
+            str(self.temp_var),
+            str(self.cycle_step_var),
+            str(self.cycle_progress_var),
+            str(self.cycle_time_var),
+        }
         for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
             for widget in self._walk_widgets(tab):
                 if not isinstance(widget, tk.Label):
                     continue
                 try:
-                    if widget.cget("text") == "Temperature:":
-                        widget.configure(text="Feed Temp:")
+                    if str(widget.cget("textvariable")) in value_vars:
+                        widget.configure(font=self.PANEL_VALUE_FONT)
                 except Exception:
                     pass
+
+    @staticmethod
+    def _is_descendant(widget: tk.Widget, root: tk.Widget) -> bool:
+        current = widget
+        while current is not None:
+            if current is root:
+                return True
+            current = getattr(current, "master", None)
+        return False
 
     def _select_tab(self, tab: tk.Widget) -> None:
         self._show_page(tab)
         self.after_idle(self._refresh_navigation_rails)
 
     @staticmethod
-    def _resize_pfd_vessels(canvas: tk.Canvas) -> None:
-        """Make outlet vessels match the 80 px supply-vessel width."""
+    def _resize_pfd_vessels_and_routes(canvas: tk.Canvas) -> None:
+        """Match outlet vessel widths and terminate every route at its vessel edge."""
         for item in canvas.find_all():
             try:
                 item_type = canvas.type(item)
@@ -101,12 +147,15 @@ class HMI(_ValidatedHMI):
             except Exception:
                 continue
 
+            # Outlet vessels: 80 px wide, matching Feed Tank and BW Tank.
             if item_type == "rectangle" and coords == [600.0, 20.0, 650.0, 70.0]:
                 canvas.coords(item, 570, 20, 650, 70)
             elif item_type == "rectangle" and coords == [600.0, 155.0, 650.0, 205.0]:
                 canvas.coords(item, 570, 155, 650, 205)
             elif item_type == "rectangle" and coords == [690.0, 90.0, 740.0, 140.0]:
                 canvas.coords(item, 660, 90, 740, 140)
+
+            # Re-center vessel labels and values.
             elif item_type == "text" and coords == [625.0, 10.0]:
                 canvas.coords(item, 610, 10)
             elif item_type == "text" and coords == [625.0, 60.0]:
@@ -118,8 +167,17 @@ class HMI(_ValidatedHMI):
             elif item_type == "text" and coords == [715.0, 80.0]:
                 canvas.coords(item, 700, 80)
 
+            # Correct arrows after the vessels move left. Each route ends at the
+            # outside edge of its destination and retains a clear final approach.
+            elif item_type == "line" and coords == [585.0, 45.0, 600.0, 45.0]:
+                canvas.coords(item, 555, 45, 570, 45)
+            elif item_type == "line" and coords == [455.0, 75.0, 455.0, 115.0, 690.0, 115.0]:
+                canvas.coords(item, 455, 75, 455, 115, 660, 115)
+            elif item_type == "line" and coords == [455.0, 180.0, 600.0, 180.0]:
+                canvas.coords(item, 455, 180, 570, 180)
+
     def _create_pfd(self, parent: tk.Widget) -> dict:
-        """Create true sibling navigation and PFD sections in one fixed row."""
+        """Create separate navigation and PFD sections in one fixed-width row."""
         top_section = tk.Frame(
             parent,
             width=self.NAV_WIDTH + self.PFD_WIDTH,
@@ -153,8 +211,6 @@ class HMI(_ValidatedHMI):
         pfd_holder.pack(side="left", fill="y")
         pfd_holder.pack_propagate(False)
 
-        # Build the PFD with the correct parent from the start. Tk widgets cannot
-        # be reparented after creation, which is why the previous layout broke.
         pfd = super()._create_pfd(pfd_holder)
         canvas = pfd["canvas"]
 
@@ -170,7 +226,7 @@ class HMI(_ValidatedHMI):
             except Exception:
                 pass
 
-        self._resize_pfd_vessels(canvas)
+        self._resize_pfd_vessels_and_routes(canvas)
         canvas.scale("all", 0, 0, self.PFD_SCALE_X, 1.0)
         canvas.configure(width=self.PFD_WIDTH, height=self.PFD_HEIGHT)
         canvas.pack_configure(side="top", anchor="n", pady=0)
@@ -183,7 +239,7 @@ class HMI(_ValidatedHMI):
     def _populate_navigation_rail(
         self, rail: tk.Frame, current_tab: tk.Widget
     ) -> list[tk.Button]:
-        """Create clearly defined industrial-style navigation buttons."""
+        """Create narrow, readable industrial-style navigation buttons."""
         buttons: list[tk.Button] = []
         destinations = (
             ("Test", self.test_tab),
@@ -197,34 +253,34 @@ class HMI(_ValidatedHMI):
                 rail,
                 text=label,
                 command=lambda target=tab: self._select_tab(target),
-                font=("Arial", 9, "bold" if selected else "normal"),
+                font=("Arial", 8, "bold" if selected else "normal"),
                 relief="sunken" if selected else "raised",
                 borderwidth=2,
                 highlightthickness=0,
                 bg="#cfcfcf" if selected else "#e8e8e8",
                 activebackground="#d8d8d8",
-                padx=2,
+                padx=0,
                 pady=7,
                 cursor="hand2",
             )
-            button.pack(fill="x", padx=3, pady=(3, 2))
+            button.pack(fill="x", padx=2, pady=(3, 2))
             buttons.append(button)
 
         info_button = tk.Button(
             rail,
             text="Info",
             command=self._show_control_narrative,
-            font=("Arial", 9),
+            font=self.NAV_FONT,
             relief="raised",
             borderwidth=2,
             highlightthickness=0,
             bg="#e8e8e8",
             activebackground="#d8d8d8",
-            padx=2,
+            padx=0,
             pady=7,
             cursor="hand2",
         )
-        info_button.pack(fill="x", padx=3, pady=(3, 2))
+        info_button.pack(fill="x", padx=2, pady=(3, 2))
         buttons.append(info_button)
         return buttons
 
@@ -243,7 +299,7 @@ class HMI(_ValidatedHMI):
                 button.configure(
                     relief="sunken" if is_selected else "raised",
                     bg="#cfcfcf" if is_selected else "#e8e8e8",
-                    font=("Arial", 9, "bold" if is_selected else "normal"),
+                    font=("Arial", 8, "bold" if is_selected else "normal"),
                 )
 
 
