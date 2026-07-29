@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from tkinter import ttk
 
 from .hmi_layout_validated import HMI as _ValidatedHMI
 from .hmi_navigation_fix import HMI as _PreviousHMI
@@ -12,6 +13,7 @@ class HMI(_PreviousHMI):
     """MEU HMI with uniform top navigation and a centered PFD."""
 
     TOP_MARGIN = 0
+    NAV_GAP = 3
     NAV_HEIGHT = 34
     PFD_HEIGHT = 217
     PFD_WIDTH = 780
@@ -20,19 +22,41 @@ class HMI(_PreviousHMI):
     NAV_FONT_ACTIVE = ("Arial", 9, "bold")
     START_FONT = ("Arial", 15, "bold")
 
+    def _remove_native_tabs(self) -> None:
+        """Remove native tabs and eliminate theme-provided notebook inset."""
+        super()._remove_native_tabs()
+
+        style = ttk.Style(self)
+        style.layout(
+            "MEU.FlatClient.TNotebook",
+            [("Notebook.client", {"sticky": "nswe"})],
+        )
+        style.configure(
+            "MEU.FlatClient.TNotebook",
+            borderwidth=0,
+            padding=0,
+            tabmargins=0,
+        )
+        self.notebook.configure(style="MEU.FlatClient.TNotebook")
+        try:
+            self.notebook.pack_configure(pady=0)
+        except Exception:
+            pass
+
     def _finish_navigation_layout(self) -> None:
         """Finalize the tabless page stack and operator control sizing."""
         super()._finish_navigation_layout()
+        self._remove_native_tabs()
         self._enlarge_start_buttons()
         self._refresh_navigation_rails()
         self.update_idletasks()
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
-        """Create a centered PFD with a separate uniform top button row."""
+        """Create a centered PFD with equal spacing above and below the tabs."""
         section = tk.Frame(
             parent,
             width=self.PFD_WIDTH,
-            height=self.NAV_HEIGHT + self.PFD_HEIGHT,
+            height=self.NAV_GAP + self.NAV_HEIGHT + self.PFD_HEIGHT,
             bg=parent.cget("bg"),
             bd=0,
             highlightthickness=0,
@@ -43,7 +67,7 @@ class HMI(_PreviousHMI):
         nav = tk.Frame(
             section,
             width=self.PFD_WIDTH,
-            height=self.NAV_HEIGHT,
+            height=self.NAV_GAP + self.NAV_HEIGHT,
             bg=parent.cget("bg"),
             bd=0,
             highlightthickness=0,
@@ -63,12 +87,9 @@ class HMI(_PreviousHMI):
         pfd_holder.pack(side="top", anchor="n")
         pfd_holder.pack_propagate(False)
 
-        # Build the diagram directly in its final parent. This avoids reparenting,
-        # overlap, clipping, and geometry-manager conflicts.
         pfd = _ValidatedHMI._create_pfd(self, pfd_holder)
         canvas = pfd["canvas"]
 
-        # Remove the legacy help button. Info is provided in the top navigation.
         for widget in list(self._walk_widgets(canvas)):
             if not isinstance(widget, tk.Button):
                 continue
@@ -81,7 +102,6 @@ class HMI(_PreviousHMI):
             except Exception:
                 pass
 
-        # Retain the corrected equal-width outlet vessels and connected V5 route.
         self._resize_pfd_vessels_and_routes(canvas)
         canvas.configure(width=self.PFD_WIDTH - 2, height=self.PFD_HEIGHT - 2)
         canvas.pack_configure(side="top", anchor="n", pady=0)
@@ -96,6 +116,7 @@ class HMI(_PreviousHMI):
     ) -> list[tk.Button]:
         """Create four equal-size top navigation buttons."""
         nav.columnconfigure((0, 1, 2, 3), weight=1, uniform="meu_nav")
+        nav.rowconfigure(0, weight=1)
         buttons: list[tk.Button] = []
         items = (
             ("Test", self.test_tab, lambda: self._select_tab(self.test_tab)),
@@ -129,7 +150,7 @@ class HMI(_PreviousHMI):
                 column=column,
                 sticky="nsew",
                 padx=(0 if column == 0 else 2, 0),
-                pady=(0, 3),
+                pady=(self.NAV_GAP, self.NAV_GAP),
             )
             buttons.append(button)
         return buttons
