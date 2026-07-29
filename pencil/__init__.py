@@ -2,7 +2,7 @@
 
 from .hardware_runtime import MEU, PencilModule
 from .config_meu import FiltrationConfig, CleanConfig, BenchmarkConfig
-from .automation_meu import (
+from .automation_cycle_logging import (
     AutomationError,
     FiltrationTestSystem,
     CleanTestSystem,
