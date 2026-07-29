@@ -11,6 +11,7 @@ class HMI(_TopNavigationHMI):
     """MEU HMI with measured lower-panel placement and centered Prime control."""
 
     SENSOR_FRAME_EXTRA_HEIGHT = 24
+    LOWER_PANEL_TOP_GAP = 3
     MEMBRANE_CENTER_X = 370
     MEMBRANE_CENTER_Y = 111.5
 
@@ -60,7 +61,7 @@ class HMI(_TopNavigationHMI):
         return settings, sensors, cycle_status
 
     def _arrange_lower_panels(self) -> None:
-        """Use rendered boundaries so Settings has equal visible gaps above and below."""
+        """Position lower panels from measured visible boundaries."""
         self.update_idletasks()
 
         tab_data = (
@@ -113,8 +114,6 @@ class HMI(_TopNavigationHMI):
                     )
                     self.update_idletasks()
 
-                    # Correct the actual rendered result, including LabelFrame borders,
-                    # font metrics, and any remaining theme geometry.
                     actual_top_gap = settings.winfo_rooty() - visible_top
                     actual_bottom_gap = visible_bottom - (
                         settings.winfo_rooty() + settings.winfo_height()
@@ -130,6 +129,7 @@ class HMI(_TopNavigationHMI):
                 try:
                     right_column = sensors.master
                     right_column.pack_configure(fill="y", pady=0, anchor="n")
+
                     natural_height = getattr(sensors, "_meu_natural_height", None)
                     if natural_height is None:
                         natural_height = sensors.winfo_reqheight()
@@ -137,13 +137,27 @@ class HMI(_TopNavigationHMI):
 
                     sensors.configure(height=natural_height + self.SENSOR_FRAME_EXTRA_HEIGHT)
                     sensors.pack_propagate(False)
-                    sensors.pack_configure(padx=5, pady=(0, 0), anchor="n")
-                except Exception:
-                    pass
 
-            if cycle_status is not None:
-                try:
-                    cycle_status.pack_configure(pady=(0, 0), anchor="n")
+                    # The inherited layout packed these frames from the bottom. Merely
+                    # changing pady left the entire stack bottom-anchored and created
+                    # the large blank band below the PFD. Repack both frames from the
+                    # top so the requested gap is the actual rendered gap.
+                    sensors.pack_forget()
+                    if cycle_status is not None:
+                        cycle_status.pack_forget()
+
+                    sensors.pack(
+                        side="top",
+                        padx=5,
+                        pady=(self.LOWER_PANEL_TOP_GAP, 0),
+                        anchor="n",
+                    )
+                    if cycle_status is not None:
+                        cycle_status.pack(
+                            side="top",
+                            pady=(0, 0),
+                            anchor="n",
+                        )
                 except Exception:
                     pass
 
