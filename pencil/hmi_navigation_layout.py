@@ -11,20 +11,33 @@ from .hmi_layout_validated import HMI as _ValidatedHMI
 class HMI(_ValidatedHMI):
     """MEU HMI with compact left-side navigation and full-size touch targets."""
 
-    NAV_WIDTH = 64
+    NAV_WIDTH = 72
     PFD_HEIGHT = 225
-    PFD_SCALE_X = 0.91
+    PFD_SCALE_X = 0.90
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._hide_native_tabs()
-        self.after_idle(self._refresh_navigation_rails)
+        self.after_idle(self._finish_navigation_layout)
+
+    def _finish_navigation_layout(self) -> None:
+        """Reapply the hidden-tab style after Tk finishes constructing the notebook."""
+        self._hide_native_tabs()
+        self._refresh_navigation_rails()
 
     def _hide_native_tabs(self) -> None:
-        """Hide the horizontal ttk tab row without changing notebook behavior."""
+        """Remove the horizontal ttk tab row while preserving notebook switching."""
         style = ttk.Style(self)
-        style.layout("MEU.Hidden.TNotebook", [("Notebook.client", {"sticky": "nswe"})])
-        style.configure("MEU.Hidden.TNotebook", borderwidth=0, tabmargins=0)
+        style.layout(
+            "MEU.Hidden.TNotebook",
+            [("Notebook.client", {"sticky": "nswe"})],
+        )
+        style.configure(
+            "MEU.Hidden.TNotebook",
+            borderwidth=0,
+            tabmargins=0,
+            padding=0,
+        )
         self.notebook.configure(style="MEU.Hidden.TNotebook")
 
     def _select_tab(self, tab: tk.Widget) -> None:
@@ -32,21 +45,22 @@ class HMI(_ValidatedHMI):
         self.after_idle(self._refresh_navigation_rails)
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
-        """Condense the PFD and add a narrow navigation rail inside its left edge."""
+        """Condense the PFD and add a narrow button rail inside its left edge."""
         pfd = super()._create_pfd(parent)
         canvas = pfd["canvas"]
 
-        # Remove any legacy help button. Info is now part of the navigation rail.
+        # Remove the former help button. Info in the side rail replaces it.
         for child in list(canvas.winfo_children()):
-            if isinstance(child, tk.Button):
-                try:
-                    if child.cget("text") == "?":
-                        child.destroy()
-                except Exception:
-                    pass
+            if not isinstance(child, tk.Button):
+                continue
+            try:
+                if child.cget("text") == "?":
+                    child.destroy()
+            except Exception:
+                pass
 
-        # Compress the complete PFD just enough to create a dedicated navigation
-        # rail while preserving readable text, valve buttons, and vessel sizes.
+        # Compress only enough to provide the navigation rail while keeping all
+        # process labels, vessels, lines, and valve controls readable.
         canvas.scale("all", 0, 0, self.PFD_SCALE_X, 1.0)
         canvas.move("all", self.NAV_WIDTH, 0)
 
@@ -67,7 +81,7 @@ class HMI(_ValidatedHMI):
     def _populate_navigation_rail(
         self, rail: tk.Frame, current_tab: tk.Widget
     ) -> list[tk.Button]:
-        """Use flat labels with a larger invisible rectangular touch area."""
+        """Create clearly defined industrial-style navigation buttons."""
         buttons: list[tk.Button] = []
         destinations = (
             ("Test", self.test_tab),
@@ -81,54 +95,54 @@ class HMI(_ValidatedHMI):
                 rail,
                 text=label,
                 command=lambda target=tab: self._select_tab(target),
-                width=8,
-                height=2,
-                font=("Arial", 9),
-                relief="flat",
-                borderwidth=0,
+                font=("Arial", 9, "bold" if selected else "normal"),
+                relief="sunken" if selected else "raised",
+                borderwidth=2,
                 highlightthickness=0,
-                bg="#d9d9d9" if selected else "white",
-                activebackground="#d9d9d9",
+                bg="#cfcfcf" if selected else "#e8e8e8",
+                activebackground="#d8d8d8",
                 padx=2,
-                pady=2,
+                pady=7,
                 cursor="hand2",
             )
-            button.pack(fill="x", pady=(2, 1))
+            button.pack(fill="x", padx=3, pady=(3, 2))
             buttons.append(button)
 
         info_button = tk.Button(
             rail,
             text="Info",
             command=self._show_control_narrative,
-            width=8,
-            height=2,
             font=("Arial", 9),
-            relief="flat",
-            borderwidth=0,
+            relief="raised",
+            borderwidth=2,
             highlightthickness=0,
-            bg="white",
-            activebackground="#d9d9d9",
+            bg="#e8e8e8",
+            activebackground="#d8d8d8",
             padx=2,
-            pady=2,
+            pady=7,
             cursor="hand2",
         )
-        info_button.pack(fill="x", pady=(2, 1))
+        info_button.pack(fill="x", padx=3, pady=(3, 2))
         buttons.append(info_button)
         return buttons
 
     def _refresh_navigation_rails(self) -> None:
-        """Keep the selected tab visibly distinct on every PFD rail."""
+        """Keep the selected navigation button visibly depressed."""
         current = self.notebook.select()
+        index_by_key = {"test": 0, "benchmark": 1, "clean": 2}
+
         for key, pfd in self.pfds.items():
             buttons = pfd.get("navigation_buttons", [])
-            tab = {
-                "test": self.test_tab,
-                "benchmark": self.benchmark_tab,
-                "clean": self.clean_tab,
-            }.get(key)
-            selected = tab is not None and str(tab) == current
+            selected_index = index_by_key.get(key)
             for index, button in enumerate(buttons[:3]):
-                button.configure(bg="#d9d9d9" if selected and index == (0 if key == "test" else 1 if key == "benchmark" else 2) else "white")
+                is_selected = selected_index == index and str(
+                    (self.test_tab, self.benchmark_tab, self.clean_tab)[index]
+                ) == current
+                button.configure(
+                    relief="sunken" if is_selected else "raised",
+                    bg="#cfcfcf" if is_selected else "#e8e8e8",
+                    font=("Arial", 9, "bold" if is_selected else "normal"),
+                )
 
 
 __all__ = ["HMI"]
