@@ -8,15 +8,43 @@ from .hmi_top_navigation import HMI as _TopNavigationHMI
 
 
 class HMI(_TopNavigationHMI):
-    """MEU HMI with screen-relative Settings centering and full Sensors height."""
+    """MEU HMI with corrected lower panels and centered Prime control."""
 
     SENSOR_FRAME_EXTRA_HEIGHT = 16
+    MEMBRANE_CENTER_X = 370
+    MEMBRANE_CENTER_Y = 111.5
 
     def _finish_navigation_layout(self) -> None:
         """Finish the base layout, then verify lower-panel geometry after Tk settles."""
         super()._finish_navigation_layout()
         self.after_idle(self._arrange_lower_panels)
         self.after(75, self._arrange_lower_panels)
+
+    def _create_pfd(self, parent: tk.Widget) -> dict:
+        """Create the PFD and center the Prime button over the membrane body."""
+        pfd = super()._create_pfd(parent)
+        canvas = pfd.get("canvas")
+        prime_btn = pfd.get("prime_btn")
+
+        if canvas is not None and prime_btn is not None:
+            prime_path = str(prime_btn)
+            for item in canvas.find_all():
+                try:
+                    if canvas.type(item) != "window":
+                        continue
+                    if str(canvas.itemcget(item, "window")) != prime_path:
+                        continue
+                    canvas.coords(
+                        item,
+                        self.MEMBRANE_CENTER_X,
+                        self.MEMBRANE_CENTER_Y,
+                    )
+                    canvas.tag_raise(item)
+                    break
+                except Exception:
+                    continue
+
+        return pfd
 
     def _arrange_lower_panels(self) -> None:
         """Center Settings between the PFD bottom and screen bottom.
