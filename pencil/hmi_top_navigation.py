@@ -12,8 +12,7 @@ from .hmi_navigation_fix import HMI as _PreviousHMI
 class HMI(_PreviousHMI):
     """MEU HMI with uniform top navigation and a centered PFD."""
 
-    TOP_MARGIN = 0
-    NAV_GAP = 3
+    EDGE_GAP = 3
     NAV_HEIGHT = 34
     PFD_HEIGHT = 217
     PFD_WIDTH = 780
@@ -23,7 +22,7 @@ class HMI(_PreviousHMI):
     START_FONT = ("Arial", 15, "bold")
 
     def _remove_native_tabs(self) -> None:
-        """Remove native tabs and eliminate theme-provided notebook inset."""
+        """Remove native tabs and flatten the notebook client styling."""
         super()._remove_native_tabs()
 
         style = ttk.Style(self)
@@ -38,10 +37,6 @@ class HMI(_PreviousHMI):
             tabmargins=0,
         )
         self.notebook.configure(style="MEU.FlatClient.TNotebook")
-        try:
-            self.notebook.pack_configure(pady=0)
-        except Exception:
-            pass
 
     def _finish_navigation_layout(self) -> None:
         """Finalize the tabless page stack and operator control sizing."""
@@ -50,13 +45,68 @@ class HMI(_PreviousHMI):
         self._enlarge_start_buttons()
         self._refresh_navigation_rails()
         self.update_idletasks()
+        self._align_notebook_client_to_screen()
+        self.after_idle(self._verify_top_spacing)
+
+    def _align_notebook_client_to_screen(self) -> None:
+        """Remove the real ttk client inset instead of guessing with padding.
+
+        Raspberry Pi themes can retain several pixels above the notebook client even
+        when borderwidth and padding are zero. Measure that rendered offset and move
+        the notebook upward by exactly that amount. The page height is compensated
+        so no controls are pushed off the bottom of the 800 x 480 viewport.
+        """
+        self.update_idletasks()
+        try:
+            page = self._active_tab
+            client_inset = max(
+                0,
+                page.winfo_rooty() - self.notebook.winfo_rooty(),
+            )
+            notebook_top = self.notebook.winfo_y()
+            total_offset = max(0, notebook_top + client_inset)
+
+            self.notebook.pack_forget()
+            self.notebook.place(
+                x=0,
+                y=-total_offset,
+                relwidth=1.0,
+                relheight=1.0,
+                height=total_offset,
+            )
+            self._measured_notebook_top_offset = total_offset
+        except Exception:
+            self._measured_notebook_top_offset = 0
+
+    def _verify_top_spacing(self) -> None:
+        """Recheck geometry after placement and correct any remaining offset once."""
+        self.update_idletasks()
+        try:
+            first_pfd = next(iter(self.pfds.values()))
+            buttons = first_pfd.get("navigation_buttons", [])
+            if not buttons:
+                return
+
+            actual_top_gap = buttons[0].winfo_rooty() - self.winfo_rooty()
+            correction = actual_top_gap - self.EDGE_GAP
+            if correction == 0:
+                return
+
+            current_y = int(self.notebook.place_info().get("y", 0))
+            current_height = int(self.notebook.place_info().get("height", 0))
+            self.notebook.place_configure(
+                y=current_y - correction,
+                height=current_height + correction,
+            )
+        except Exception:
+            pass
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
         """Create a centered PFD with equal spacing above and below the tabs."""
         section = tk.Frame(
             parent,
             width=self.PFD_WIDTH,
-            height=self.NAV_GAP + self.NAV_HEIGHT + self.PFD_HEIGHT,
+            height=(2 * self.EDGE_GAP) + self.NAV_HEIGHT + self.PFD_HEIGHT,
             bg=parent.cget("bg"),
             bd=0,
             highlightthickness=0,
@@ -67,7 +117,7 @@ class HMI(_PreviousHMI):
         nav = tk.Frame(
             section,
             width=self.PFD_WIDTH,
-            height=self.NAV_GAP + self.NAV_HEIGHT,
+            height=(2 * self.EDGE_GAP) + self.NAV_HEIGHT,
             bg=parent.cget("bg"),
             bd=0,
             highlightthickness=0,
@@ -150,7 +200,7 @@ class HMI(_PreviousHMI):
                 column=column,
                 sticky="nsew",
                 padx=(0 if column == 0 else 2, 0),
-                pady=(self.NAV_GAP, self.NAV_GAP),
+                pady=(self.EDGE_GAP, self.EDGE_GAP),
             )
             buttons.append(button)
         return buttons
