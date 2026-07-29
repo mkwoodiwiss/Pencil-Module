@@ -21,7 +21,7 @@ class HMI(_MEUHMI):
         self._run_started = False
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
-        """Create the MEU PFD with separated feed and backwash inlet routing."""
+        """Create a compact, centered MEU PFD with separated inlet routing."""
         canvas = tk.Canvas(parent, width=780, height=175, bg="white")
         canvas.pack(pady=(2, 0))
 
@@ -33,32 +33,33 @@ class HMI(_MEUHMI):
         close_btn.pack(side="left", ipadx=4, ipady=4)
         canvas.create_window(770, 10, window=btn_frame, anchor="ne")
 
-        # Feed train is above the backwash train.
-        canvas.create_rectangle(25, 25, 105, 75, fill="lightblue")
-        canvas.create_text(65, 15, text="Feed Tank")
-        pi2_text = canvas.create_text(65, 65, text="-- PSI")
+        # Compact inlet trains on the left.
+        canvas.create_rectangle(25, 20, 105, 70, fill="lightblue")
+        canvas.create_text(65, 10, text="Feed Tank")
+        pi2_text = canvas.create_text(65, 60, text="-- PSI")
 
-        canvas.create_rectangle(25, 110, 105, 160, fill="lightblue")
-        canvas.create_text(65, 100, text="BW Tank")
-        pi1_text = canvas.create_text(65, 150, text="-- PSI")
+        canvas.create_rectangle(25, 105, 105, 155, fill="lightblue")
+        canvas.create_text(65, 95, text="BW Tank")
+        pi1_text = canvas.create_text(65, 145, text="-- PSI")
 
-        # Membrane body with a new top-left feed port. V1 still enters the left end.
-        canvas.create_rectangle(320, 65, 600, 95, fill="lightgray")
-        canvas.create_rectangle(335, 45, 355, 65, fill="lightgray")
-        canvas.create_rectangle(345, 95, 365, 120, fill="lightgray")
-        canvas.create_rectangle(565, 95, 585, 120, fill="lightgray")
-        canvas.create_text(460, 53, text="Membrane")
+        # Restore the original membrane length and center it in the 780 px canvas.
+        # The former lower-left port is removed; V2 now enters the new top-left port.
+        canvas.create_rectangle(300, 45, 480, 65, fill="lightgray")
+        canvas.create_rectangle(315, 25, 330, 45, fill="lightgray")
+        canvas.create_rectangle(455, 65, 470, 85, fill="lightgray")
+        canvas.create_text(390, 35, text="Membrane")
 
-        canvas.create_rectangle(625, 25, 685, 75, fill="lightblue")
-        canvas.create_text(655, 15, text="Filtrate")
-        effluent_weight_text = canvas.create_text(655, 65, text="-- g")
+        # Restore the compact original right-side arrangement.
+        canvas.create_rectangle(565, 20, 615, 70, fill="lightblue")
+        canvas.create_text(590, 10, text="Filtrate")
+        effluent_weight_text = canvas.create_text(590, 60, text="-- g")
 
-        canvas.create_rectangle(625, 120, 685, 170, fill="lightblue")
-        canvas.create_text(655, 110, text="BW Effluent")
-        backwash_weight_text = canvas.create_text(655, 160, text="-- g")
+        canvas.create_rectangle(565, 115, 615, 165, fill="lightblue")
+        canvas.create_text(590, 105, text="BW Effluent")
+        backwash_weight_text = canvas.create_text(590, 155, text="-- g")
 
-        canvas.create_rectangle(710, 75, 760, 125, fill="lightblue")
-        canvas.create_text(735, 65, text="Waste")
+        canvas.create_rectangle(665, 70, 715, 120, fill="lightblue")
+        canvas.create_text(690, 60, text="Waste")
 
         lines = {}
         valve_labels = {}
@@ -70,29 +71,30 @@ class HMI(_MEUHMI):
             4: [4],
         }
 
-        # V1: BW Tank to the membrane's existing left end port.
-        lines[0] = canvas.create_line(105, 135, 285, 135, fill="gray", width=2)
-        lines["v1_vert"] = canvas.create_line(285, 135, 285, 80, fill="gray", width=2)
-        lines["v1_end"] = canvas.create_line(285, 80, 320, 80, arrow="last", fill="gray", width=2)
-        valve_labels["V1"] = canvas.create_text(205, 135, text="V1")
+        # V1: BW Tank to the membrane left-end port.
+        lines[0] = canvas.create_line(105, 130, 265, 130, fill="gray", width=2)
+        lines["v1_vert"] = canvas.create_line(265, 130, 265, 55, fill="gray", width=2)
+        lines["v1_end"] = canvas.create_line(265, 55, 300, 55, arrow="last", fill="gray", width=2)
+        valve_labels["V1"] = canvas.create_text(165, 130, text="V1")
 
         # V2: Feed Tank to the new top-left membrane port.
-        lines[1] = canvas.create_line(105, 50, 345, 50, fill="gray", width=2)
-        lines["v2_drop"] = canvas.create_line(345, 50, 345, 65, arrow="last", fill="gray", width=2)
-        valve_labels["V2"] = canvas.create_text(205, 50, text="V2")
-        canvas.create_rectangle(250, 42.5, 305, 57.5, fill="white", outline="black")
-        te_text = canvas.create_text(277.5, 50, text="-- C")
+        lines[1] = canvas.create_line(105, 40, 322.5, 40, fill="gray", width=2)
+        lines["v2_drop"] = canvas.create_line(322.5, 40, 322.5, 45, arrow="last", fill="gray", width=2)
+        valve_labels["V2"] = canvas.create_text(165, 40, text="V2")
+        canvas.create_rectangle(205, 32.5, 260, 47.5, fill="white", outline="black")
+        te_text = canvas.create_text(232.5, 40, text="-- C")
 
-        lines[2] = canvas.create_line(575, 145, 625, 145, arrow="last", fill="gray", width=2)
-        lines["v3_vert1"] = canvas.create_line(575, 120, 575, 145, fill="gray", width=2)
-        lines["v3_vert2"] = canvas.create_line(575, 95, 575, 120, fill="gray", width=2)
-        valve_labels["V3"] = canvas.create_text(602, 145, text="V3")
+        # V3 and V4 share the remaining lower-right membrane port.
+        lines[2] = canvas.create_line(462.5, 140, 565, 140, arrow="last", fill="gray", width=2)
+        lines["v3_vert1"] = canvas.create_line(462.5, 95, 462.5, 140, fill="gray", width=2)
+        lines["v3_vert2"] = canvas.create_line(462.5, 85, 462.5, 95, fill="gray", width=2)
+        valve_labels["V3"] = canvas.create_text(515, 140, text="V3")
 
-        lines[3] = canvas.create_line(575, 100, 710, 100, arrow="last", fill="gray", width=2)
-        valve_labels["V4"] = canvas.create_text(650, 100, text="V4")
+        lines[3] = canvas.create_line(462.5, 95, 665, 95, arrow="last", fill="gray", width=2)
+        valve_labels["V4"] = canvas.create_text(565, 95, text="V4")
 
-        lines[4] = canvas.create_line(600, 80, 625, 80, 625, 50, arrow="last", fill="gray", width=2)
-        valve_labels["V5"] = canvas.create_text(615, 80, text="V5")
+        lines[4] = canvas.create_line(480, 55, 565, 55, arrow="last", fill="gray", width=2)
+        valve_labels["V5"] = canvas.create_text(520, 55, text="V5")
 
         solenoid_buttons = []
         valve_keys = ["V1", "V2", "V3", "V4", "V5"]
@@ -109,7 +111,7 @@ class HMI(_MEUHMI):
             solenoid_buttons.append(btn)
 
         prime_btn = tk.Button(canvas, text="Prime", command=self.prime)
-        canvas.create_window(460, 130, window=prime_btn)
+        canvas.create_window(390, 95, window=prime_btn)
 
         return {
             "canvas": canvas,
