@@ -3,63 +3,57 @@
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import ttk
 
 from .hmi_layout_validated import HMI as _ValidatedHMI
 
 
 class HMI(_ValidatedHMI):
-    """MEU HMI with compact left-side navigation and full-size touch targets."""
+    """MEU HMI with compact left-side navigation and no native tab strip."""
 
     NAV_WIDTH = 72
     PFD_HEIGHT = 225
     PFD_SCALE_X = 0.90
-    TAB_STRIP_OFFSET = 30
     TOP_MARGIN = 8
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._hide_native_tabs()
+        self._active_tab = self.test_tab
+        self._remove_native_tabs()
         self.after_idle(self._finish_navigation_layout)
 
     def _finish_navigation_layout(self) -> None:
-        """Finish tab removal after Tk has calculated the notebook geometry."""
-        self._hide_native_tabs()
+        """Finalize the tabless page stack after Tk calculates geometry."""
+        self._remove_native_tabs()
+        self._show_page(self._active_tab)
         self._remove_legacy_help_controls()
         self._refresh_navigation_rails()
         self.update_idletasks()
 
-    def _hide_native_tabs(self) -> None:
-        """Clip the ttk tab strip while retaining a clean top screen margin."""
-        style = ttk.Style(self)
-        style.layout(
-            "MEU.Hidden.TNotebook",
-            [("Notebook.client", {"sticky": "nswe"})],
-        )
-        style.configure(
-            "MEU.Hidden.TNotebook",
-            borderwidth=0,
-            tabmargins=0,
-            padding=0,
-        )
-        self.notebook.configure(style="MEU.Hidden.TNotebook")
-
-        # Some Raspberry Pi ttk themes continue drawing the native tab strip.
-        # Move that strip above the viewport, but retain an 8 px top margin. The
-        # notebook height is compensated so no lower controls are pushed off-screen.
+    def _remove_native_tabs(self) -> None:
+        """Remove every page from ttk.Notebook so no native tabs exist."""
         try:
-            self.notebook.pack_forget()
+            self.notebook.pack_configure(pady=(self.TOP_MARGIN, 0))
         except Exception:
             pass
-        visible_y = self.TOP_MARGIN - self.TAB_STRIP_OFFSET
-        height_compensation = self.TAB_STRIP_OFFSET - self.TOP_MARGIN
-        self.notebook.place(
-            x=0,
-            y=visible_y,
-            relwidth=1.0,
-            relheight=1.0,
-            height=height_compensation,
-        )
+
+        for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
+            try:
+                if str(tab) in self.notebook.tabs():
+                    self.notebook.forget(tab)
+            except Exception:
+                pass
+
+    def _show_page(self, tab: tk.Widget) -> None:
+        """Display one former notebook page using a tabless stacked layout."""
+        for page in (self.test_tab, self.benchmark_tab, self.clean_tab):
+            try:
+                page.place_forget()
+            except Exception:
+                pass
+
+        tab.place(in_=self.notebook, x=0, y=0, relwidth=1.0, relheight=1.0)
+        tab.lift()
+        self._active_tab = tab
 
     def _remove_legacy_help_controls(self) -> None:
         """Remove every legacy question-mark button, including nested buttons."""
@@ -80,7 +74,7 @@ class HMI(_ValidatedHMI):
                     pass
 
     def _select_tab(self, tab: tk.Widget) -> None:
-        self.notebook.select(tab)
+        self._show_page(tab)
         self.after_idle(self._refresh_navigation_rails)
 
     def _create_pfd(self, parent: tk.Widget) -> dict:
@@ -88,8 +82,6 @@ class HMI(_ValidatedHMI):
         pfd = super()._create_pfd(parent)
         canvas = pfd["canvas"]
 
-        # Remove the former help button before the first rendered frame. The
-        # Info side button replaces it.
         for widget in list(self._walk_widgets(canvas)):
             if not isinstance(widget, tk.Button):
                 continue
@@ -102,8 +94,6 @@ class HMI(_ValidatedHMI):
             except Exception:
                 pass
 
-        # Compress only enough to provide the navigation rail while keeping all
-        # process labels, vessels, lines, and valve controls readable.
         canvas.scale("all", 0, 0, self.PFD_SCALE_X, 1.0)
         canvas.move("all", self.NAV_WIDTH, 0)
 
@@ -171,16 +161,16 @@ class HMI(_ValidatedHMI):
 
     def _refresh_navigation_rails(self) -> None:
         """Keep the selected navigation button visibly depressed."""
-        current = self.notebook.select()
-        index_by_key = {"test": 0, "benchmark": 1, "clean": 2}
+        active_index = {
+            self.test_tab: 0,
+            self.benchmark_tab: 1,
+            self.clean_tab: 2,
+        }.get(self._active_tab)
 
-        for key, pfd in self.pfds.items():
+        for pfd in self.pfds.values():
             buttons = pfd.get("navigation_buttons", [])
-            selected_index = index_by_key.get(key)
             for index, button in enumerate(buttons[:3]):
-                is_selected = selected_index == index and str(
-                    (self.test_tab, self.benchmark_tab, self.clean_tab)[index]
-                ) == current
+                is_selected = index == active_index
                 button.configure(
                     relief="sunken" if is_selected else "raised",
                     bg="#cfcfcf" if is_selected else "#e8e8e8",
