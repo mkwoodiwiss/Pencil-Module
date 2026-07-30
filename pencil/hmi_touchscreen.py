@@ -16,23 +16,76 @@ class HMI(_FinalHMI):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.after_idle(self._normalize_clean_settings_controls)
+        self.after_idle(self._finish_touchscreen_settings_layout)
+
+    def _finish_touchscreen_settings_layout(self) -> None:
+        """Normalize Clean controls, then lock every Settings panel geometry."""
+        self._normalize_clean_settings_controls()
+        self.update_idletasks()
+        self._normalize_settings_panels()
+
+    def _find_settings_frame(self, tab: tk.Widget):
+        for widget in self._walk_widgets(tab):
+            if not isinstance(widget, tk.LabelFrame):
+                continue
+            try:
+                if widget.cget("text") == "Settings":
+                    return widget
+            except tk.TclError:
+                pass
+        return None
+
+    def _normalize_settings_panels(self) -> None:
+        """Use one fixed panel size so summary text cannot shift the layout."""
+        frames = [
+            frame
+            for frame in (
+                self._find_settings_frame(self.test_tab),
+                self._find_settings_frame(self.benchmark_tab),
+                self._find_settings_frame(self.clean_tab),
+            )
+            if frame is not None
+        ]
+        if not frames:
+            return
+
+        # Fixed-width summary labels prevent long identifiers from changing the
+        # requested width. The final HMI already ellipsizes the displayed value.
+        for frame in frames:
+            for widget in self._walk_widgets(frame):
+                if not isinstance(widget, tk.Label):
+                    continue
+                try:
+                    if widget.cget("textvariable"):
+                        widget.configure(width=20, anchor="nw", justify="left")
+                except tk.TclError:
+                    pass
+
+        self.update_idletasks()
+        panel_width = min(480, max(380, int(self.winfo_width() * 0.39)))
+        available_heights = []
+        for frame in frames:
+            try:
+                relative_top = frame.winfo_rooty() - self.winfo_rooty()
+                available_heights.append(max(250, self.winfo_height() - relative_top - 8))
+            except tk.TclError:
+                pass
+        panel_height = min(available_heights) if available_heights else 315
+
+        for frame in frames:
+            try:
+                frame.configure(width=panel_width, height=panel_height)
+                frame.pack_propagate(False)
+                frame.grid_propagate(False)
+            except tk.TclError:
+                pass
 
     def _normalize_clean_settings_controls(self) -> None:
         """Match the Clean settings button layout to Test and Benchmark."""
         if getattr(self, "_clean_settings_controls_normalized", False):
             return
 
-        settings = None
-        for widget in self._walk_widgets(self.clean_tab):
-            if not isinstance(widget, tk.LabelFrame):
-                continue
-            try:
-                if widget.cget("text") == "Settings":
-                    settings = widget
-                    break
-            except tk.TclError:
-                pass
+        settings = self._find_settings_frame(self.clean_tab)
         if settings is None:
             return
 
