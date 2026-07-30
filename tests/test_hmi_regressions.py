@@ -1,5 +1,6 @@
 """Hardware-independent regression tests for fragile final HMI integration fixes."""
 
+import types
 import unittest
 from unittest import mock
 
@@ -102,8 +103,9 @@ class TestFinalHMIRegressions(unittest.TestCase):
         instance._update_lines.assert_called_once_with()
 
     def test_valve_sync_tolerates_missing_runtime_state(self):
-        instance = object.__new__(hmi_final.HMI)
-        instance._update_lines = mock.Mock(side_effect=AttributeError("screen closed"))
+        instance = types.SimpleNamespace(
+            _update_lines=mock.Mock(side_effect=AttributeError("screen closed"))
+        )
 
         hmi_final.HMI._sync_all_valve_buttons(instance)
 
