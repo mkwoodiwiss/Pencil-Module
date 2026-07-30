@@ -28,11 +28,15 @@ class _FakeButton:
     def __init__(self, *, fail=False):
         self.fail = fail
         self.backgrounds = []
+        self.active_backgrounds = []
 
     def configure(self, **kwargs):
         if self.fail:
             raise hmi_final.tk.TclError("destroyed widget")
-        self.backgrounds.append(kwargs["bg"])
+        if "bg" in kwargs:
+            self.backgrounds.append(kwargs["bg"])
+        if "activebackground" in kwargs:
+            self.active_backgrounds.append(kwargs["activebackground"])
 
 
 class TestFinalHMIRegressions(unittest.TestCase):
@@ -98,8 +102,11 @@ class TestFinalHMIRegressions(unittest.TestCase):
         hmi_final.HMI._sync_all_valve_buttons(instance)
 
         self.assertEqual(first.backgrounds, ["green"])
+        self.assertEqual(first.active_backgrounds, ["green"])
         self.assertEqual(second.backgrounds, ["lightgray"])
+        self.assertEqual(second.active_backgrounds, ["lightgray"])
         self.assertEqual(missing_state.backgrounds, ["lightgray"])
+        self.assertEqual(missing_state.active_backgrounds, ["lightgray"])
         instance._update_lines.assert_called_once_with()
 
     def test_valve_sync_tolerates_missing_runtime_state(self):
@@ -110,6 +117,33 @@ class TestFinalHMIRegressions(unittest.TestCase):
         hmi_final.HMI._sync_all_valve_buttons(instance)
 
         instance._update_lines.assert_called_once_with()
+
+    def test_touchscreen_toggle_matches_active_and_normal_colors(self):
+        instance = object.__new__(hmi_final.HMI)
+        first = _FakeButton()
+        second = _FakeButton()
+        instance.solenoid_states = [False]
+        instance.pfds = {
+            "test": {"solenoid_buttons": [first]},
+            "clean": {"solenoid_buttons": [second]},
+        }
+
+        def parent_toggle(target, channel):
+            target.solenoid_states[channel] = not target.solenoid_states[channel]
+
+        with mock.patch.object(
+            hmi_final._ThemedHMI,
+            "toggle_solenoid",
+            autospec=True,
+            side_effect=parent_toggle,
+        ) as parent:
+            hmi_final.HMI.toggle_solenoid(instance, 0)
+
+        parent.assert_called_once_with(instance, 0)
+        self.assertEqual(first.backgrounds, ["green"])
+        self.assertEqual(first.active_backgrounds, ["green"])
+        self.assertEqual(second.backgrounds, ["green"])
+        self.assertEqual(second.active_backgrounds, ["green"])
 
     def test_completion_bypasses_themed_duplicate_dialog(self):
         instance = object.__new__(hmi_final.HMI)
