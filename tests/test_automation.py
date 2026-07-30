@@ -3,6 +3,7 @@ import os
 import tempfile
 import unittest
 
+from pencil.automation_cycle_logging import PSI_TO_KPA
 from pencil.config_meu import CleanConfig
 from pencil.hmi_meu import normalize_io_text
 from tests.test_interfaces import SimulatedPencilModule
@@ -12,8 +13,8 @@ from system_control import FiltrationConfig, FiltrationTestSystem
 EXPECTED_HEADER = [
     "timestamp",
     "feed_temperature",
-    "feed_tank_pressure",
-    "backwash_tank_pressure",
+    "feed_tank_pressure_kpa",
+    "backwash_tank_pressure_kpa",
     "feed_weight",
     "backwash_weight",
     "cycle",
@@ -58,7 +59,7 @@ class TestAutomation(unittest.TestCase):
             self.assertIn("Filter", steps)
             self.assertIn("Backwash", steps)
 
-    def test_pressure_columns_follow_io_list_channels(self):
+    def test_pressure_columns_follow_io_list_channels_and_use_kpa(self):
         mod = SimulatedPencilModule()
         with tempfile.TemporaryDirectory() as log_dir:
             system = FiltrationTestSystem(mod, self.make_config(), log_dir=log_dir)
@@ -67,8 +68,14 @@ class TestAutomation(unittest.TestCase):
             with open(os.path.join(log_dir, data_file), newline="", encoding="utf-8") as fp:
                 rows = list(csv.DictReader(fp))
             self.assertTrue(rows)
-            self.assertAlmostEqual(float(rows[0]["feed_tank_pressure"]), mod.read_pressure(2))
-            self.assertAlmostEqual(float(rows[0]["backwash_tank_pressure"]), mod.read_pressure(1))
+            self.assertAlmostEqual(
+                float(rows[0]["feed_tank_pressure_kpa"]),
+                mod.read_pressure(2) * PSI_TO_KPA,
+            )
+            self.assertAlmostEqual(
+                float(rows[0]["backwash_tank_pressure_kpa"]),
+                mod.read_pressure(1) * PSI_TO_KPA,
+            )
 
     def test_benchmark_cycle_uses_benchmark_prefix(self):
         mod = SimulatedPencilModule()
