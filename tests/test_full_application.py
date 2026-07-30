@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 import unittest
 from unittest import mock
 
@@ -7,12 +10,14 @@ import system_control
 
 _created_apps = []
 
+
 class HeadlessHMI:
     """Minimal HMI replacement that runs without a GUI."""
 
     def __init__(self, module, fullscreen=False, defaults=None):
         _created_apps.append(self)
         self.module = module
+        self.defaults = defaults
         self.weight = ""
         self.backwash_weight = ""
         self.pressure = ""
@@ -20,7 +25,7 @@ class HeadlessHMI:
         self.update_count = 0
 
     def after(self, delay, callback):
-        # Immediately invoke the callback a limited number of times
+        # Immediately invoke the callback a limited number of times.
         if self.update_count < 2:
             callback()
 
@@ -47,6 +52,45 @@ class TestFullApplication(unittest.TestCase):
         self.assertEqual(app.pressure, "15.00")
         self.assertEqual(app.temp, "20.50")
         self.assertEqual(app.update_count, 2)
+
+    def test_load_defaults_accepts_json_object(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = os.path.join(directory, "config.json")
+            with open(config_path, "w", encoding="utf-8") as config_file:
+                json.dump({"project": "test"}, config_file)
+
+            self.assertEqual(
+                system_control._load_defaults(config_path),
+                {"project": "test"},
+            )
+
+    def test_load_defaults_allows_missing_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = os.path.join(directory, "missing.json")
+            self.assertEqual(system_control._load_defaults(config_path), {})
+
+    def test_load_defaults_rejects_malformed_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = os.path.join(directory, "config.json")
+            with open(config_path, "w", encoding="utf-8") as config_file:
+                config_file.write("{not valid json")
+
+            with self.assertRaisesRegex(RuntimeError, "Invalid JSON"):
+                system_control._load_defaults(config_path)
+
+    def test_load_defaults_rejects_non_object_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = os.path.join(directory, "config.json")
+            with open(config_path, "w", encoding="utf-8") as config_file:
+                json.dump(["not", "an", "object"], config_file)
+
+            with self.assertRaisesRegex(RuntimeError, "JSON object"):
+                system_control._load_defaults(config_path)
+
+    def test_load_defaults_reports_read_errors(self):
+        with mock.patch("builtins.open", side_effect=PermissionError("denied")):
+            with self.assertRaisesRegex(RuntimeError, "Unable to read"):
+                system_control._load_defaults("config.json")
 
 
 if __name__ == "__main__":
