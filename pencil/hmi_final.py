@@ -7,6 +7,9 @@ import tkinter as tk
 from .hmi_modern_theme import HMI as _ThemedHMI
 
 
+PSI_TO_KPA = 6.894757293168
+
+
 class HMI(_ThemedHMI):
     """Themed HMI with final runtime integration fixes."""
 
@@ -17,6 +20,7 @@ class HMI(_ThemedHMI):
         self._shared_identifier_sync_active = False
         self._install_shared_identifier_sync()
         self._refresh_identifier_summaries()
+        self._replace_pressure_unit_labels()
 
     def _style_mapped_widget(self, event) -> None:
         """Ignore non-widget and destroyed targets during mapping and shutdown."""
@@ -288,6 +292,55 @@ class HMI(_ThemedHMI):
             "clean_summary_left_var",
             "clean_summary_right_var",
         )
+
+    def _replace_pressure_unit_labels(self) -> None:
+        """Replace static PSI labels with kPa throughout the final HMI."""
+        for widget in self._walk_widgets(self):
+            if not isinstance(widget, tk.Label):
+                continue
+            try:
+                if str(widget.cget("text")).strip().upper() == "PSI":
+                    widget.configure(text="kPa")
+            except tk.TclError:
+                pass
+
+    @staticmethod
+    def _psi_to_kpa(value: float) -> float:
+        return float(value) * PSI_TO_KPA
+
+    def update_data(self) -> None:
+        """Refresh displayed values, converting internal psi readings to kPa."""
+        if not self.winfo_exists():
+            return
+        with self._sensor_lock:
+            weight = self.latest_weight
+            bw_weight = self.latest_bw_weight
+            pressure_bw_kpa = self._psi_to_kpa(self.latest_pressure_bw)
+            pressure_feed_kpa = self._psi_to_kpa(self.latest_pressure_raw)
+            temp = self.latest_temp
+
+        clean_w = self._strip_weight(weight)
+        clean_bw = self._strip_weight(bw_weight)
+        self.weight_var.set(clean_w)
+        self.backwash_weight_var.set(clean_bw)
+        self.pressure_bw_var.set(f"{pressure_bw_kpa:.2f}")
+        self.pressure_raw_var.set(f"{pressure_feed_kpa:.2f}")
+        self.temp_var.set(f"{temp:.2f}")
+
+        for pfd in self.pfds.values():
+            pfd["canvas"].itemconfig(
+                pfd["pi1_text"], text=f"{self.pressure_bw_var.get()} kPa"
+            )
+            pfd["canvas"].itemconfig(
+                pfd["pi2_text"], text=f"{self.pressure_raw_var.get()} kPa"
+            )
+            pfd["canvas"].itemconfig(pfd["te_text"], text=f"{self.temp_var.get()} C")
+            pfd["canvas"].itemconfig(pfd["effluent_weight_text"], text=weight)
+            pfd["canvas"].itemconfig(pfd["backwash_weight_text"], text=bw_weight)
+
+        self._update_cycle_time()
+        self._update_lines()
+        self.after(1000, self.update_data)
 
     def _edit_test_settings(self) -> None:
         self._open_settings_dialog(super()._edit_test_settings)
