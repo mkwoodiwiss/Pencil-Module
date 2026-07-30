@@ -16,6 +16,7 @@ EXPECTED_HEADER = [
     "backwash_tank_pressure",
     "feed_weight",
     "backwash_weight",
+    "cycle",
     "step",
 ]
 
