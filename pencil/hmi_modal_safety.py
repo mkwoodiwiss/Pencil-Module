@@ -12,10 +12,12 @@ class HMI(_CleanMatchHMI):
     """MEU HMI with safe Prime routing and modal main-screen controls."""
 
     CLEAN_BUTTON_SIDE_INSET = 12
+    CLEAN_BORDER_COLOR = "#707070"
 
     def __init__(self, *args, **kwargs) -> None:
         self._open_modal_windows: set[tk.Toplevel] = set()
         self._main_button_states: dict[tk.Button, str] = {}
+        self._clean_right_border: tk.Frame | None = None
         super().__init__(*args, **kwargs)
         self.bind_all("<Map>", self._register_mapped_popup, add="+")
 
@@ -51,6 +53,51 @@ class HMI(_CleanMatchHMI):
                 anchor="s",
                 width=container_width,
             )
+        except tk.TclError:
+            pass
+
+    def _apply_clean_settings_layout(self) -> None:
+        """Apply the Clean layout and redraw the edge after all widgets render."""
+        super()._apply_clean_settings_layout()
+        self._restore_clean_settings_border()
+        self.after_idle(self._restore_clean_settings_border)
+        self.after(75, self._restore_clean_settings_border)
+
+    def _restore_clean_settings_border(self) -> None:
+        """Keep the right LabelFrame edge visible above placed child widgets."""
+        clean_settings = self._find_settings_frame(self.clean_tab)
+        if clean_settings is None:
+            return
+
+        try:
+            if not clean_settings.winfo_exists():
+                return
+
+            clean_settings.lift()
+            border = self._clean_right_border
+            if (
+                border is None
+                or not border.winfo_exists()
+                or border.master is not clean_settings
+            ):
+                border = tk.Frame(
+                    clean_settings,
+                    bg=self.CLEAN_BORDER_COLOR,
+                    bd=0,
+                    highlightthickness=0,
+                )
+                self._clean_right_border = border
+
+            border.place(
+                relx=1.0,
+                x=-2,
+                y=15,
+                relheight=1.0,
+                height=-18,
+                width=1,
+                anchor="ne",
+            )
+            border.lift()
         except tk.TclError:
             pass
 
