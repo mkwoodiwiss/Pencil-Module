@@ -19,7 +19,9 @@ class HMI(_TouchscreenHMI):
         super().__init__(*args, **kwargs)
         self.after(300, self._apply_clean_settings_layout)
         try:
-            self.notebook.bind("<<NotebookTabChanged>>", self._clean_tab_selected, add="+")
+            self.notebook.bind(
+                "<<NotebookTabChanged>>", self._clean_tab_selected, add="+"
+            )
         except tk.TclError:
             pass
 
@@ -99,11 +101,10 @@ class HMI(_TouchscreenHMI):
             pass
 
     @staticmethod
-    def _copy_button_geometry(source: tk.Button, target: tk.Button) -> None:
-        """Copy the complete visible button style and grid spacing."""
+    def _copy_button_style(source: tk.Button, target: tk.Button) -> None:
+        """Copy visible button styling without relying on text-unit width."""
         target.configure(
             font=source.cget("font"),
-            width=source.cget("width"),
             height=source.cget("height"),
             padx=source.cget("padx"),
             pady=source.cget("pady"),
@@ -111,30 +112,55 @@ class HMI(_TouchscreenHMI):
             relief=source.cget("relief"),
         )
 
-        if source.winfo_manager() == "grid" and target.winfo_manager() == "grid":
-            source_grid = source.grid_info()
-            target.grid_configure(
-                padx=source_grid.get("padx", 0),
-                pady=source_grid.get("pady", 0),
-                ipadx=source_grid.get("ipadx", 0),
-                ipady=source_grid.get("ipady", 0),
-                sticky=source_grid.get("sticky", ""),
+    @staticmethod
+    def _match_button_container_pixels(
+        test_buttons: dict[str, tk.Button], clean_buttons: dict[str, tk.Button]
+    ) -> None:
+        """Force Clean grid columns to the measured Test button pixel widths."""
+        pairs = (
+            ("Edit Settings", "Calibrate"),
+            ("Tare FIL", "Tare BW EFL"),
+        )
+        source_parent = test_buttons["Edit Settings"].master
+        target_parent = clean_buttons["Edit Settings"].master
+
+        source_parent.update_idletasks()
+        source_width = source_parent.winfo_width()
+        source_height = source_parent.winfo_height()
+        target_parent.configure(width=source_width, height=source_height)
+        target_parent.grid_propagate(False)
+
+        for column in (0, 1):
+            measured_width = max(
+                test_buttons[row[column]].winfo_width() for row in pairs
+            )
+            source_column = source_parent.grid_columnconfigure(column)
+            target_parent.grid_columnconfigure(
+                column,
+                minsize=measured_width,
+                pad=source_column.get("pad", 0),
+                weight=0,
+                uniform="",
             )
 
-            source_parent = source.master
-            target_parent = target.master
-            for column in (0, 1):
-                source_column = source_parent.grid_columnconfigure(column)
-                target_parent.grid_columnconfigure(
-                    column,
-                    minsize=source_column.get("minsize", 0),
-                    pad=source_column.get("pad", 0),
-                    weight=source_column.get("weight", 0),
-                    uniform=source_column.get("uniform", ""),
+        for row_index, row in enumerate(pairs):
+            for column, text in enumerate(row):
+                source = test_buttons[text]
+                target = clean_buttons[text]
+                HMI._copy_button_style(source, target)
+                source_grid = source.grid_info()
+                target.grid_configure(
+                    row=row_index,
+                    column=column,
+                    padx=source_grid.get("padx", 0),
+                    pady=source_grid.get("pady", 0),
+                    ipadx=source_grid.get("ipadx", 0),
+                    ipady=source_grid.get("ipady", 0),
+                    sticky="ew",
                 )
 
     def _apply_clean_settings_layout(self) -> None:
-        """Fit Clean inside the screen and match Test button geometry exactly."""
+        """Fit Clean inside the screen and match Test button pixels exactly."""
         test_settings = self._find_settings_frame(self.test_tab)
         clean_settings = self._find_settings_frame(self.clean_tab)
         if test_settings is None or clean_settings is None:
@@ -166,13 +192,10 @@ class HMI(_TouchscreenHMI):
 
         test_buttons = self._buttons_by_text(test_settings)
         clean_buttons = self._buttons_by_text(clean_settings)
-        for text in ("Edit Settings", "Calibrate", "Tare FIL", "Tare BW EFL"):
-            source = test_buttons.get(text)
-            target = clean_buttons.get(text)
-            if source is None or target is None:
-                continue
+        required = {"Edit Settings", "Calibrate", "Tare FIL", "Tare BW EFL"}
+        if required.issubset(test_buttons) and required.issubset(clean_buttons):
             try:
-                self._copy_button_geometry(source, target)
+                self._match_button_container_pixels(test_buttons, clean_buttons)
             except tk.TclError:
                 pass
 
