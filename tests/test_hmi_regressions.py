@@ -29,6 +29,7 @@ class _FakeButton:
         self.fail = fail
         self.backgrounds = []
         self.active_backgrounds = []
+        self.states = []
 
     def configure(self, **kwargs):
         if self.fail:
@@ -37,6 +38,40 @@ class _FakeButton:
             self.backgrounds.append(kwargs["bg"])
         if "activebackground" in kwargs:
             self.active_backgrounds.append(kwargs["activebackground"])
+        if "state" in kwargs:
+            self.states.append(kwargs["state"])
+
+
+class _FakeToplevel:
+    def __init__(self):
+        self.bindings = {}
+
+    def bind(self, sequence, callback, add=None):
+        self.bindings[sequence] = callback
+
+    def destroy(self):
+        callback = self.bindings.get("<Destroy>")
+        if callback:
+            callback(types.SimpleNamespace(widget=self))
+
+
+class _SettingsHarness:
+    _set_valve_buttons_state = hmi_final.HMI._set_valve_buttons_state
+    _settings_window_closed = hmi_final.HMI._settings_window_closed
+    _register_settings_window = hmi_final.HMI._register_settings_window
+    _open_settings_dialog = hmi_final.HMI._open_settings_dialog
+
+    def __init__(self):
+        self.button = _FakeButton()
+        self.pfds = {"test": {"solenoid_buttons": [self.button]}}
+        self.solenoid_states = [False]
+        self.is_running = False
+        self.children = []
+        self._style_settings_window = mock.Mock()
+        self._sync_all_valve_buttons = mock.Mock()
+
+    def winfo_children(self):
+        return list(self.children)
 
 
 class TestFinalHMIRegressions(unittest.TestCase):
@@ -144,6 +179,45 @@ class TestFinalHMIRegressions(unittest.TestCase):
         self.assertEqual(first.active_backgrounds, ["green"])
         self.assertEqual(second.backgrounds, ["green"])
         self.assertEqual(second.active_backgrounds, ["green"])
+
+    def test_settings_dialog_disables_valves_and_is_styled(self):
+        instance = _SettingsHarness()
+        window = _FakeToplevel()
+
+        def open_dialog():
+            instance.children.append(window)
+
+        with mock.patch.object(hmi_final.tk, "Toplevel", _FakeToplevel):
+            instance._open_settings_dialog(open_dialog)
+
+        self.assertEqual(instance.button.states, ["disabled", "disabled"])
+        instance._style_settings_window.assert_called_once_with(window)
+        self.assertIn(window, instance._open_settings_windows)
+
+    def test_valves_restore_after_last_settings_dialog_closes(self):
+        instance = _SettingsHarness()
+        first = _FakeToplevel()
+        second = _FakeToplevel()
+        instance._register_settings_window(first)
+        instance._register_settings_window(second)
+
+        first.destroy()
+        self.assertEqual(instance.button.states, ["disabled", "disabled"])
+
+        second.destroy()
+        self.assertEqual(instance.button.states[-1], "normal")
+        instance._sync_all_valve_buttons.assert_called_once_with()
+
+    def test_settings_dialog_close_does_not_enable_valves_during_run(self):
+        instance = _SettingsHarness()
+        instance.is_running = True
+        window = _FakeToplevel()
+        instance._register_settings_window(window)
+
+        window.destroy()
+
+        self.assertNotIn("normal", instance.button.states)
+        instance._sync_all_valve_buttons.assert_not_called()
 
     def test_completion_bypasses_themed_duplicate_dialog(self):
         instance = object.__new__(hmi_final.HMI)
