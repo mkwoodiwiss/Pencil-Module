@@ -28,6 +28,12 @@ class HMI(_ThemedHMI):
         except (tk.TclError, AttributeError):
             pass
 
+    @staticmethod
+    def _set_valve_button_color(button, state: bool) -> None:
+        """Keep normal and touchscreen-active colors matched to valve state."""
+        color = "green" if state else "lightgray"
+        button.configure(bg=color, activebackground=color)
+
     def _sync_all_valve_buttons(self) -> None:
         """Synchronize every PFD valve button and process line with current state."""
         states = list(getattr(self, "solenoid_states", ()))
@@ -36,7 +42,7 @@ class HMI(_ThemedHMI):
             for index, button in enumerate(buttons):
                 state = bool(states[index]) if index < len(states) else False
                 try:
-                    button.configure(bg="green" if state else "lightgray")
+                    self._set_valve_button_color(button, state)
                 except tk.TclError:
                     pass
 
@@ -44,6 +50,16 @@ class HMI(_ThemedHMI):
             self._update_lines()
         except (tk.TclError, AttributeError):
             pass
+
+    def toggle_solenoid(self, channel: int) -> None:
+        """Toggle one valve and immediately refresh its touchscreen appearance."""
+        super().toggle_solenoid(channel)
+        state = bool(self.solenoid_states[channel])
+        for pfd in self.pfds.values():
+            try:
+                self._set_valve_button_color(pfd["solenoid_buttons"][channel], state)
+            except tk.TclError:
+                pass
 
     def _test_finished(self) -> None:
         """Use only the original runtime results manager after a completed run."""
