@@ -77,6 +77,21 @@ class HMI(_FinalHMI):
             output.append(line)
         return "\n".join(output)
 
+    def _update_clean_summary(self) -> None:
+        """Balance Clean summary rows so the Test-sized frame does not clip controls."""
+        super()._update_clean_summary()
+        left_var = getattr(self, "clean_summary_left_var", None)
+        right_var = getattr(self, "clean_summary_right_var", None)
+        if left_var is None or right_var is None:
+            return
+
+        lines = left_var.get().splitlines() + right_var.get().splitlines()
+        if not lines:
+            return
+        split = (len(lines) + 1) // 2
+        left_var.set("\n".join(lines[:split]))
+        right_var.set("\n".join(lines[split:]))
+
     def _normalize_bottom_columns(self) -> None:
         """Constrain parent columns while allowing panels to keep natural height."""
         for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
