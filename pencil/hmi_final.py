@@ -10,6 +10,14 @@ from .hmi_modern_theme import HMI as _ThemedHMI
 class HMI(_ThemedHMI):
     """Themed HMI with final runtime integration fixes."""
 
+    SUMMARY_VALUE_WIDTH = 16
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._shared_identifier_sync_active = False
+        self._install_shared_identifier_sync()
+        self._refresh_identifier_summaries()
+
     def _style_mapped_widget(self, event) -> None:
         """Ignore non-widget and destroyed targets during mapping and shutdown."""
         widget = getattr(event, "widget", None)
@@ -102,11 +110,19 @@ class HMI(_ThemedHMI):
             for child in parent.winfo_children():
                 try:
                     if isinstance(child, tk.Button):
-                        child.configure(font=("Arial", 18, "bold"), height=2, padx=22, pady=10)
+                        child.configure(
+                            font=("Arial", 18, "bold"),
+                            height=2,
+                            padx=22,
+                            pady=10,
+                        )
                     elif isinstance(child, tk.Checkbutton):
                         child.configure(font=("Arial", 16), padx=11, pady=7)
                     elif isinstance(child, tk.Entry):
-                        child.configure(font=("Arial", 17), width=max(10, int(child.cget("width"))))
+                        child.configure(
+                            font=("Arial", 17),
+                            width=max(10, int(child.cget("width"))),
+                        )
                     elif isinstance(child, tk.Label):
                         child.configure(font=("Arial", 16))
                 except (tk.TclError, ValueError):
@@ -166,6 +182,112 @@ class HMI(_ThemedHMI):
         window = windows[-1]
         self._register_settings_window(window)
         self._style_settings_window(window)
+
+    @staticmethod
+    def _shared_identifier_groups() -> tuple[tuple[str, ...], ...]:
+        return (
+            ("project_var", "benchmark_project_var", "clean_project_var"),
+            ("module_id_var", "benchmark_module_id_var", "clean_module_id_var"),
+            ("sample_id_var", "benchmark_sample_id_var"),
+        )
+
+    def _install_shared_identifier_sync(self) -> None:
+        """Keep shared project, module, and sample identifiers synchronized."""
+        for group in self._shared_identifier_groups():
+            available = [name for name in group if hasattr(self, name)]
+            if not available:
+                continue
+            source_name = available[0]
+            self._sync_identifier_group(source_name, group)
+            for name in available:
+                variable = getattr(self, name)
+                variable.trace_add(
+                    "write",
+                    lambda *_args, changed=name, members=group: self._sync_identifier_group(
+                        changed, members
+                    ),
+                )
+
+    def _sync_identifier_group(self, source_name: str, group: tuple[str, ...]) -> None:
+        """Copy one identifier value to every matching tab without trace loops."""
+        if getattr(self, "_shared_identifier_sync_active", False):
+            return
+        source = getattr(self, source_name, None)
+        if source is None:
+            return
+
+        self._shared_identifier_sync_active = True
+        try:
+            value = source.get()
+            for name in group:
+                target = getattr(self, name, None)
+                if target is not None and target is not source and target.get() != value:
+                    target.set(value)
+            self._refresh_identifier_summaries()
+        finally:
+            self._shared_identifier_sync_active = False
+
+    @classmethod
+    def _ellipsize(cls, value: str) -> str:
+        """Return a fixed-width display value while retaining the full source text."""
+        text = str(value)
+        limit = cls.SUMMARY_VALUE_WIDTH
+        if len(text) <= limit:
+            return text
+        return f"{text[: limit - 3]}..."
+
+    @classmethod
+    def _truncate_summary_text(cls, text: str) -> str:
+        """Shorten identifier values in summary text without changing stored data."""
+        prefixes = ("Project: ", "Module: ", "Sample: ")
+        output = []
+        for line in str(text).splitlines():
+            for prefix in prefixes:
+                if line.startswith(prefix):
+                    line = prefix + cls._ellipsize(line[len(prefix) :])
+                    break
+            output.append(line)
+        return "\n".join(output)
+
+    def _refresh_identifier_summaries(self) -> None:
+        """Refresh every visible summary and constrain long identifier text."""
+        for updater_name in (
+            "_update_test_summary",
+            "_update_benchmark_summary",
+            "_update_clean_summary",
+        ):
+            updater = getattr(self, updater_name, None)
+            if callable(updater):
+                updater()
+
+    def _truncate_summary_variables(self, *names: str) -> None:
+        for name in names:
+            variable = getattr(self, name, None)
+            if variable is not None:
+                variable.set(self._truncate_summary_text(variable.get()))
+
+    def _update_test_summary(self) -> None:
+        super()._update_test_summary()
+        self._truncate_summary_variables(
+            "test_summary_var",
+            "_test_summary_left",
+            "_test_summary_right",
+        )
+
+    def _update_benchmark_summary(self) -> None:
+        super()._update_benchmark_summary()
+        self._truncate_summary_variables(
+            "benchmark_summary_var",
+            "_benchmark_summary_left",
+            "_benchmark_summary_right",
+        )
+
+    def _update_clean_summary(self) -> None:
+        super()._update_clean_summary()
+        self._truncate_summary_variables(
+            "clean_summary_left_var",
+            "clean_summary_right_var",
+        )
 
     def _edit_test_settings(self) -> None:
         self._open_settings_dialog(super()._edit_test_settings)
