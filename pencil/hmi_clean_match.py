@@ -17,6 +17,7 @@ class HMI(_TouchscreenHMI):
     CLEAN_BUTTON_HEIGHT = 1
     CLEAN_BUTTON_PADX = 4
     CLEAN_BUTTON_PADY = 2
+    COMPACT_SUMMARY_LINE_WIDTH = 16
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -25,6 +26,69 @@ class HMI(_TouchscreenHMI):
             self.notebook.bind("<<NotebookTabChanged>>", self._clean_tab_selected, add="+")
         except tk.TclError:
             pass
+
+    @classmethod
+    def _truncate_summary_text(cls, text: str) -> str:
+        """Retain the established value-based truncation helper behavior."""
+        prefixes = ("Project: ", "Module: ", "Sample: ", "Solution: ")
+        output = []
+        for line in str(text).splitlines():
+            for prefix in prefixes:
+                if line.startswith(prefix):
+                    value = line[len(prefix) :]
+                    if len(value) > cls.SUMMARY_VALUE_WIDTH:
+                        value = f"{value[: cls.SUMMARY_VALUE_WIDTH - 3]}..."
+                    line = prefix + value
+                    break
+            output.append(line)
+        return "\n".join(output)
+
+    @classmethod
+    def _compact_summary_text(cls, text: str) -> str:
+        """Fit visible identifier lines inside the fixed summary columns."""
+        prefixes = (
+            "Project: ",
+            "Module: ",
+            "Module ID: ",
+            "Sample: ",
+            "Sample ID: ",
+            "Solution: ",
+        )
+        output = []
+        for line in str(text).splitlines():
+            for prefix in prefixes:
+                if not line.startswith(prefix):
+                    continue
+                value = line[len(prefix) :]
+                available = max(4, cls.COMPACT_SUMMARY_LINE_WIDTH - len(prefix))
+                if len(value) > available:
+                    value = f"{value[: available - 3]}..."
+                line = prefix + value
+                break
+            output.append(line)
+        return "\n".join(output)
+
+    def _compact_summary_variables(self, *names: str) -> None:
+        for name in names:
+            variable = getattr(self, name, None)
+            if variable is not None:
+                variable.set(self._compact_summary_text(variable.get()))
+
+    def _update_test_summary(self) -> None:
+        super()._update_test_summary()
+        self._compact_summary_variables("test_summary_var", "_test_summary_left", "_test_summary_right")
+
+    def _update_benchmark_summary(self) -> None:
+        super()._update_benchmark_summary()
+        self._compact_summary_variables(
+            "benchmark_summary_var",
+            "_benchmark_summary_left",
+            "_benchmark_summary_right",
+        )
+
+    def _update_clean_summary(self) -> None:
+        super()._update_clean_summary()
+        self._compact_summary_variables("clean_summary_left_var", "clean_summary_right_var")
 
     def _clean_tab_selected(self, _event=None) -> None:
         try:
