@@ -27,6 +27,8 @@ class HMI(_FinalHMI):
         self._normalize_clean_settings_controls()
         self.update_idletasks()
         self._normalize_bottom_columns()
+        self.update_idletasks()
+        self._match_clean_settings_to_test()
 
     def _find_settings_frame(self, tab: tk.Widget):
         for widget in self._walk_widgets(tab):
@@ -84,7 +86,6 @@ class HMI(_FinalHMI):
             if settings is None:
                 continue
 
-            # The parent columns, not the LabelFrames, control the packed width.
             left_column = settings.master
             try:
                 left_column.configure(width=self.LEFT_COLUMN_WIDTH)
@@ -96,8 +97,6 @@ class HMI(_FinalHMI):
             except tk.TclError:
                 pass
 
-            # Keep summary text content-driven only vertically. Horizontal size is
-            # fixed and the final HMI already ellipsizes long identifiers.
             for widget in self._walk_widgets(settings):
                 try:
                     if isinstance(widget, tk.Label) and widget.cget("textvariable"):
@@ -127,6 +126,60 @@ class HMI(_FinalHMI):
                     pass
 
         self.update_idletasks()
+
+    @staticmethod
+    def _buttons_by_text(frame: tk.Widget) -> dict[str, tk.Button]:
+        buttons = {}
+        for widget in frame.winfo_children():
+            if isinstance(widget, tk.Button):
+                try:
+                    buttons[str(widget.cget("text"))] = widget
+                except tk.TclError:
+                    pass
+            else:
+                try:
+                    buttons.update(HMI._buttons_by_text(widget))
+                except tk.TclError:
+                    pass
+        return buttons
+
+    def _match_clean_settings_to_test(self) -> None:
+        """Copy only Test frame and button geometry onto the Clean settings panel."""
+        test_settings = self._find_settings_frame(self.test_tab)
+        clean_settings = self._find_settings_frame(self.clean_tab)
+        if test_settings is None or clean_settings is None:
+            return
+
+        try:
+            self.update_idletasks()
+            clean_settings.master.configure(width=test_settings.master.winfo_width())
+            clean_settings.master.pack_propagate(False)
+            clean_settings.configure(
+                width=test_settings.winfo_width(),
+                height=test_settings.winfo_height(),
+            )
+            clean_settings.pack_propagate(False)
+            clean_settings.grid_propagate(False)
+        except tk.TclError:
+            return
+
+        test_buttons = self._buttons_by_text(test_settings)
+        clean_buttons = self._buttons_by_text(clean_settings)
+        for text in ("Edit Settings", "Calibrate", "Tare FIL", "Tare BW EFL"):
+            source = test_buttons.get(text)
+            target = clean_buttons.get(text)
+            if source is None or target is None:
+                continue
+            try:
+                target.configure(
+                    font=source.cget("font"),
+                    width=source.cget("width"),
+                    height=source.cget("height"),
+                    padx=source.cget("padx"),
+                    pady=source.cget("pady"),
+                )
+            except tk.TclError:
+                pass
 
     def _normalize_clean_settings_controls(self) -> None:
         """Match the Clean settings button layout to Test and Benchmark."""
@@ -260,7 +313,6 @@ class HMI(_FinalHMI):
             pass
 
 
-# Preserve the historical module-level final HMI identity used by tests and imports.
 _hmi_final_module.HMI = HMI
 
 __all__ = ["HMI"]
