@@ -1,109 +1,169 @@
 # MF/UF Membrane Evaluation Unit (MEU)
 
-This repository contains the Python control application for the **MF/UF Membrane Evaluation Unit**, abbreviated **MEU**, running on a Raspberry Pi 5.
+This repository contains the Python control application for the **MF/UF Membrane Evaluation Unit (MEU)** running on a Raspberry Pi 5.
 
-The MEU is a bench-scale membrane evaluation system used to assess microfiltration and ultrafiltration membrane performance through filtration, backwash, cleaning, and benchmark test sequences. It records influent and backwash pressure, influent temperature, effluent weight, backwash weight, test settings, cycle status, and timestamps.
+The MEU is a bench-scale membrane evaluation system used to assess microfiltration and ultrafiltration membrane performance through filtration, backwash, cleaning, and benchmark sequences. It records feed temperature, feed and backwash pressure, filtrate and backwash weight, cycle status, step status, test settings, and timestamps.
 
-It assumes the following hardware:
+## Hardware requirements
 
-* Sequent Microsystems **8-Relay** HAT for controlling solenoid valves.
-* Sequent Microsystems **Multi-IO** HAT for reading pressure transmitters and the RTD.
-* Two weight scales connected through RS232.
-  The effluent scale is typically available as `/dev/ttyAMA3` and the
-  backwash scale as `/dev/ttyAMA2`.
-* A Raspberry Pi 7-inch touchscreen used as the HMI.
+The production application assumes the following hardware:
 
-The application uses the vendor Python libraries `lib8relind` and `multiio`.
-The 8-Relay HAT is controlled through `lib8relind`, while the Multi-IO HAT is
-accessed through the `SMmultiio` class in the `multiio` package.
+- Raspberry Pi 5
+- Raspberry Pi 7-inch touchscreen
+- Sequent Microsystems 8-Relay HAT
+- Sequent Microsystems Multi-IO HAT
+- Two RS232 weight scales
+  - Filtrate scale: `/dev/ttyAMA3`
+  - Backwash effluent scale: `/dev/ttyAMA2`
 
-Vendor repositories:
+The application uses the Sequent Microsystems `lib8relind` and `multiio` vendor libraries. Install those drivers from their vendor repositories on the Raspberry Pi. They are not installed by `requirements.txt`.
 
-* http://github.com/SequentMicrosystems/8relind-rpi
-* https://github.com/SequentMicrosystems/multiio-rpi
+- 8-Relay driver: http://github.com/SequentMicrosystems/8relind-rpi
+- Multi-IO driver: https://github.com/SequentMicrosystems/multiio-rpi
 
-Install the vendor drivers on the Raspberry Pi, then run the MEU controller:
+## Application startup
+
+Run the production application from the repository root:
 
 ```bash
 python3 system_control.py
 ```
 
-The HMI provides live readings, automated test sequences, and manual solenoid controls.
+`system_control.py` is the supported compatibility entry point. It intentionally re-exports the public classes from `pencil` and retains the historical `PencilModule` name as an alias for `MEU`.
+
+## Configuration
+
+Runtime defaults are loaded from `config.json`.
+
+- A missing configuration file uses empty defaults.
+- A valid JSON object is passed to the HMI.
+- Malformed JSON, unreadable files, or a JSON root that is not an object stop startup with a clear error instead of silently discarding the problem.
+
+## Python dependencies
+
+Install the normal Python runtime dependency with:
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+Raspberry Pi OS may reject system-wide `pip` installs because Python is externally managed. Do not use `--break-system-packages` for development setup. Create a virtual environment instead:
+
+```bash
+sudo apt install python3-venv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements-dev.txt
+```
+
+The `.venv` directory is ignored by Git.
 
 ## Testing
 
-A basic test suite provides simulated versions of the hardware interfaces so the
-code can run without a Raspberry Pi. Execute the tests with:
+### Authoritative release test
+
+The supported release gate uses the Python standard library and simulated hardware:
 
 ```bash
 python3 -m unittest discover -s tests
 ```
 
-If the Pi touchscreen and weight scales are connected, an integration test can
-use the real devices while simulating the remaining hardware:
+This command does not require `pytest`. The display and scale integration test skips automatically when no display is available.
+
+### Optional pytest run
+
+When development dependencies are installed in `.venv`, the same suite can also be run with:
+
+```bash
+python -m pytest -q
+```
+
+`pytest` is a secondary test runner. A v1 release should not be blocked solely because `pytest` is absent from the system Python when the authoritative `unittest` suite passes.
+
+### Syntax compilation check
+
+```bash
+python3 -m compileall system_control.py pencil scripts
+```
+
+### Hardware integration test
+
+With the Pi touchscreen and weight scales connected, run:
 
 ```bash
 python3 -m unittest tests.test_scale_display_integration
 ```
 
-The test automatically skips itself when no display is available, making it safe
-to include in the full suite on headless machines.
+This test uses the real display and scale interfaces while simulating the remaining hardware. Hardware validation should be reported separately from the hardware-independent suite.
 
-## Manual HMI Testing
+## Supported diagnostic scripts
 
-The interface can be run on another machine with simulated hardware. Run:
+The files under `scripts/` are the maintained implementations. Root-level files with matching names are compatibility launchers and should not be removed without a documented migration.
+
+### Simulated HMI
 
 ```bash
 python3 scripts/manual_hmi.py
 ```
 
-## Simple Weight Reader
+Runs the interface with simulated hardware for layout and workflow checks.
 
-Use `scripts/weight_reader.py` for quick RS232 scale testing. The script can read
-the current weight or send the zero command:
+### Multi-IO reader
+
+```bash
+python3 scripts/multiio_reader.py
+```
+
+Reads the Multi-IO inputs for hardware troubleshooting.
+
+### Weight reader
 
 ```bash
 python3 scripts/weight_reader.py
 ```
 
-## Relay Test Program
+Provides an interactive RS232 scale read and zero utility.
 
-Use `scripts/relay_test.py` to manually toggle the relays on the 8-Relay HAT:
+### Relay test
 
 ```bash
 python3 scripts/relay_test.py
 ```
 
-Enter commands such as `on 1` or `off 1` to operate a relay. Enter `q` to quit.
+Provides an interactive relay test. Commands include `on 1`, `off 1`, and `q`.
 
-## Continuous Scale Stress Test
-
-Run `stress_test_continuous.py` to listen to both scales for a fixed period. The
-script expects the effluent scale on `/dev/ttyAMA3` and the backwash scale on
-`/dev/ttyAMA2`.
+### Scale stress tests
 
 ```bash
+python3 scripts/scale_stress_test.py
 python3 stress_test_continuous.py 60
 ```
 
-The optional argument specifies the duration in seconds. Log messages are written
-to the `logs` directory using the filename pattern
-`usb_scale_stress_test_<timestamp>.txt`.
+The continuous test expects the filtrate scale on `/dev/ttyAMA3` and the backwash scale on `/dev/ttyAMA2`. It writes logs under `logs/` using a timestamped filename.
 
-## Troubleshooting Debug Logs
+## Public API and compatibility
 
-When the Multi-IO board or its driver is unavailable, hardware methods fall back
-to simulated values. Messages such as the following indicate that the pressure
-sensor could not be read:
+The intended public API is exported from `pencil/__init__.py`.
 
-```text
-[debug] read_pressure: ch=1, io unavailable, offset=0.00
-```
+For the v1 release:
 
-The returned value will be the calibration offset. Install the vendor libraries
-and connect the Multi-IO HAT to obtain real readings.
+- Preserve `PencilModule` as an alias for `MEU`.
+- Preserve the exports from `system_control.py` and `pencil/__init__.py`.
+- Preserve historical configuration aliases such as `refill_time` and the `*_by_volume` names.
+- Preserve root-level diagnostic launchers while they remain documented or used.
+- Do not simplify the final HMI completion inheritance workaround without regression coverage.
 
-The backwash and influent pressure transmitters use Multi-IO 4-20 mA input
-channels 1 and 2, respectively. If the driver is installed but remains
-unavailable, verify that it was installed for the same Python interpreter used
-to run the MEU application.
+## Known hardware-sensitive areas
+
+The following require final validation on the production Raspberry Pi and should not be inferred from simulated tests alone:
+
+- Scale tare timing and two-reading verification
+- Continuous versus requested scale output
+- Serial reconnection behavior
+- Relay and Multi-IO board operation
+- Touchscreen geometry and fullscreen shutdown
+- USB mount detection and post-test export
+- Final valve and instrument wiring mappings
+
+See `RELEASE_NOTES_V1.md` for the v1 cleanup summary and known limitations.
