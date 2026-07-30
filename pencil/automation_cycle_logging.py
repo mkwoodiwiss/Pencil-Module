@@ -15,6 +15,9 @@ from .config_meu import BenchmarkConfig, CleanConfig, FiltrationConfig
 from .hardware import MEU
 
 
+PSI_TO_KPA = 6.894757293168
+
+
 class _CycleLoggingMixin:
     """Insert a one-based cycle number immediately before the step column."""
 
@@ -29,8 +32,8 @@ class _CycleLoggingMixin:
         self.data_writer.writerow([
             "timestamp",
             "feed_temperature",
-            "feed_tank_pressure",
-            "backwash_tank_pressure",
+            "feed_tank_pressure_kpa",
+            "backwash_tank_pressure_kpa",
             "feed_weight",
             "backwash_weight",
             "cycle",
@@ -44,8 +47,8 @@ class _CycleLoggingMixin:
         self.data_writer.writerow([
             time.strftime("%H:%M:%S"),
             self.module.read_rtd(0),
-            self.module.read_pressure(2),
-            self.module.read_pressure(1),
+            self.module.read_pressure(2) * PSI_TO_KPA,
+            self.module.read_pressure(1) * PSI_TO_KPA,
             self._read_weight(0),
             self._read_weight(1),
             self.current_cycle,
