@@ -12,7 +12,79 @@ class HMI(_FinalHMI):
     """Final HMI with moderately enlarged touchscreen settings fields."""
 
     SETTINGS_MIN_WIDTH = 700
-    SETTINGS_MIN_HEIGHT = 500
+    SETTINGS_MIN_HEIGHT = 450
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.after_idle(self._normalize_clean_settings_controls)
+
+    def _normalize_clean_settings_controls(self) -> None:
+        """Match the Clean settings button layout to Test and Benchmark."""
+        if getattr(self, "_clean_settings_controls_normalized", False):
+            return
+
+        settings = None
+        for widget in self._walk_widgets(self.clean_tab):
+            if not isinstance(widget, tk.LabelFrame):
+                continue
+            try:
+                if widget.cget("text") == "Settings":
+                    settings = widget
+                    break
+            except tk.TclError:
+                pass
+        if settings is None:
+            return
+
+        # Hide the historical Clean controls and replace them with the same
+        # two-by-two arrangement used on the Test and Benchmark tabs.
+        for widget in self._walk_widgets(settings):
+            if not isinstance(widget, tk.Button):
+                continue
+            try:
+                if widget.cget("text") in {
+                    "Edit Settings",
+                    "Calibrate",
+                    "Tare FIL",
+                    "Tare BW EFL",
+                }:
+                    manager = widget.winfo_manager()
+                    if manager == "grid":
+                        widget.grid_remove()
+                    elif manager == "pack":
+                        widget.pack_forget()
+            except tk.TclError:
+                pass
+
+        controls = tk.Frame(settings)
+        controls.grid(row=1, column=0, columnspan=5, padx=5, pady=(2, 6), sticky="ew")
+        controls.columnconfigure((0, 1), weight=1)
+
+        edit_button = tk.Button(
+            controls,
+            text="Edit Settings",
+            command=self._edit_clean_settings,
+        )
+        calibrate_button = tk.Button(
+            controls,
+            text="Calibrate",
+            command=self.calibrate,
+        )
+        tare_fil_button = tk.Button(controls, text="Tare FIL")
+        tare_bw_button = tk.Button(controls, text="Tare BW EFL")
+        tare_fil_button.configure(
+            command=lambda button=tare_fil_button: self._start_manual_tare(0, button)
+        )
+        tare_bw_button.configure(
+            command=lambda button=tare_bw_button: self._start_manual_tare(1, button)
+        )
+
+        edit_button.grid(row=0, column=0, padx=5, pady=4, sticky="ew")
+        calibrate_button.grid(row=0, column=1, padx=5, pady=4, sticky="ew")
+        tare_fil_button.grid(row=1, column=0, padx=5, pady=4, sticky="ew")
+        tare_bw_button.grid(row=1, column=1, padx=5, pady=4, sticky="ew")
+
+        self._clean_settings_controls_normalized = True
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
         """Make settings fields easier to tap without filling the whole display."""
@@ -23,19 +95,19 @@ class HMI(_FinalHMI):
                 try:
                     if isinstance(child, tk.Entry):
                         child.configure(
-                            font=("Arial", 17),
+                            font=("Arial", 16),
                             width=max(10, int(child.cget("width"))),
                         )
                     elif isinstance(child, tk.Checkbutton):
-                        child.configure(font=("Arial", 16), padx=8, pady=4)
+                        child.configure(font=("Arial", 15), padx=7, pady=3)
                     elif isinstance(child, tk.Label):
-                        child.configure(font=("Arial", 16))
+                        child.configure(font=("Arial", 15))
                     elif isinstance(child, tk.Button):
                         child.configure(
-                            font=("Arial", 17, "bold"),
+                            font=("Arial", 16, "bold"),
                             height=1,
-                            padx=18,
-                            pady=7,
+                            padx=16,
+                            pady=5,
                         )
                 except (tk.TclError, ValueError):
                     pass
@@ -45,21 +117,21 @@ class HMI(_FinalHMI):
                     if manager == "grid":
                         info = child.grid_info()
                         options = {
-                            "padx": max(7, int(info.get("padx", 0) or 0)),
-                            "pady": max(3, int(info.get("pady", 0) or 0)),
+                            "padx": max(6, int(info.get("padx", 0) or 0)),
+                            "pady": max(2, int(info.get("pady", 0) or 0)),
                         }
                         if isinstance(child, tk.Entry):
-                            options["ipady"] = 4
+                            options["ipady"] = 3
                             options["ipadx"] = 5
                         elif isinstance(child, tk.Checkbutton):
-                            options["ipady"] = 2
+                            options["ipady"] = 1
                             options["ipadx"] = 2
                         child.grid_configure(**options)
                     elif manager == "pack":
                         info = child.pack_info()
                         child.pack_configure(
-                            padx=max(7, int(info.get("padx", 0) or 0)),
-                            pady=max(4, int(info.get("pady", 0) or 0)),
+                            padx=max(6, int(info.get("padx", 0) or 0)),
+                            pady=max(3, int(info.get("pady", 0) or 0)),
                         )
                 except (tk.TclError, ValueError):
                     pass
@@ -75,11 +147,11 @@ class HMI(_FinalHMI):
             screen_height = self.winfo_screenheight()
             width = min(
                 screen_width - 40,
-                max(self.SETTINGS_MIN_WIDTH, window.winfo_reqwidth() + 60),
+                max(self.SETTINGS_MIN_WIDTH, window.winfo_reqwidth() + 50),
             )
             height = min(
-                screen_height - 60,
-                max(self.SETTINGS_MIN_HEIGHT, window.winfo_reqheight() + 30),
+                screen_height - 90,
+                max(self.SETTINGS_MIN_HEIGHT, window.winfo_reqheight() + 12),
             )
             x = max(0, self.winfo_rootx() + (self.winfo_width() - width) // 2)
             y = max(0, self.winfo_rooty() + (self.winfo_height() - height) // 2)
