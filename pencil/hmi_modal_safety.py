@@ -19,13 +19,26 @@ class HMI(_CleanMatchHMI):
         super().__init__(*args, **kwargs)
         self.bind_all("<Map>", self._register_mapped_popup, add="+")
 
+    @staticmethod
+    def _match_button_style(source: tk.Button, target: tk.Button) -> None:
+        """Copy every visible sizing property from a reference tab button."""
+        target.configure(
+            font=source.cget("font"),
+            width=source.cget("width"),
+            height=source.cget("height"),
+            padx=source.cget("padx"),
+            pady=source.cget("pady"),
+            borderwidth=source.cget("borderwidth"),
+            relief=source.cget("relief"),
+        )
+
     @classmethod
     def _place_button_container(
         cls,
         test_buttons: dict[str, tk.Button],
         clean_buttons: dict[str, tk.Button],
     ) -> None:
-        """Keep the Clean button block inside the LabelFrame grid."""
+        """Match the Clean controls to the Test tab inside the LabelFrame grid."""
         pairs = (
             ("Edit Settings", "Calibrate"),
             ("Tare FIL", "Tare BW EFL"),
@@ -45,10 +58,18 @@ class HMI(_CleanMatchHMI):
             )
 
         for row_index, row in enumerate(pairs):
+            source_row = source_parent.grid_rowconfigure(row_index)
+            target_parent.grid_rowconfigure(
+                row_index,
+                minsize=source_row.get("minsize", 0),
+                pad=source_row.get("pad", 0),
+                weight=source_row.get("weight", 0),
+                uniform=source_row.get("uniform", ""),
+            )
             for column, text in enumerate(row):
                 source = test_buttons[text]
                 target = clean_buttons[text]
-                cls._copy_button_style(source, target)
+                cls._match_button_style(source, target)
                 source_grid = source.grid_info()
                 target.grid_configure(
                     row=row_index,
