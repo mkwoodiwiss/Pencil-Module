@@ -12,12 +12,11 @@ class HMI(_CleanMatchHMI):
     """MEU HMI with safe Prime routing and modal main-screen controls."""
 
     CLEAN_BUTTON_SIDE_INSET = 12
-    CLEAN_BORDER_COLOR = "#707070"
+    CLEAN_SUMMARY_SIDE_INSET = 8
 
     def __init__(self, *args, **kwargs) -> None:
         self._open_modal_windows: set[tk.Toplevel] = set()
         self._main_button_states: dict[tk.Button, str] = {}
-        self._clean_right_border: tk.Frame | None = None
         super().__init__(*args, **kwargs)
         self.bind_all("<Map>", self._register_mapped_popup, add="+")
 
@@ -56,50 +55,72 @@ class HMI(_CleanMatchHMI):
         except tk.TclError:
             pass
 
-    def _apply_clean_settings_layout(self) -> None:
-        """Apply the Clean layout and redraw the edge after all widgets render."""
-        super()._apply_clean_settings_layout()
-        self._restore_clean_settings_border()
-        self.after_idle(self._restore_clean_settings_border)
-        self.after(75, self._restore_clean_settings_border)
+    def _find_clean_summary_frame(self, clean_settings: tk.LabelFrame) -> tk.Frame | None:
+        """Return the frame containing the two Clean summary labels."""
+        expected_variables = {
+            str(self.clean_summary_left_var),
+            str(self.clean_summary_right_var),
+        }
+        for child in clean_settings.winfo_children():
+            if not isinstance(child, tk.Frame):
+                continue
+            found_variables = set()
+            for descendant in self._walk_widgets(child):
+                if not isinstance(descendant, tk.Label):
+                    continue
+                try:
+                    variable = str(descendant.cget("textvariable"))
+                except tk.TclError:
+                    continue
+                if variable:
+                    found_variables.add(variable)
+            if expected_variables.issubset(found_variables):
+                return child
+        return None
 
-    def _restore_clean_settings_border(self) -> None:
-        """Keep the right LabelFrame edge visible above placed child widgets."""
+    def _fit_clean_summary_frame(self) -> None:
+        """Keep the summary container inside the LabelFrame client area."""
         clean_settings = self._find_settings_frame(self.clean_tab)
         if clean_settings is None:
             return
+        summary_frame = self._find_clean_summary_frame(clean_settings)
+        if summary_frame is None:
+            return
 
         try:
-            if not clean_settings.winfo_exists():
-                return
+            clean_settings.update_idletasks()
+            frame_width = clean_settings.winfo_width()
+            if frame_width <= 1:
+                frame_width = clean_settings.winfo_reqwidth()
 
-            clean_settings.lift()
-            border = self._clean_right_border
-            if (
-                border is None
-                or not border.winfo_exists()
-                or border.master is not clean_settings
-            ):
-                border = tk.Frame(
-                    clean_settings,
-                    bg=self.CLEAN_BORDER_COLOR,
-                    bd=0,
-                    highlightthickness=0,
-                )
-                self._clean_right_border = border
-
-            border.place(
-                relx=1.0,
-                x=-2,
-                y=15,
-                relheight=1.0,
-                height=-18,
-                width=1,
-                anchor="ne",
+            requested_width = summary_frame.winfo_reqwidth()
+            requested_height = summary_frame.winfo_reqheight()
+            maximum_width = max(
+                1,
+                frame_width - (2 * self.CLEAN_SUMMARY_SIDE_INSET),
             )
-            border.lift()
+            summary_width = min(requested_width, maximum_width)
+
+            summary_frame.configure(
+                width=summary_width,
+                height=requested_height,
+                bd=0,
+                highlightthickness=0,
+            )
+            summary_frame.grid_propagate(False)
+            summary_frame.grid_configure(
+                sticky="nw",
+                padx=(self.CLEAN_SUMMARY_SIDE_INSET, self.CLEAN_SUMMARY_SIDE_INSET),
+            )
         except tk.TclError:
             pass
+
+    def _apply_clean_settings_layout(self) -> None:
+        """Apply the Clean layout without allowing children to cover its border."""
+        super()._apply_clean_settings_layout()
+        self._fit_clean_summary_frame()
+        self.after_idle(self._fit_clean_summary_frame)
+        self.after(75, self._fit_clean_summary_frame)
 
     def _show_prime_stage(self) -> None:
         """Apply the corrected valve combination for each Prime step."""
@@ -109,7 +130,6 @@ class HMI(_CleanMatchHMI):
         step_text = {2: "Step 1", 3: "Step 2", 4: "Step 3"}
         self._close_all_valves()
         if self.prime_stage == 2:
-            # V4 must remain closed during the first active Prime step.
             self._open_valves(2, 3)
         elif self.prime_stage == 3:
             self._open_valves(1, 5)
