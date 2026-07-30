@@ -11,6 +11,15 @@ from .config_meu import FiltrationConfig
 from .hmi_modal_safety import HMI as _V1HMI
 
 
+class _FlushTestSystem(FiltrationTestSystem):
+    """Run the filtration sequence without creating data or settings files."""
+
+    def _open_logs(self, prefix, project, module_id, final_id, config) -> None:
+        self.current_cycle = 0
+        self.data_file = None
+        self.data_writer = None
+
+
 class HMI(_V1HMI):
     """MEU v2 HMI with five process tabs in the required operating order."""
 
@@ -459,10 +468,9 @@ class HMI(_V1HMI):
                 module_id="",
                 sample_id="",
                 file_prefix="Flush",
-                log_data=False,
                 **self._active_offsets(),
             )
-            self.test_system = FiltrationTestSystem(
+            self.test_system = _FlushTestSystem(
                 self.module,
                 config,
                 valve_callback=self._automation_valve_change,
