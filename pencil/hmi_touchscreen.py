@@ -16,8 +16,8 @@ class HMI(_FinalHMI):
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
         """Enlarge settings controls so each field is an easy touch target."""
-        super()._style_settings_window(window)
-
+        # This is the final styling layer. Do not call the historical styling
+        # chain because the oldest runtime layer has no parent implementation.
         def enlarge(parent: tk.Widget) -> None:
             for child in parent.winfo_children():
                 try:
@@ -69,6 +69,7 @@ class HMI(_FinalHMI):
         enlarge(window)
 
         try:
+            window.grid_anchor("center")
             window.update_idletasks()
             screen_width = self.winfo_screenwidth()
             screen_height = self.winfo_screenheight()
