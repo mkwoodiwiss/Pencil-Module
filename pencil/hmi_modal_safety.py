@@ -21,7 +21,7 @@ class HMI(_CleanMatchHMI):
 
     @staticmethod
     def _match_button_style(source: tk.Button, target: tk.Button) -> None:
-        """Copy every visible sizing property from a reference tab button."""
+        """Copy every visible style property from a reference-tab button."""
         target.configure(
             font=source.cget("font"),
             width=source.cget("width"),
@@ -38,7 +38,7 @@ class HMI(_CleanMatchHMI):
         test_buttons: dict[str, tk.Button],
         clean_buttons: dict[str, tk.Button],
     ) -> None:
-        """Match the Clean controls to the Test tab inside the LabelFrame grid."""
+        """Match the Clean controls to the Test block's rendered pixel geometry."""
         pairs = (
             ("Edit Settings", "Calibrate"),
             ("Tare FIL", "Tare BW EFL"),
@@ -47,30 +47,52 @@ class HMI(_CleanMatchHMI):
         target_parent = clean_buttons["Edit Settings"].master
         settings_frame = target_parent.master
 
-        for column in (0, 1):
-            source_column = source_parent.grid_columnconfigure(column)
-            target_parent.grid_columnconfigure(
-                column,
-                minsize=source_column.get("minsize", 0),
-                pad=source_column.get("pad", 0),
-                weight=source_column.get("weight", 0),
-                uniform=source_column.get("uniform", ""),
-            )
+        try:
+            source_parent.update_idletasks()
+        except tk.TclError:
+            return
+
+        column_widths = [0, 0]
+        row_heights = [0, 0]
+        source_grid_options: dict[str, dict] = {}
 
         for row_index, row in enumerate(pairs):
-            source_row = source_parent.grid_rowconfigure(row_index)
-            target_parent.grid_rowconfigure(
-                row_index,
-                minsize=source_row.get("minsize", 0),
-                pad=source_row.get("pad", 0),
-                weight=source_row.get("weight", 0),
-                uniform=source_row.get("uniform", ""),
-            )
             for column, text in enumerate(row):
                 source = test_buttons[text]
                 target = clean_buttons[text]
                 cls._match_button_style(source, target)
-                source_grid = source.grid_info()
+
+                try:
+                    source.update_idletasks()
+                    column_widths[column] = max(
+                        column_widths[column], source.winfo_width()
+                    )
+                    row_heights[row_index] = max(
+                        row_heights[row_index], source.winfo_height()
+                    )
+                    source_grid_options[text] = source.grid_info()
+                except tk.TclError:
+                    source_grid_options[text] = {}
+
+        for column, width in enumerate(column_widths):
+            target_parent.grid_columnconfigure(
+                column,
+                minsize=width,
+                weight=0,
+                uniform="clean_controls",
+            )
+
+        for row_index, height in enumerate(row_heights):
+            target_parent.grid_rowconfigure(
+                row_index,
+                minsize=height,
+                weight=0,
+            )
+
+        for row_index, row in enumerate(pairs):
+            for column, text in enumerate(row):
+                target = clean_buttons[text]
+                source_grid = source_grid_options[text]
                 target.grid_configure(
                     row=row_index,
                     column=column,
@@ -78,7 +100,7 @@ class HMI(_CleanMatchHMI):
                     pady=source_grid.get("pady", 0),
                     ipadx=source_grid.get("ipadx", 0),
                     ipady=source_grid.get("ipady", 0),
-                    sticky=source_grid.get("sticky", ""),
+                    sticky="nsew",
                 )
 
         try:
