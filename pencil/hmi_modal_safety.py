@@ -11,11 +11,48 @@ from .hmi_clean_match import HMI as _CleanMatchHMI
 class HMI(_CleanMatchHMI):
     """MEU HMI with safe Prime routing and modal main-screen controls."""
 
+    CLEAN_BUTTON_SIDE_INSET = 12
+
     def __init__(self, *args, **kwargs) -> None:
         self._open_modal_windows: set[tk.Toplevel] = set()
         self._main_button_states: dict[tk.Button, str] = {}
         super().__init__(*args, **kwargs)
         self.bind_all("<Map>", self._register_mapped_popup, add="+")
+
+    @classmethod
+    def _place_button_container(
+        cls,
+        test_buttons: dict[str, tk.Button],
+        clean_buttons: dict[str, tk.Button],
+    ) -> None:
+        """Center Clean controls without allowing their frame to cover the border."""
+        super()._place_button_container(test_buttons, clean_buttons)
+
+        target_parent = clean_buttons["Edit Settings"].master
+        settings_frame = target_parent.master
+        try:
+            settings_frame.update_idletasks()
+            frame_width = settings_frame.winfo_width()
+            if frame_width <= 1:
+                frame_width = settings_frame.winfo_reqwidth()
+
+            current_width = target_parent.winfo_width()
+            if current_width <= 1:
+                current_width = target_parent.winfo_reqwidth()
+
+            maximum_width = max(
+                1,
+                frame_width - (2 * cls.CLEAN_BUTTON_SIDE_INSET),
+            )
+            container_width = min(current_width, maximum_width)
+            target_parent.configure(width=container_width)
+            target_parent.place_configure(
+                relx=0.5,
+                anchor="s",
+                width=container_width,
+            )
+        except tk.TclError:
+            pass
 
     def _show_prime_stage(self) -> None:
         """Apply the corrected valve combination for each Prime step."""
