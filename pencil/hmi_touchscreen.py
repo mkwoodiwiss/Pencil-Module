@@ -13,13 +13,16 @@ class HMI(_FinalHMI):
 
     SETTINGS_MIN_WIDTH = 700
     SETTINGS_MIN_HEIGHT = 450
+    SETTINGS_PANEL_WIDTH = 380
+    SETTINGS_PANEL_HEIGHT = 300
+    SUMMARY_COLUMN_WIDTH = 17
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.after_idle(self._finish_touchscreen_settings_layout)
 
     def _finish_touchscreen_settings_layout(self) -> None:
-        """Normalize Clean controls, then lock every Settings panel geometry."""
+        """Normalize Clean controls, then constrain every Settings panel."""
         self._normalize_clean_settings_controls()
         self.update_idletasks()
         self._normalize_settings_panels()
@@ -36,7 +39,7 @@ class HMI(_FinalHMI):
         return None
 
     def _normalize_settings_panels(self) -> None:
-        """Use one fixed panel size so summary text cannot shift the layout."""
+        """Keep all Settings panels inside the left column and above the screen edge."""
         frames = [
             frame
             for frame in (
@@ -49,36 +52,31 @@ class HMI(_FinalHMI):
         if not frames:
             return
 
-        # Fixed-width summary labels prevent long identifiers from changing the
-        # requested width. The final HMI already ellipsizes the displayed value.
         for frame in frames:
             for widget in self._walk_widgets(frame):
-                if not isinstance(widget, tk.Label):
-                    continue
                 try:
-                    if widget.cget("textvariable"):
-                        widget.configure(width=20, anchor="nw", justify="left")
+                    if isinstance(widget, tk.Label) and widget.cget("textvariable"):
+                        widget.configure(
+                            width=self.SUMMARY_COLUMN_WIDTH,
+                            anchor="nw",
+                            justify="left",
+                        )
+                    elif isinstance(widget, tk.Button):
+                        widget.configure(width=12, padx=4)
                 except tk.TclError:
                     pass
 
-        self.update_idletasks()
-        panel_width = min(480, max(380, int(self.winfo_width() * 0.39)))
-        available_heights = []
-        for frame in frames:
             try:
-                relative_top = frame.winfo_rooty() - self.winfo_rooty()
-                available_heights.append(max(250, self.winfo_height() - relative_top - 8))
-            except tk.TclError:
-                pass
-        panel_height = min(available_heights) if available_heights else 315
-
-        for frame in frames:
-            try:
-                frame.configure(width=panel_width, height=panel_height)
+                frame.configure(
+                    width=self.SETTINGS_PANEL_WIDTH,
+                    height=self.SETTINGS_PANEL_HEIGHT,
+                )
                 frame.pack_propagate(False)
                 frame.grid_propagate(False)
             except tk.TclError:
                 pass
+
+        self.update_idletasks()
 
     def _normalize_clean_settings_controls(self) -> None:
         """Match the Clean settings button layout to Test and Benchmark."""
@@ -89,8 +87,6 @@ class HMI(_FinalHMI):
         if settings is None:
             return
 
-        # Hide the historical Clean controls and replace them with the same
-        # two-by-two arrangement used on the Test and Benchmark tabs.
         for widget in self._walk_widgets(settings):
             if not isinstance(widget, tk.Button):
                 continue
@@ -110,7 +106,7 @@ class HMI(_FinalHMI):
                 pass
 
         controls = tk.Frame(settings)
-        controls.grid(row=1, column=0, columnspan=5, padx=5, pady=(2, 6), sticky="ew")
+        controls.grid(row=1, column=0, columnspan=5, padx=4, pady=(2, 4), sticky="ew")
         controls.columnconfigure((0, 1), weight=1)
 
         edit_button = tk.Button(
@@ -132,17 +128,15 @@ class HMI(_FinalHMI):
             command=lambda button=tare_bw_button: self._start_manual_tare(1, button)
         )
 
-        edit_button.grid(row=0, column=0, padx=5, pady=4, sticky="ew")
-        calibrate_button.grid(row=0, column=1, padx=5, pady=4, sticky="ew")
-        tare_fil_button.grid(row=1, column=0, padx=5, pady=4, sticky="ew")
-        tare_bw_button.grid(row=1, column=1, padx=5, pady=4, sticky="ew")
+        edit_button.grid(row=0, column=0, padx=4, pady=3, sticky="ew")
+        calibrate_button.grid(row=0, column=1, padx=4, pady=3, sticky="ew")
+        tare_fil_button.grid(row=1, column=0, padx=4, pady=3, sticky="ew")
+        tare_bw_button.grid(row=1, column=1, padx=4, pady=3, sticky="ew")
 
         self._clean_settings_controls_normalized = True
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
         """Make settings fields easier to tap without filling the whole display."""
-        # This is the final styling layer. Do not call the historical styling
-        # chain because the oldest runtime layer has no parent implementation.
         def enlarge(parent: tk.Widget) -> None:
             for child in parent.winfo_children():
                 try:
