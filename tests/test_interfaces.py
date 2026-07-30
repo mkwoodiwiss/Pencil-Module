@@ -20,15 +20,44 @@ sys.modules["multiio"] = types.SimpleNamespace(SMmultiio=FakeMultiIO)
 from system_control import MEU
 
 
+class _FakeScaleManager:
+    """Minimal scale-manager test double matching the current MEU interface."""
+
+    def __init__(self, port: str):
+        self.serial = FakeSerial(port=port)
+        self.lock = threading.Lock()
+
+    def read(self) -> str:
+        self.serial.write(b"P\r\n")
+        return self.serial.read_until().decode("ascii").strip()
+
+    def tare(self, attempts: int = 3, timeout: float = 5.0) -> bool:
+        del attempts, timeout
+        self.serial.write(b"Z\r\n")
+        return True
+
+    def health(self) -> dict:
+        return {
+            "port": self.serial.port,
+            "connected": True,
+            "reading": self.read(),
+            "age_seconds": 0.0,
+            "last_error": "",
+        }
+
+    def close(self) -> None:
+        pass
+
+
 class SimulatedMEU(MEU):
     """An MEU using simulated hardware interfaces."""
 
     def __init__(self):
         # Do not call super().__init__ to avoid accessing real hardware.
-        self.effluent_ser = FakeSerial(port="/dev/ttyAMA3")
-        self.backwash_ser = FakeSerial(port="/dev/ttyAMA2")
-        self.effluent_lock = threading.Lock()
-        self.backwash_lock = threading.Lock()
+        self._effluent_scale = _FakeScaleManager("/dev/ttyAMA3")
+        self._backwash_scale = _FakeScaleManager("/dev/ttyAMA2")
+        self.effluent_lock = self._effluent_scale.lock
+        self.backwash_lock = self._backwash_scale.lock
         self._read_delay = 0.0
         self.relay = FakeRelay8()
         self.io = FakeMultiIO()

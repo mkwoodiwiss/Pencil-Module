@@ -16,6 +16,7 @@ EXPECTED_HEADER = [
     "backwash_tank_pressure",
     "feed_weight",
     "backwash_weight",
+    "cycle",
     "step",
 ]
 
@@ -163,7 +164,7 @@ class TestAutomation(unittest.TestCase):
         text = "Influent Pressure / BW Pressure / Effluent Weight / Influent Drain"
         self.assertEqual(
             normalize_io_text(text),
-            "Feed Tank Pressure / Backwash Tank Pressure / Feed Weight / Waste",
+            "Feed Tank Pressure / Backwash Tank Pressure / Filtrate Weight / Waste",
         )
 
 

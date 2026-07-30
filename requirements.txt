@@ -1,0 +1,6 @@
+# Standard Python runtime dependency for the two RS232 scales.
+pyserial>=3.5,<4
+
+# Raspberry Pi hardware drivers are installed separately from the vendor repositories:
+# - lib8relind: https://github.com/SequentMicrosystems/8relind-rpi
+# - multiio: https://github.com/SequentMicrosystems/multiio-rpi
