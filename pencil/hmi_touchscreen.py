@@ -16,6 +16,7 @@ class HMI(_FinalHMI):
     LEFT_COLUMN_WIDTH = 405
     RIGHT_COLUMN_WIDTH = 330
     SUMMARY_COLUMN_WIDTH = 16
+    SUMMARY_LINE_WIDTH = 16
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -48,6 +49,31 @@ class HMI(_FinalHMI):
             except tk.TclError:
                 pass
         return None
+
+    @classmethod
+    def _truncate_summary_text(cls, text: str) -> str:
+        """Ellipsize identifier lines to fit the fixed summary-column width."""
+        prefixes = (
+            "Project: ",
+            "Module: ",
+            "Module ID: ",
+            "Sample: ",
+            "Sample ID: ",
+            "Solution: ",
+        )
+        output = []
+        for line in str(text).splitlines():
+            for prefix in prefixes:
+                if not line.startswith(prefix):
+                    continue
+                value = line[len(prefix) :]
+                available = max(4, cls.SUMMARY_LINE_WIDTH - len(prefix))
+                if len(value) > available:
+                    value = f"{value[: available - 3]}..."
+                line = prefix + value
+                break
+            output.append(line)
+        return "\n".join(output)
 
     def _normalize_bottom_columns(self) -> None:
         """Constrain parent columns while allowing panels to keep natural height."""
