@@ -55,6 +55,24 @@ class _FakeToplevel:
             callback(types.SimpleNamespace(widget=self))
 
 
+class _FakeVar:
+    def __init__(self, value=""):
+        self.value = value
+        self.callbacks = []
+
+    def get(self):
+        return self.value
+
+    def set(self, value):
+        self.value = value
+        for callback in tuple(self.callbacks):
+            callback("name", "index", "write")
+
+    def trace_add(self, mode, callback):
+        self.callbacks.append(callback)
+        return f"trace-{len(self.callbacks)}"
+
+
 class _SettingsHarness:
     _set_valve_buttons_state = hmi_final.HMI._set_valve_buttons_state
     _settings_window_closed = hmi_final.HMI._settings_window_closed
@@ -72,6 +90,24 @@ class _SettingsHarness:
 
     def winfo_children(self):
         return list(self.children)
+
+
+class _IdentifierHarness:
+    _shared_identifier_groups = staticmethod(hmi_final.HMI._shared_identifier_groups)
+    _install_shared_identifier_sync = hmi_final.HMI._install_shared_identifier_sync
+    _sync_identifier_group = hmi_final.HMI._sync_identifier_group
+
+    def __init__(self):
+        self._shared_identifier_sync_active = False
+        self.project_var = _FakeVar("Initial Project")
+        self.benchmark_project_var = _FakeVar("")
+        self.clean_project_var = _FakeVar("")
+        self.module_id_var = _FakeVar("Module-A")
+        self.benchmark_module_id_var = _FakeVar("")
+        self.clean_module_id_var = _FakeVar("")
+        self.sample_id_var = _FakeVar("Sample-A")
+        self.benchmark_sample_id_var = _FakeVar("")
+        self._refresh_identifier_summaries = mock.Mock()
 
 
 class TestFinalHMIRegressions(unittest.TestCase):
@@ -218,6 +254,37 @@ class TestFinalHMIRegressions(unittest.TestCase):
 
         self.assertNotIn("normal", instance.button.states)
         instance._sync_all_valve_buttons.assert_not_called()
+
+    def test_shared_identifiers_initialize_and_update_every_matching_tab(self):
+        instance = _IdentifierHarness()
+        instance._install_shared_identifier_sync()
+
+        self.assertEqual(instance.benchmark_project_var.get(), "Initial Project")
+        self.assertEqual(instance.clean_project_var.get(), "Initial Project")
+        self.assertEqual(instance.benchmark_module_id_var.get(), "Module-A")
+        self.assertEqual(instance.clean_module_id_var.get(), "Module-A")
+        self.assertEqual(instance.benchmark_sample_id_var.get(), "Sample-A")
+
+        instance.clean_project_var.set("Updated Project")
+        instance.benchmark_module_id_var.set("Module-B")
+        instance.benchmark_sample_id_var.set("Sample-B")
+
+        self.assertEqual(instance.project_var.get(), "Updated Project")
+        self.assertEqual(instance.benchmark_project_var.get(), "Updated Project")
+        self.assertEqual(instance.module_id_var.get(), "Module-B")
+        self.assertEqual(instance.clean_module_id_var.get(), "Module-B")
+        self.assertEqual(instance.sample_id_var.get(), "Sample-B")
+
+    def test_long_summary_identifiers_are_ellipsized_without_changing_source(self):
+        source = "A very long project identifier"
+        summary = f"Filter: 10 s\nProject: {source}\nModule: Short\nSample: Sample-123456789"
+
+        displayed = hmi_final.HMI._truncate_summary_text(summary)
+
+        self.assertIn("Project: A very long p...", displayed)
+        self.assertIn("Module: Short", displayed)
+        self.assertIn("Sample: Sample-123456...", displayed)
+        self.assertEqual(source, "A very long project identifier")
 
     def test_completion_bypasses_themed_duplicate_dialog(self):
         instance = object.__new__(hmi_final.HMI)
