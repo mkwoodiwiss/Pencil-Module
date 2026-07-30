@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tkinter as tk
 
+from . import hmi_final as _hmi_final_module
 from .hmi_final import HMI as _FinalHMI
 
 
@@ -21,13 +22,21 @@ class HMI(_FinalHMI):
             for child in parent.winfo_children():
                 try:
                     if isinstance(child, tk.Entry):
-                        child.configure(font=("Arial", 22), width=max(12, int(child.cget("width"))))
+                        child.configure(
+                            font=("Arial", 22),
+                            width=max(12, int(child.cget("width"))),
+                        )
                     elif isinstance(child, tk.Checkbutton):
                         child.configure(font=("Arial", 19), padx=14, pady=9)
                     elif isinstance(child, tk.Label):
                         child.configure(font=("Arial", 19))
                     elif isinstance(child, tk.Button):
-                        child.configure(font=("Arial", 20, "bold"), height=2, padx=26, pady=12)
+                        child.configure(
+                            font=("Arial", 20, "bold"),
+                            height=2,
+                            padx=26,
+                            pady=12,
+                        )
                 except (tk.TclError, ValueError):
                     pass
 
@@ -63,8 +72,14 @@ class HMI(_FinalHMI):
             window.update_idletasks()
             screen_width = self.winfo_screenwidth()
             screen_height = self.winfo_screenheight()
-            width = min(screen_width - 20, max(self.SETTINGS_MIN_WIDTH, window.winfo_reqwidth() + 120))
-            height = min(screen_height - 24, max(self.SETTINGS_MIN_HEIGHT, window.winfo_reqheight() + 70))
+            width = min(
+                screen_width - 20,
+                max(self.SETTINGS_MIN_WIDTH, window.winfo_reqwidth() + 120),
+            )
+            height = min(
+                screen_height - 24,
+                max(self.SETTINGS_MIN_HEIGHT, window.winfo_reqheight() + 70),
+            )
             x = max(0, self.winfo_rootx() + (self.winfo_width() - width) // 2)
             y = max(0, self.winfo_rooty() + (self.winfo_height() - height) // 2)
             window.geometry(f"{width}x{height}+{x}+{y}")
@@ -73,5 +88,8 @@ class HMI(_FinalHMI):
         except tk.TclError:
             pass
 
+
+# Preserve the historical module-level final HMI identity used by tests and imports.
+_hmi_final_module.HMI = HMI
 
 __all__ = ["HMI"]
