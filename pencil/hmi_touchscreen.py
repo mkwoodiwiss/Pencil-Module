@@ -9,13 +9,13 @@ from .hmi_final import HMI as _FinalHMI
 
 
 class HMI(_FinalHMI):
-    """Final HMI with larger, well-spaced touchscreen settings fields."""
+    """Final HMI with moderately enlarged touchscreen settings fields."""
 
-    SETTINGS_MIN_WIDTH = 900
-    SETTINGS_MIN_HEIGHT = 680
+    SETTINGS_MIN_WIDTH = 700
+    SETTINGS_MIN_HEIGHT = 500
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
-        """Enlarge settings controls so each field is an easy touch target."""
+        """Make settings fields easier to tap without filling the whole display."""
         # This is the final styling layer. Do not call the historical styling
         # chain because the oldest runtime layer has no parent implementation.
         def enlarge(parent: tk.Widget) -> None:
@@ -23,19 +23,19 @@ class HMI(_FinalHMI):
                 try:
                     if isinstance(child, tk.Entry):
                         child.configure(
-                            font=("Arial", 22),
-                            width=max(12, int(child.cget("width"))),
+                            font=("Arial", 17),
+                            width=max(10, int(child.cget("width"))),
                         )
                     elif isinstance(child, tk.Checkbutton):
-                        child.configure(font=("Arial", 19), padx=14, pady=9)
+                        child.configure(font=("Arial", 16), padx=8, pady=4)
                     elif isinstance(child, tk.Label):
-                        child.configure(font=("Arial", 19))
+                        child.configure(font=("Arial", 16))
                     elif isinstance(child, tk.Button):
                         child.configure(
-                            font=("Arial", 20, "bold"),
-                            height=2,
-                            padx=26,
-                            pady=12,
+                            font=("Arial", 17, "bold"),
+                            height=1,
+                            padx=18,
+                            pady=7,
                         )
                 except (tk.TclError, ValueError):
                     pass
@@ -45,21 +45,21 @@ class HMI(_FinalHMI):
                     if manager == "grid":
                         info = child.grid_info()
                         options = {
-                            "padx": max(10, int(info.get("padx", 0) or 0)),
-                            "pady": max(7, int(info.get("pady", 0) or 0)),
+                            "padx": max(7, int(info.get("padx", 0) or 0)),
+                            "pady": max(3, int(info.get("pady", 0) or 0)),
                         }
                         if isinstance(child, tk.Entry):
-                            options["ipady"] = 9
-                            options["ipadx"] = 8
-                        elif isinstance(child, tk.Checkbutton):
-                            options["ipady"] = 5
+                            options["ipady"] = 4
                             options["ipadx"] = 5
+                        elif isinstance(child, tk.Checkbutton):
+                            options["ipady"] = 2
+                            options["ipadx"] = 2
                         child.grid_configure(**options)
                     elif manager == "pack":
                         info = child.pack_info()
                         child.pack_configure(
-                            padx=max(10, int(info.get("padx", 0) or 0)),
-                            pady=max(7, int(info.get("pady", 0) or 0)),
+                            padx=max(7, int(info.get("padx", 0) or 0)),
+                            pady=max(4, int(info.get("pady", 0) or 0)),
                         )
                 except (tk.TclError, ValueError):
                     pass
@@ -74,12 +74,12 @@ class HMI(_FinalHMI):
             screen_width = self.winfo_screenwidth()
             screen_height = self.winfo_screenheight()
             width = min(
-                screen_width - 20,
-                max(self.SETTINGS_MIN_WIDTH, window.winfo_reqwidth() + 120),
+                screen_width - 40,
+                max(self.SETTINGS_MIN_WIDTH, window.winfo_reqwidth() + 60),
             )
             height = min(
-                screen_height - 24,
-                max(self.SETTINGS_MIN_HEIGHT, window.winfo_reqheight() + 70),
+                screen_height - 60,
+                max(self.SETTINGS_MIN_HEIGHT, window.winfo_reqheight() + 30),
             )
             x = max(0, self.winfo_rootx() + (self.winfo_width() - width) // 2)
             y = max(0, self.winfo_rooty() + (self.winfo_height() - height) // 2)
