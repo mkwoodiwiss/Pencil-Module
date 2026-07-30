@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tkinter as tk
 
+from . import hmi_final as _hmi_final_module
 from .hmi_clean_match import HMI as _CleanMatchHMI
 
 
@@ -96,5 +97,7 @@ class HMI(_CleanMatchHMI):
 
         self._sync_all_valve_buttons()
 
+
+_hmi_final_module.HMI = HMI
 
 __all__ = ["HMI"]
