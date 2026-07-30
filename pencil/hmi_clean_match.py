@@ -13,6 +13,7 @@ class HMI(_TouchscreenHMI):
 
     CLEAN_EXTRA_HEIGHT = 8
     CLEAN_BOTTOM_MARGIN = 10
+    CLEAN_BUTTON_SIDE_MARGIN = 12
     COMPACT_SUMMARY_LINE_WIDTH = 16
 
     def __init__(self, *args, **kwargs) -> None:
@@ -112,11 +113,13 @@ class HMI(_TouchscreenHMI):
             relief=source.cget("relief"),
         )
 
-    @staticmethod
+    @classmethod
     def _match_button_container_pixels(
-        test_buttons: dict[str, tk.Button], clean_buttons: dict[str, tk.Button]
+        cls,
+        test_buttons: dict[str, tk.Button],
+        clean_buttons: dict[str, tk.Button],
     ) -> None:
-        """Force Clean grid columns to the measured Test button pixel widths."""
+        """Match Test button pixels and center the Clean control block."""
         pairs = (
             ("Edit Settings", "Calibrate"),
             ("Tare FIL", "Tare BW EFL"),
@@ -125,20 +128,31 @@ class HMI(_TouchscreenHMI):
         target_parent = clean_buttons["Edit Settings"].master
 
         source_parent.update_idletasks()
-        source_width = source_parent.winfo_width()
-        source_height = source_parent.winfo_height()
-        target_parent.configure(width=source_width, height=source_height)
-        target_parent.grid_propagate(False)
-
+        column_widths = []
         for column in (0, 1):
-            measured_width = max(
-                test_buttons[row[column]].winfo_width() for row in pairs
+            column_widths.append(
+                max(test_buttons[row[column]].winfo_width() for row in pairs)
             )
-            source_column = source_parent.grid_columnconfigure(column)
+
+        # Use only the space required by the two measured button columns. The
+        # surrounding grid cell centers this block and keeps it off the border.
+        group_width = sum(column_widths) + (2 * cls.CLEAN_BUTTON_SIDE_MARGIN)
+        target_parent.configure(
+            width=group_width,
+            height=source_parent.winfo_height(),
+        )
+        target_parent.grid_propagate(False)
+        target_parent.grid_configure(
+            padx=cls.CLEAN_BUTTON_SIDE_MARGIN,
+            pady=(2, 6),
+            sticky="",
+        )
+
+        for column, measured_width in enumerate(column_widths):
             target_parent.grid_columnconfigure(
                 column,
                 minsize=measured_width,
-                pad=source_column.get("pad", 0),
+                pad=0,
                 weight=0,
                 uniform="",
             )
@@ -147,7 +161,7 @@ class HMI(_TouchscreenHMI):
             for column, text in enumerate(row):
                 source = test_buttons[text]
                 target = clean_buttons[text]
-                HMI._copy_button_style(source, target)
+                cls._copy_button_style(source, target)
                 source_grid = source.grid_info()
                 target.grid_configure(
                     row=row_index,
@@ -160,7 +174,7 @@ class HMI(_TouchscreenHMI):
                 )
 
     def _apply_clean_settings_layout(self) -> None:
-        """Fit Clean inside the screen and match Test button pixels exactly."""
+        """Fit Clean inside the screen and center Test-sized buttons."""
         test_settings = self._find_settings_frame(self.test_tab)
         clean_settings = self._find_settings_frame(self.clean_tab)
         if test_settings is None or clean_settings is None:
