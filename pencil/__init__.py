@@ -8,7 +8,7 @@ from .automation_cycle_logging import (
     CleanTestSystem,
     BenchmarkTestSystem,
 )
-from .hmi_clean_match import HMI
+from .hmi_modal_safety import HMI
 
 __all__ = [
     "MEU",
