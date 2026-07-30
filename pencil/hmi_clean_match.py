@@ -9,11 +9,13 @@ from .hmi_touchscreen import HMI as _TouchscreenHMI
 
 
 class HMI(_TouchscreenHMI):
-    """Touchscreen HMI with a fully visible Clean settings panel."""
+    """Touchscreen HMI with fully visible settings panels and dialogs."""
 
     CLEAN_EXTRA_HEIGHT = 8
     CLEAN_BOTTOM_MARGIN = 10
     COMPACT_SUMMARY_LINE_WIDTH = 16
+    SETTINGS_SCREEN_MARGIN_X = 12
+    SETTINGS_SCREEN_MARGIN_Y = 12
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -22,6 +24,73 @@ class HMI(_TouchscreenHMI):
             self.notebook.bind(
                 "<<NotebookTabChanged>>", self._clean_tab_selected, add="+"
             )
+        except tk.TclError:
+            pass
+
+    def _style_settings_window(self, window: tk.Toplevel) -> None:
+        """Shrink inherited dialog styling and center it on the display."""
+        super()._style_settings_window(window)
+        self._compact_settings_widgets(window)
+        self._fit_and_center_settings_window(window)
+        window.after_idle(lambda: self._fit_and_center_settings_window(window))
+        window.after(40, lambda: self._fit_and_center_settings_window(window))
+
+    def _compact_settings_widgets(self, parent: tk.Widget) -> None:
+        """Reduce only popup controls enough to fit the 800x480 display."""
+        for child in parent.winfo_children():
+            try:
+                if isinstance(child, tk.Button):
+                    child.configure(font=("Arial", 13), height=1, padx=10, pady=3)
+                elif isinstance(child, tk.Checkbutton):
+                    child.configure(font=("Arial", 12), padx=5, pady=2)
+                elif isinstance(child, tk.Entry):
+                    child.configure(
+                        font=("Arial", 13),
+                        width=max(8, min(18, int(child.cget("width")))),
+                    )
+                elif isinstance(child, tk.Label):
+                    child.configure(font=("Arial", 12))
+            except (tk.TclError, ValueError, TypeError):
+                pass
+
+            try:
+                manager = child.winfo_manager()
+                if manager == "grid":
+                    info = child.grid_info()
+                    child.grid_configure(
+                        padx=min(5, int(info.get("padx", 0) or 0)),
+                        pady=min(3, int(info.get("pady", 0) or 0)),
+                    )
+                elif manager == "pack":
+                    info = child.pack_info()
+                    child.pack_configure(
+                        padx=min(5, int(info.get("padx", 0) or 0)),
+                        pady=min(3, int(info.get("pady", 0) or 0)),
+                    )
+            except (tk.TclError, ValueError, TypeError):
+                pass
+
+            self._compact_settings_widgets(child)
+
+    def _fit_and_center_settings_window(self, window: tk.Toplevel) -> None:
+        """Use the natural dialog size, constrained to the visible screen."""
+        try:
+            if not window.winfo_exists():
+                return
+
+            window.update_idletasks()
+            screen_width = window.winfo_screenwidth()
+            screen_height = window.winfo_screenheight()
+            max_width = max(1, screen_width - (2 * self.SETTINGS_SCREEN_MARGIN_X))
+            max_height = max(1, screen_height - (2 * self.SETTINGS_SCREEN_MARGIN_Y))
+
+            width = min(max_width, window.winfo_reqwidth())
+            height = min(max_height, window.winfo_reqheight())
+            x = max(0, (screen_width - width) // 2)
+            y = max(0, (screen_height - height) // 2)
+
+            window.geometry(f"{width}x{height}+{x}+{y}")
+            window.lift()
         except tk.TclError:
             pass
 
@@ -133,7 +202,6 @@ class HMI(_TouchscreenHMI):
             source_width = source_parent.winfo_reqwidth()
             source_height = source_parent.winfo_reqheight()
 
-        # Preserve the exact Test grid inside the container.
         for column in (0, 1):
             source_column = source_parent.grid_columnconfigure(column)
             target_parent.grid_columnconfigure(
@@ -160,8 +228,6 @@ class HMI(_TouchscreenHMI):
                     sticky=source_grid.get("sticky", ""),
                 )
 
-        # Stop the old grid cell from controlling position or painting across the
-        # LabelFrame border. Place the complete block at the visible frame center.
         target_parent.grid_forget()
         target_parent.configure(width=source_width, height=source_height)
         target_parent.grid_propagate(False)
@@ -188,7 +254,6 @@ class HMI(_TouchscreenHMI):
             if test_width <= 1 or test_height <= 1:
                 self.after(100, self._apply_clean_settings_layout)
                 return
-
             frame_top = clean_settings.winfo_rooty() - self.winfo_rooty()
             visible_height = max(
                 1,
