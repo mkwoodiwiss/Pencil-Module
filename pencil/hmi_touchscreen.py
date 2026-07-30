@@ -13,19 +13,19 @@ class HMI(_FinalHMI):
 
     SETTINGS_MIN_WIDTH = 700
     SETTINGS_MIN_HEIGHT = 450
-    SETTINGS_PANEL_WIDTH = 380
-    SETTINGS_PANEL_HEIGHT = 300
-    SUMMARY_COLUMN_WIDTH = 17
+    LEFT_COLUMN_WIDTH = 405
+    RIGHT_COLUMN_WIDTH = 330
+    SUMMARY_COLUMN_WIDTH = 16
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.after_idle(self._finish_touchscreen_settings_layout)
 
     def _finish_touchscreen_settings_layout(self) -> None:
-        """Normalize Clean controls, then constrain every Settings panel."""
+        """Normalize controls and constrain the columns that own the panels."""
         self._normalize_clean_settings_controls()
         self.update_idletasks()
-        self._normalize_settings_panels()
+        self._normalize_bottom_columns()
 
     def _find_settings_frame(self, tab: tk.Widget):
         for widget in self._walk_widgets(tab):
@@ -38,22 +38,41 @@ class HMI(_FinalHMI):
                 pass
         return None
 
-    def _normalize_settings_panels(self) -> None:
-        """Keep all Settings panels inside the left column and above the screen edge."""
-        frames = [
-            frame
-            for frame in (
-                self._find_settings_frame(self.test_tab),
-                self._find_settings_frame(self.benchmark_tab),
-                self._find_settings_frame(self.clean_tab),
-            )
-            if frame is not None
-        ]
-        if not frames:
-            return
+    def _find_panel(self, tab: tk.Widget, title: str):
+        for widget in self._walk_widgets(tab):
+            if not isinstance(widget, tk.LabelFrame):
+                continue
+            try:
+                if widget.cget("text") == title:
+                    return widget
+            except tk.TclError:
+                pass
+        return None
 
-        for frame in frames:
-            for widget in self._walk_widgets(frame):
+    def _normalize_bottom_columns(self) -> None:
+        """Constrain parent columns while allowing panels to keep natural height."""
+        for tab in (self.test_tab, self.benchmark_tab, self.clean_tab):
+            settings = self._find_settings_frame(tab)
+            sensors = self._find_panel(tab, "Sensors")
+            cycle = self._find_panel(tab, "Cycle Status")
+            if settings is None:
+                continue
+
+            # The parent columns, not the LabelFrames, control the packed width.
+            left_column = settings.master
+            try:
+                left_column.configure(width=self.LEFT_COLUMN_WIDTH)
+                left_column.pack_propagate(False)
+                settings.pack_configure(fill="x", anchor="sw")
+                settings.configure(width=self.LEFT_COLUMN_WIDTH)
+                settings.pack_propagate(True)
+                settings.grid_propagate(True)
+            except tk.TclError:
+                pass
+
+            # Keep summary text content-driven only vertically. Horizontal size is
+            # fixed and the final HMI already ellipsizes long identifiers.
+            for widget in self._walk_widgets(settings):
                 try:
                     if isinstance(widget, tk.Label) and widget.cget("textvariable"):
                         widget.configure(
@@ -62,19 +81,24 @@ class HMI(_FinalHMI):
                             justify="left",
                         )
                     elif isinstance(widget, tk.Button):
-                        widget.configure(width=12, padx=4)
+                        widget.configure(width=11, padx=3)
                 except tk.TclError:
                     pass
 
-            try:
-                frame.configure(
-                    width=self.SETTINGS_PANEL_WIDTH,
-                    height=self.SETTINGS_PANEL_HEIGHT,
-                )
-                frame.pack_propagate(False)
-                frame.grid_propagate(False)
-            except tk.TclError:
-                pass
+            if sensors is not None:
+                right_column = sensors.master
+                try:
+                    right_column.configure(width=self.RIGHT_COLUMN_WIDTH)
+                    right_column.pack_propagate(False)
+                    sensors.pack_configure(fill="x", anchor="se")
+                    sensors.configure(width=self.RIGHT_COLUMN_WIDTH)
+                    sensors.grid_propagate(True)
+                    if cycle is not None:
+                        cycle.pack_configure(fill="x", anchor="se")
+                        cycle.configure(width=self.RIGHT_COLUMN_WIDTH)
+                        cycle.grid_propagate(True)
+                except tk.TclError:
+                    pass
 
         self.update_idletasks()
 
@@ -137,6 +161,7 @@ class HMI(_FinalHMI):
 
     def _style_settings_window(self, window: tk.Toplevel) -> None:
         """Make settings fields easier to tap without filling the whole display."""
+
         def enlarge(parent: tk.Widget) -> None:
             for child in parent.winfo_children():
                 try:
