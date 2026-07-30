@@ -9,11 +9,18 @@ from .hmi_touchscreen import HMI as _TouchscreenHMI
 
 
 class HMI(_TouchscreenHMI):
-    """Touchscreen HMI with Clean settings matched to the Test settings panel."""
+    """Touchscreen HMI with a compact, slightly taller Clean settings panel."""
+
+    CLEAN_EXTRA_HEIGHT = 24
+    CLEAN_BUTTON_FONT = ("Arial", 12)
+    CLEAN_BUTTON_WIDTH = 12
+    CLEAN_BUTTON_HEIGHT = 1
+    CLEAN_BUTTON_PADX = 4
+    CLEAN_BUTTON_PADY = 2
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.after(300, self._apply_clean_settings_match)
+        self.after(300, self._apply_clean_settings_layout)
         try:
             self.notebook.bind("<<NotebookTabChanged>>", self._clean_tab_selected, add="+")
         except tk.TclError:
@@ -23,12 +30,12 @@ class HMI(_TouchscreenHMI):
         try:
             selected = self.notebook.select()
             if selected and self.nametowidget(selected) is self.clean_tab:
-                self.after_idle(self._apply_clean_settings_match)
+                self.after_idle(self._apply_clean_settings_layout)
         except (tk.TclError, KeyError):
             pass
 
-    def _apply_clean_settings_match(self) -> None:
-        """Match only the Clean Settings frame and buttons to the Test panel."""
+    def _apply_clean_settings_layout(self) -> None:
+        """Size only the Clean Settings panel after the final layout has settled."""
         test_settings = self._find_settings_frame(self.test_tab)
         clean_settings = self._find_settings_frame(self.clean_tab)
         if test_settings is None or clean_settings is None:
@@ -36,37 +43,39 @@ class HMI(_TouchscreenHMI):
 
         try:
             self.update_idletasks()
-            test_width = max(test_settings.winfo_reqwidth(), test_settings.winfo_width())
-            test_height = max(test_settings.winfo_reqheight(), test_settings.winfo_height())
-            test_parent_width = max(
-                test_settings.master.winfo_reqwidth(),
-                test_settings.master.winfo_width(),
-            )
+            test_width = test_settings.winfo_width()
+            test_height = test_settings.winfo_height()
+            if test_width <= 1 or test_height <= 1:
+                self.after(100, self._apply_clean_settings_layout)
+                return
 
-            clean_settings.master.configure(width=test_parent_width)
+            clean_width = test_width
+            clean_height = test_height + self.CLEAN_EXTRA_HEIGHT
+
+            clean_settings.master.configure(width=clean_width)
             clean_settings.master.pack_propagate(False)
             clean_settings.pack_configure(fill="none", anchor="sw")
-            clean_settings.configure(width=test_width, height=test_height)
+            clean_settings.configure(width=clean_width, height=clean_height)
             clean_settings.pack_propagate(False)
             clean_settings.grid_propagate(False)
         except tk.TclError:
             return
 
-        test_buttons = self._buttons_by_text(test_settings)
         clean_buttons = self._buttons_by_text(clean_settings)
         for text in ("Edit Settings", "Calibrate", "Tare FIL", "Tare BW EFL"):
-            source = test_buttons.get(text)
-            target = clean_buttons.get(text)
-            if source is None or target is None:
+            button = clean_buttons.get(text)
+            if button is None:
                 continue
             try:
-                target.configure(
-                    font=source.cget("font"),
-                    width=source.cget("width"),
-                    height=source.cget("height"),
-                    padx=source.cget("padx"),
-                    pady=source.cget("pady"),
+                button.configure(
+                    font=self.CLEAN_BUTTON_FONT,
+                    width=self.CLEAN_BUTTON_WIDTH,
+                    height=self.CLEAN_BUTTON_HEIGHT,
+                    padx=self.CLEAN_BUTTON_PADX,
+                    pady=self.CLEAN_BUTTON_PADY,
                 )
+                if button.winfo_manager() == "grid":
+                    button.grid_configure(padx=4, pady=2, sticky="ew")
             except tk.TclError:
                 pass
 
