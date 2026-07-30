@@ -10,13 +10,26 @@ from .hmi_modern_theme import HMI as _ThemedHMI
 class HMI(_ThemedHMI):
     """Themed HMI with final runtime integration fixes."""
 
-    def _sync_all_valve_buttons(self) -> None:
-        """Synchronize every PFD valve button and process line with current state.
+    def _style_mapped_widget(self, event) -> None:
+        """Ignore non-widget and destroyed targets during mapping and shutdown."""
+        widget = getattr(event, "widget", None)
+        if not isinstance(widget, tk.Misc):
+            return
+        try:
+            if not widget.winfo_exists():
+                return
+            widget.after_idle(
+                lambda target=widget: (
+                    self._apply_selected_accents(target)
+                    if target.winfo_exists()
+                    else None
+                )
+            )
+        except (tk.TclError, AttributeError):
+            pass
 
-        ``hmi_runtime.HMI._enable_manual_controls`` calls this hook after a run.
-        The hook was referenced but never implemented, which interrupted the
-        completion callback before the results/USB window could open.
-        """
+    def _sync_all_valve_buttons(self) -> None:
+        """Synchronize every PFD valve button and process line with current state."""
         states = list(getattr(self, "solenoid_states", ()))
         for pfd in getattr(self, "pfds", {}).values():
             buttons = pfd.get("solenoid_buttons", ())
@@ -33,13 +46,7 @@ class HMI(_ThemedHMI):
             pass
 
     def _test_finished(self) -> None:
-        """Use only the original runtime results manager after a completed run.
-
-        ``hmi_modern_theme.HMI`` added a second USB export dialog while
-        ``hmi_runtime.HMI`` already opens the original results manager. Start the
-        cooperative call after the themed class so the original completion path
-        runs once without opening the duplicate dialog.
-        """
+        """Use only the original runtime results manager after a completed run."""
         super(_ThemedHMI, self)._test_finished()
 
 
