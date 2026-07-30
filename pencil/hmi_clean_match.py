@@ -9,15 +9,10 @@ from .hmi_touchscreen import HMI as _TouchscreenHMI
 
 
 class HMI(_TouchscreenHMI):
-    """Touchscreen HMI with a compact, fully visible Clean settings panel."""
+    """Touchscreen HMI with a fully visible Clean settings panel."""
 
     CLEAN_EXTRA_HEIGHT = 8
     CLEAN_BOTTOM_MARGIN = 10
-    CLEAN_BUTTON_FONT = ("Arial", 11)
-    CLEAN_BUTTON_WIDTH = 11
-    CLEAN_BUTTON_HEIGHT = 1
-    CLEAN_BUTTON_PADX = 2
-    CLEAN_BUTTON_PADY = 0
     COMPACT_SUMMARY_LINE_WIDTH = 16
 
     def __init__(self, *args, **kwargs) -> None:
@@ -103,8 +98,43 @@ class HMI(_TouchscreenHMI):
         except (tk.TclError, KeyError):
             pass
 
+    @staticmethod
+    def _copy_button_geometry(source: tk.Button, target: tk.Button) -> None:
+        """Copy the complete visible button style and grid spacing."""
+        target.configure(
+            font=source.cget("font"),
+            width=source.cget("width"),
+            height=source.cget("height"),
+            padx=source.cget("padx"),
+            pady=source.cget("pady"),
+            borderwidth=source.cget("borderwidth"),
+            relief=source.cget("relief"),
+        )
+
+        if source.winfo_manager() == "grid" and target.winfo_manager() == "grid":
+            source_grid = source.grid_info()
+            target.grid_configure(
+                padx=source_grid.get("padx", 0),
+                pady=source_grid.get("pady", 0),
+                ipadx=source_grid.get("ipadx", 0),
+                ipady=source_grid.get("ipady", 0),
+                sticky=source_grid.get("sticky", ""),
+            )
+
+            source_parent = source.master
+            target_parent = target.master
+            for column in (0, 1):
+                source_column = source_parent.grid_columnconfigure(column)
+                target_parent.grid_columnconfigure(
+                    column,
+                    minsize=source_column.get("minsize", 0),
+                    pad=source_column.get("pad", 0),
+                    weight=source_column.get("weight", 0),
+                    uniform=source_column.get("uniform", ""),
+                )
+
     def _apply_clean_settings_layout(self) -> None:
-        """Fit only the Clean Settings panel inside the visible bottom area."""
+        """Fit Clean inside the screen and match Test button geometry exactly."""
         test_settings = self._find_settings_frame(self.test_tab)
         clean_settings = self._find_settings_frame(self.clean_tab)
         if test_settings is None or clean_settings is None:
@@ -134,21 +164,15 @@ class HMI(_TouchscreenHMI):
         except tk.TclError:
             return
 
+        test_buttons = self._buttons_by_text(test_settings)
         clean_buttons = self._buttons_by_text(clean_settings)
         for text in ("Edit Settings", "Calibrate", "Tare FIL", "Tare BW EFL"):
-            button = clean_buttons.get(text)
-            if button is None:
+            source = test_buttons.get(text)
+            target = clean_buttons.get(text)
+            if source is None or target is None:
                 continue
             try:
-                button.configure(
-                    font=self.CLEAN_BUTTON_FONT,
-                    width=self.CLEAN_BUTTON_WIDTH,
-                    height=self.CLEAN_BUTTON_HEIGHT,
-                    padx=self.CLEAN_BUTTON_PADX,
-                    pady=self.CLEAN_BUTTON_PADY,
-                )
-                if button.winfo_manager() == "grid":
-                    button.grid_configure(padx=8, pady=2, sticky="")
+                self._copy_button_geometry(source, target)
             except tk.TclError:
                 pass
 
