@@ -197,6 +197,11 @@ class HMI(_CleanMatchHMI):
             except tk.TclError:
                 pass
 
+        # The inherited settings-dialog wrapper disables valve buttons before the
+        # Toplevel is mapped, so their saved modal state can already be disabled.
+        # Once the final popup closes and no test is running, manual controls must
+        # explicitly return to their normal idle state.
+        self._enable_manual_controls()
         self._sync_all_valve_buttons()
 
 
