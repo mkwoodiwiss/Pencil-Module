@@ -253,6 +253,16 @@ class HMI(_FinalHMI):
 
         self._clean_settings_controls_normalized = True
 
+    @staticmethod
+    def _padding_minimum(value, minimum: int):
+        """Preserve one- or two-sided Tk padding while enforcing a minimum."""
+        if isinstance(value, (tuple, list)):
+            return tuple(max(minimum, int(part or 0)) for part in value)
+        text = str(value or "").strip()
+        if " " in text:
+            return tuple(max(minimum, int(part or 0)) for part in text.split())
+        return max(minimum, int(value or 0))
+
     def _style_settings_window(self, window: tk.Toplevel) -> None:
         """Make settings fields easier to tap without filling the whole display."""
 
@@ -283,8 +293,8 @@ class HMI(_FinalHMI):
                     if manager == "grid":
                         info = child.grid_info()
                         options = {
-                            "padx": max(6, int(info.get("padx", 0) or 0)),
-                            "pady": max(2, int(info.get("pady", 0) or 0)),
+                            "padx": self._padding_minimum(info.get("padx", 0), 6),
+                            "pady": self._padding_minimum(info.get("pady", 0), 2),
                         }
                         if isinstance(child, tk.Entry):
                             options["ipady"] = 3
@@ -296,10 +306,10 @@ class HMI(_FinalHMI):
                     elif manager == "pack":
                         info = child.pack_info()
                         child.pack_configure(
-                            padx=max(6, int(info.get("padx", 0) or 0)),
-                            pady=max(3, int(info.get("pady", 0) or 0)),
+                            padx=self._padding_minimum(info.get("padx", 0), 6),
+                            pady=self._padding_minimum(info.get("pady", 0), 3),
                         )
-                except (tk.TclError, ValueError):
+                except (tk.TclError, ValueError, TypeError):
                     pass
 
                 enlarge(child)
