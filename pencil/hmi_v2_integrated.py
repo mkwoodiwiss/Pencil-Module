@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .completed_results import CompletedResultsMixin
 from .hmi_filtration_dialogs import FiltrationSettingsDialogMixin
 from .hmi_identifier_state import IdentifierStateMixin
 from .hmi_post_scrub_state import PostScrubStateMixin
@@ -12,6 +13,7 @@ from .hmi_v2_clone_test_layout import HMI as _CloneLayoutHMI
 
 
 class HMI(
+    CompletedResultsMixin,
     FiltrationSettingsDialogMixin,
     IdentifierStateMixin,
     PostScrubStateMixin,
