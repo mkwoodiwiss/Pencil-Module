@@ -1,6 +1,20 @@
 """Configuration models for the MF/UF Membrane Evaluation Unit."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import Any
+
+
+def _resolve_weight_mode(preferred: bool | None, legacy: bool | None) -> bool:
+    """Resolve a current weight-mode option with its legacy volume alias."""
+    return bool(legacy) if preferred is None else bool(preferred)
+
+
+def _assign(instance: object, **values: Any) -> None:
+    """Assign declared dataclass fields without repeating constructor boilerplate."""
+    for name, value in values.items():
+        setattr(instance, name, value)
 
 
 @dataclass(init=False)
@@ -45,26 +59,31 @@ class FiltrationConfig:
         selected_purge_time = purge_time if purge_time is not None else refill_time
         if selected_purge_time is None:
             raise TypeError("purge_time or refill_time is required")
-        if filtration_by_weight is None:
-            filtration_by_weight = bool(filtration_by_volume)
-        if backwash_by_weight is None:
-            backwash_by_weight = bool(backwash_by_volume)
 
-        self.filtration_target = filtration_target
-        self.filtration_by_weight = filtration_by_weight
-        self.backwash_target = backwash_target
-        self.backwash_by_weight = backwash_by_weight
-        self.purge_time = selected_purge_time
-        self.cycle_count = cycle_count
-        self.sample_time = sample_time
-        self.project = project
-        self.module_id = module_id
-        self.sample_id = sample_id
-        self.feed_tank_pressure_offset = feed_tank_pressure_offset
-        self.backwash_tank_pressure_offset = backwash_tank_pressure_offset
-        self.feed_temperature_offset = feed_temperature_offset
-        self.max_weight_phase_time = max_weight_phase_time
-        self.file_prefix = file_prefix
+        _assign(
+            self,
+            filtration_target=filtration_target,
+            filtration_by_weight=_resolve_weight_mode(
+                filtration_by_weight,
+                filtration_by_volume,
+            ),
+            backwash_target=backwash_target,
+            backwash_by_weight=_resolve_weight_mode(
+                backwash_by_weight,
+                backwash_by_volume,
+            ),
+            purge_time=selected_purge_time,
+            cycle_count=cycle_count,
+            sample_time=sample_time,
+            project=project,
+            module_id=module_id,
+            sample_id=sample_id,
+            feed_tank_pressure_offset=feed_tank_pressure_offset,
+            backwash_tank_pressure_offset=backwash_tank_pressure_offset,
+            feed_temperature_offset=feed_temperature_offset,
+            max_weight_phase_time=max_weight_phase_time,
+            file_prefix=file_prefix,
+        )
 
     @property
     def refill_time(self) -> float:
@@ -130,34 +149,40 @@ class CleanConfig:
         rinse_forward_by_volume: bool | None = None,
         rinse_backwash_by_volume: bool | None = None,
     ) -> None:
-        if forward_by_weight is None:
-            forward_by_weight = bool(forward_by_volume)
-        if backwash_by_weight is None:
-            backwash_by_weight = bool(backwash_by_volume)
-        if rinse_forward_by_weight is None:
-            rinse_forward_by_weight = bool(rinse_forward_by_volume)
-        if rinse_backwash_by_weight is None:
-            rinse_backwash_by_weight = bool(rinse_backwash_by_volume)
-
-        self.forward_target = forward_target
-        self.forward_by_weight = forward_by_weight
-        self.soak_time = soak_time
-        self.backwash_target = backwash_target
-        self.backwash_by_weight = backwash_by_weight
-        self.rinse_forward_target = rinse_forward_target
-        self.rinse_forward_by_weight = rinse_forward_by_weight
-        self.rinse_backwash_target = rinse_backwash_target
-        self.rinse_backwash_by_weight = rinse_backwash_by_weight
-        self.cycle_count = cycle_count
-        self.sample_time = sample_time
-        self.purge_time = purge_time
-        self.project = project
-        self.module_id = module_id
-        self.solution = solution
-        self.feed_tank_pressure_offset = feed_tank_pressure_offset
-        self.backwash_tank_pressure_offset = backwash_tank_pressure_offset
-        self.feed_temperature_offset = feed_temperature_offset
-        self.max_weight_phase_time = max_weight_phase_time
+        _assign(
+            self,
+            forward_target=forward_target,
+            forward_by_weight=_resolve_weight_mode(
+                forward_by_weight,
+                forward_by_volume,
+            ),
+            soak_time=soak_time,
+            backwash_target=backwash_target,
+            backwash_by_weight=_resolve_weight_mode(
+                backwash_by_weight,
+                backwash_by_volume,
+            ),
+            rinse_forward_target=rinse_forward_target,
+            rinse_forward_by_weight=_resolve_weight_mode(
+                rinse_forward_by_weight,
+                rinse_forward_by_volume,
+            ),
+            rinse_backwash_target=rinse_backwash_target,
+            rinse_backwash_by_weight=_resolve_weight_mode(
+                rinse_backwash_by_weight,
+                rinse_backwash_by_volume,
+            ),
+            cycle_count=cycle_count,
+            sample_time=sample_time,
+            purge_time=purge_time,
+            project=project,
+            module_id=module_id,
+            solution=solution,
+            feed_tank_pressure_offset=feed_tank_pressure_offset,
+            backwash_tank_pressure_offset=backwash_tank_pressure_offset,
+            feed_temperature_offset=feed_temperature_offset,
+            max_weight_phase_time=max_weight_phase_time,
+        )
 
     @property
     def forward_by_volume(self) -> bool:
@@ -192,3 +217,6 @@ class BenchmarkConfig:
     feed_tank_pressure_offset: float = 0.0
     backwash_tank_pressure_offset: float = 0.0
     feed_temperature_offset: float = 0.0
+
+
+__all__ = ["BenchmarkConfig", "CleanConfig", "FiltrationConfig"]
