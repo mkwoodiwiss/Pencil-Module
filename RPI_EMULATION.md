@@ -16,6 +16,13 @@ Equivalent direct command:
 MEU_EMULATE_RPI=1 python3 system_control.py
 ```
 
+From a remote shell while using the Raspberry Pi display:
+
+```bash
+DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority \
+MEU_EMULATE_RPI=1 python3 system_control.py
+```
+
 On Windows PowerShell:
 
 ```powershell
@@ -38,7 +45,8 @@ python3 -m unittest tests.test_rpi_emulation tests.test_emulated_startup
 Run the complete release suite afterward:
 
 ```bash
-python3 -m unittest discover -s tests
+DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority \
+python3 -m unittest discover -s tests -v
 python3 -m compileall system_control.py pencil scripts
 ```
 
@@ -67,6 +75,16 @@ The emulator also provides test controls:
 - `relay_state(relay)`
 - `relay_events`
 - `reset()`
+
+## Refactored application boundaries
+
+The cleanup keeps the public startup and UI behavior intact while separating recent v2 responsibilities:
+
+- `pencil.config_loader` owns JSON loading and configuration errors.
+- `system_control.py` selects real or emulated hardware and starts the HMI.
+- `pencil.hmi_identifier_state` owns v2 identifier synchronization.
+- `pencil.hmi_filtration_dialogs` owns the shared Test and Post-Scrub settings dialog.
+- `pencil.hmi_v2_integrated` is the compact final HMI composition point.
 
 ## Safety behavior
 
