@@ -64,7 +64,7 @@ DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority \
 python3 -m unittest discover -s tests -v
 ```
 
-The current branch validation result is **113 total tests, all successful, with one intentional full-Tk display test skipped**.
+The last confirmed branch result was **113 total tests, all successful, with one intentional full-Tk display test skipped**. USB eject tests were added afterward and require the next Raspberry Pi run.
 
 Compile the production application:
 
@@ -72,12 +72,15 @@ Compile the production application:
 python3 -m compileall system_control.py pencil
 ```
 
-The automated suite covers configuration, automation lifecycle, clean sequencing, logging, result-file selection, HMI composition, emulation, serial transport, Highland protocol behavior, hardware factories, and public interfaces.
+The automated suite covers configuration, automation lifecycle, clean sequencing, logging, result-file selection, HMI composition, emulation, serial transport, Highland protocol behavior, hardware factories, USB eject behavior, and public interfaces.
 
 Completed physical checks:
 
 - Visual comparison of every process tab and settings dialog
 - Physical Highland communication and verified tare on both scales
+- Relay and final valve mapping
+- Pressure and RTD channel readings
+- USB file copy and checksum verification
 
 ## Current code boundaries
 
@@ -92,6 +95,7 @@ Completed physical checks:
 - `pencil/highland_scale.py`: Highland parsing, command queue, cached readings, and base tare behavior
 - `pencil/hardware.py`: relay, Multi-IO, sensor conversion, and hardware composition
 - `pencil/hardware_runtime.py`: production Highland tare safeguards and dual-scale verification
+- `pencil/usb_export.py`: verified result copying, unmount, and USB device power-off
 - `pencil/emulation.py`: deterministic Raspberry Pi hardware emulator
 - `pencil/hmi_widget_clone.py`: generic Tk widget-tree cloning mechanics
 - `pencil/hmi_v2_clone_test_layout.py`: Flush and Post-Scrub clone policy
@@ -151,9 +155,7 @@ python3 stress_test_continuous.py 60
 
 ## Remaining release validation
 
-- Relay and final valve mapping
-- Pressure and RTD channel readings
-- USB result export
+- Confirm USB automatic eject after verified export
 - Complete Flush, Benchmark, Test, Post-Scrub, and Clean wet sequences
 
 See `CHANGELOG.md`, `RELEASE_NOTES_V1.md`, and `RPI_EMULATION.md`.
