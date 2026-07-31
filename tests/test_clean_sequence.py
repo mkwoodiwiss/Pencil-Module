@@ -50,11 +50,11 @@ class TestCleanSequence(unittest.TestCase):
         )
         self.assertEqual(
             [step.kind for step in CLEAN_SEQUENCE].count("timed"),
-            5,
+            6,
         )
         self.assertEqual(
             [step.kind for step in CLEAN_SEQUENCE].count("process"),
-            13,
+            12,
         )
 
     def test_sequence_preserves_exact_step_order(self):
