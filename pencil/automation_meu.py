@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
-import csv
-import os
 import re
 import threading
 import time
@@ -14,6 +11,7 @@ from .automation_lifecycle import AutomationLifecycleMixin
 from .clean_sequence import CleanSequenceMixin
 from .config_meu import BenchmarkConfig, CleanConfig, FiltrationConfig
 from .hardware import MEU
+from .log_files import AutomationLogFiles, safe_name
 
 
 DATA_HEADER = [
@@ -27,9 +25,7 @@ DATA_HEADER = [
 ]
 
 
-def _safe_name(value: str) -> str:
-    text = (value or "").strip() or "unknown"
-    return re.sub(r"[^A-Za-z0-9._-]+", "_", text)
+_safe_name = safe_name
 
 
 class AutomationError(RuntimeError):
@@ -60,6 +56,7 @@ class _AutomationBase(AutomationLifecycleMixin):
         self.valve_callback = valve_callback
         self.progress_callback = progress_callback
         self._stop_event = threading.Event()
+        self._log_files: AutomationLogFiles | None = None
         self.data_file = None
         self.data_writer = None
 
@@ -131,23 +128,19 @@ class _AutomationBase(AutomationLifecycleMixin):
         final_id: str,
         config,
     ) -> None:
-        os.makedirs(self.log_dir, exist_ok=True)
-        stamp = time.strftime("%Y%m%d_%H%M%S")
-        test_date = time.strftime("%Y-%m-%d")
-        base = os.path.join(
+        self._log_files = AutomationLogFiles.open(
             self.log_dir,
-            f"{_safe_name(prefix)}_{_safe_name(project)}_"
-            f"{_safe_name(module_id)}_{_safe_name(final_id)}_{stamp}",
+            prefix=prefix,
+            project=project,
+            module_id=module_id,
+            final_id=final_id,
+            stamp=time.strftime("%Y%m%d_%H%M%S"),
+            test_date=time.strftime("%Y-%m-%d"),
+            config=config,
+            data_header=DATA_HEADER,
         )
-        self.data_file = open(base + "_data.csv", "w", newline="", encoding="utf-8")
-        self.data_writer = csv.writer(self.data_file)
-        self.data_writer.writerow(DATA_HEADER)
-        self.data_file.flush()
-        with open(base + "_settings.csv", "w", newline="", encoding="utf-8") as settings:
-            writer = csv.writer(settings)
-            writer.writerow(["test_date", test_date])
-            for key, value in asdict(config).items():
-                writer.writerow([key, value])
+        self.data_file = self._log_files.data_file
+        self.data_writer = self._log_files.data_writer
 
     def log_cycle(self, step: str) -> None:
         if not self.data_writer or not self.data_file:
@@ -228,9 +221,12 @@ class _AutomationBase(AutomationLifecycleMixin):
 
     def stop_test(self) -> None:
         self.close_all_valves()
-        if self.data_file:
+        if self._log_files is not None:
+            self._log_files.close()
+            self._log_files = None
+        elif self.data_file:
             self.data_file.close()
-            self.data_file = None
+        self.data_file = None
         self.data_writer = None
 
     def _report_progress(self, step: str, current: int, total: int) -> None:
