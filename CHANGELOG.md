@@ -43,8 +43,7 @@
 
 ### Automated validation completed
 
-- 113 tests passed on the Raspberry Pi.
-- One full-Tk display integration test intentionally skipped from the normal suite because touchscreen validation is performed separately.
+- 113 total tests completed successfully on the Raspberry Pi, with one intentional full-Tk display test skipped.
 - `python -m compileall system_control.py pencil` completed successfully.
 
 ### Physical validation required before merge
