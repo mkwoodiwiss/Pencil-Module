@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import tkinter as tk
 
-from .hmi_v2_exit_spacing import HMI as _V2ExitSpacingHMI
+from .hmi_v2_layout_fix import HMI as _V2LayoutHMI
 
 
-class HMI(_V2ExitSpacingHMI):
+class HMI(_V2LayoutHMI):
     """Apply the rendered Test geometry to the two new v2 process pages."""
 
     def __init__(self, *args, **kwargs) -> None:
@@ -70,7 +70,6 @@ class HMI(_V2ExitSpacingHMI):
 
         self.update_idletasks()
 
-        # Match the three lower frames exactly, including their fixed rendered sizes.
         for source, target in (
             (test_settings, target_settings),
             (test_sensors, target_sensors),
@@ -83,8 +82,6 @@ class HMI(_V2ExitSpacingHMI):
                     font=source.cget("font"),
                     borderwidth=source.cget("borderwidth"),
                     relief=source.cget("relief"),
-                    padx=source.cget("padx"),
-                    pady=source.cget("pady"),
                 )
                 target.pack_propagate(False)
                 target.grid_propagate(False)
@@ -92,7 +89,6 @@ class HMI(_V2ExitSpacingHMI):
                 pass
             self._copy_pack_geometry(source, target)
 
-        # Match the left, center, and right column geometry to Test.
         source_columns = (
             test_settings.master,
             self.start_btn_test.master,
@@ -112,11 +108,9 @@ class HMI(_V2ExitSpacingHMI):
                 pass
             self._copy_pack_geometry(source, target)
 
-        # Use the exact Test start-button dimensions and spacing.
         self._copy_button_style(self.start_btn_test, target_start)
         self._copy_pack_geometry(self.start_btn_test, target_start)
 
-        # Match every settings control by label, including the two-row button block.
         test_buttons = self._button_map(test_settings)
         target_buttons = self._button_map(target_settings)
         for text, source in test_buttons.items():
@@ -141,7 +135,6 @@ class HMI(_V2ExitSpacingHMI):
             except tk.TclError:
                 pass
 
-        # Place Settings at the same screen position relative to its parent as Test.
         try:
             source_place = test_settings.place_info()
             if source_place:
