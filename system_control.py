@@ -1,12 +1,13 @@
-"""High-level controller for the MF/UF Membrane Evaluation Unit.
+"""Production entry point for the MF/UF Membrane Evaluation Unit.
 
-The application entry point continues to re-export the public control classes
-for compatibility with existing scripts and tests that import from
-``system_control``.
+Public control classes remain re-exported for compatibility with existing Pi
+scripts and tests. Startup policy is intentionally kept small and explicit.
 """
 
-import json
+from __future__ import annotations
+
 import os
+from pathlib import Path
 from typing import Any
 
 from pencil import (
@@ -21,6 +22,7 @@ from pencil import (
     MEU,
     PencilModule,
 )
+from pencil.config_loader import load_defaults
 
 
 __all__ = [
@@ -38,56 +40,33 @@ __all__ = [
 ]
 
 
-def _load_defaults(config_path: str) -> dict[str, Any]:
-    """Load HMI defaults from JSON while preserving a missing-file fallback.
+APPLICATION_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = APPLICATION_ROOT / "config.json"
+_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 
-    A missing configuration file is treated as an intentional request to use
-    built-in defaults. Existing but malformed or unreadable files raise a clear
-    startup error so configuration problems are not silently ignored.
-    """
-    try:
-        with open(config_path, "r", encoding="utf-8") as config_file:
-            defaults = json.load(config_file)
-    except FileNotFoundError:
-        return {}
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"Invalid JSON in MEU configuration file: {config_path}"
-        ) from exc
-    except OSError as exc:
-        raise RuntimeError(
-            f"Unable to read MEU configuration file: {config_path}"
-        ) from exc
 
-    if not isinstance(defaults, dict):
-        raise RuntimeError(
-            f"MEU configuration must contain a JSON object: {config_path}"
-        )
-    return defaults
+def _load_defaults(config_path: str | Path) -> dict[str, Any]:
+    """Compatibility wrapper around the package configuration loader."""
+    return load_defaults(config_path)
 
 
 def _emulation_requested(environment: dict[str, str] | None = None) -> bool:
     """Return True only for an explicit MEU_EMULATE_RPI opt-in value."""
     source = os.environ if environment is None else environment
-    value = source.get("MEU_EMULATE_RPI", "")
-    return value.strip().lower() in {"1", "true", "yes", "on"}
+    return source.get("MEU_EMULATE_RPI", "").strip().lower() in _TRUE_VALUES
 
 
 def _create_module():
-    """Create production hardware by default or deterministic emulation on request."""
+    """Create deterministic emulation on request, otherwise production hardware."""
     if _emulation_requested():
         return EmulatedMEU()
-    # PencilModule is retained as the patchable entry-point symbol for older
-    # integrations and tests. It is an alias of the preferred production MEU.
     return PencilModule()
 
 
 def main() -> None:
-    """Start the MF/UF Membrane Evaluation Unit application."""
-    meu = _create_module()
-    config_path = os.path.join(os.path.dirname(__file__), "config.json")
-    defaults = _load_defaults(config_path)
-    app = HMI(meu, fullscreen=True, defaults=defaults)
+    """Create the hardware backend and run the production Tkinter HMI."""
+    module = _create_module()
+    app = HMI(module, fullscreen=True, defaults=_load_defaults(CONFIG_PATH))
     app.mainloop()
 
 
