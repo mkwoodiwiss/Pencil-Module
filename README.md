@@ -72,7 +72,12 @@ Compile the production application:
 python3 -m compileall system_control.py pencil
 ```
 
-The automated suite covers configuration, automation lifecycle, clean sequencing, logging, result-file selection, HMI composition, emulation, serial transport, Highland protocol behavior, hardware factories, and public interfaces. Physical hardware and wet-process validation are still required before release.
+The automated suite covers configuration, automation lifecycle, clean sequencing, logging, result-file selection, HMI composition, emulation, serial transport, Highland protocol behavior, hardware factories, and public interfaces.
+
+Completed physical checks:
+
+- Visual comparison of every process tab and settings dialog
+- Physical Highland communication and verified tare on both scales
 
 ## Current code boundaries
 
@@ -146,8 +151,6 @@ python3 stress_test_continuous.py 60
 
 ## Remaining release validation
 
-- Visual comparison of every process tab and settings dialog
-- Physical Highland communication and verified tare on both scales
 - Relay and final valve mapping
 - Pressure and RTD channel readings
 - USB result export
