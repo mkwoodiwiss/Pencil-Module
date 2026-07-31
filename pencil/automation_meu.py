@@ -1,4 +1,4 @@
-"""Corrected automation for the MF/UF Membrane Evaluation Unit."""
+"""Core automation for the MF/UF Membrane Evaluation Unit."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import threading
 import time
 from typing import Callable, Optional
 
+from .clean_sequence import CleanSequenceMixin
 from .config_meu import BenchmarkConfig, CleanConfig, FiltrationConfig
 from .hardware import MEU
 
@@ -31,7 +32,7 @@ def _safe_name(value: str) -> str:
 
 
 class AutomationError(RuntimeError):
-    pass
+    """Raised when an MEU process cannot continue safely."""
 
 
 class _AutomationBase:
@@ -41,7 +42,6 @@ class _AutomationBase:
     WASTE = 4
     FILTRATE = 5
 
-    # Compatibility aliases for older code.
     BACKWASH_SUPPLY = BACKWASH
     INFLUENT_SUPPLY = FEED
     INFLUENT_DRAIN = WASTE
@@ -76,7 +76,13 @@ class _AutomationBase:
             self._set_valve(relay, False)
 
     def close_all_valves(self) -> None:
-        self._close(self.BACKWASH, self.FEED, self.BACKWASH_EFFLUENT, self.WASTE, self.FILTRATE)
+        self._close(
+            self.BACKWASH,
+            self.FEED,
+            self.BACKWASH_EFFLUENT,
+            self.WASTE,
+            self.FILTRATE,
+        )
 
     def cancel(self) -> None:
         self._stop_event.set()
@@ -95,9 +101,7 @@ class _AutomationBase:
         return float(match.group(1))
 
     def _read_weight(self, scale_index: int, attempts: int = 5) -> float:
-        """Read a scale with retries for temporary serial dropouts."""
         last_response = "--"
-
         for attempt in range(attempts):
             self._check_cancel()
             last_response = self.module.read_scale(scale_index)
@@ -106,7 +110,6 @@ class _AutomationBase:
             except AutomationError:
                 if attempt < attempts - 1:
                     time.sleep(0.25)
-
         raise AutomationError(
             f"Scale {scale_index + 1} response unavailable after "
             f"{attempts} attempts. Last response: {last_response!r}"
@@ -119,13 +122,21 @@ class _AutomationBase:
             temperature=config.feed_temperature_offset,
         )
 
-    def _open_logs(self, prefix: str, project: str, module_id: str, final_id: str, config) -> None:
+    def _open_logs(
+        self,
+        prefix: str,
+        project: str,
+        module_id: str,
+        final_id: str,
+        config,
+    ) -> None:
         os.makedirs(self.log_dir, exist_ok=True)
         stamp = time.strftime("%Y%m%d_%H%M%S")
         test_date = time.strftime("%Y-%m-%d")
         base = os.path.join(
             self.log_dir,
-            f"{_safe_name(prefix)}_{_safe_name(project)}_{_safe_name(module_id)}_{_safe_name(final_id)}_{stamp}",
+            f"{_safe_name(prefix)}_{_safe_name(project)}_"
+            f"{_safe_name(module_id)}_{_safe_name(final_id)}_{stamp}",
         )
         self.data_file = open(base + "_data.csv", "w", newline="", encoding="utf-8")
         self.data_writer = csv.writer(self.data_file)
@@ -140,18 +151,26 @@ class _AutomationBase:
     def log_cycle(self, step: str) -> None:
         if not self.data_writer or not self.data_file:
             return
-        self.data_writer.writerow([
-            time.strftime("%H:%M:%S"),
-            self.module.read_rtd(0),
-            self.module.read_pressure(2),
-            self.module.read_pressure(1),
-            self._read_weight(0),
-            self._read_weight(1),
-            step,
-        ])
+        self.data_writer.writerow(
+            [
+                time.strftime("%H:%M:%S"),
+                self.module.read_rtd(0),
+                self.module.read_pressure(2),
+                self.module.read_pressure(1),
+                self._read_weight(0),
+                self._read_weight(1),
+                step,
+            ]
+        )
         self.data_file.flush()
 
-    def _timed_phase(self, step: str, duration: float, relays: tuple[int, ...], sample_time: float) -> None:
+    def _timed_phase(
+        self,
+        step: str,
+        duration: float,
+        relays: tuple[int, ...],
+        sample_time: float,
+    ) -> None:
         if duration <= 0:
             raise AutomationError(f"{step} duration must be greater than zero")
         self._open(*relays)
@@ -174,7 +193,9 @@ class _AutomationBase:
         max_duration: float,
     ) -> None:
         if target <= 0 or max_duration <= 0:
-            raise AutomationError(f"{step} target and maximum duration must be greater than zero")
+            raise AutomationError(
+                f"{step} target and maximum duration must be greater than zero"
+            )
         start_weight = self._read_weight(scale_index)
         last_weight = start_weight
         last_change = time.monotonic()
@@ -185,14 +206,18 @@ class _AutomationBase:
                 self._check_cancel()
                 current = self._read_weight(scale_index)
                 if current < start_weight - 0.1:
-                    raise AutomationError(f"{step} scale decreased more than 0.1 g below its starting value")
+                    raise AutomationError(
+                        f"{step} scale decreased more than 0.1 g below its starting value"
+                    )
                 if current > last_weight + 0.01:
                     last_change = time.monotonic()
                     last_weight = current
                 if current - start_weight >= target:
                     break
                 if time.monotonic() - last_change > 60:
-                    raise AutomationError(f"{step} scale failed to increase by more than 0.01 g for 60 seconds")
+                    raise AutomationError(
+                        f"{step} scale failed to increase by more than 0.01 g for 60 seconds"
+                    )
                 if time.monotonic() - started > max_duration:
                     raise AutomationError(f"{step} exceeded its maximum duration")
                 self.log_cycle(step)
@@ -209,7 +234,14 @@ class _AutomationBase:
 
 
 class FiltrationTestSystem(_AutomationBase):
-    def __init__(self, module: MEU, config: FiltrationConfig, log_dir: str = "logs", valve_callback=None, progress_callback=None) -> None:
+    def __init__(
+        self,
+        module: MEU,
+        config: FiltrationConfig,
+        log_dir: str = "logs",
+        valve_callback=None,
+        progress_callback=None,
+    ) -> None:
         super().__init__(module, log_dir, valve_callback, progress_callback)
         self.config = config
 
@@ -217,26 +249,63 @@ class FiltrationTestSystem(_AutomationBase):
         self._stop_event.clear()
         self.close_all_valves()
         try:
-            self._open_logs(self.config.file_prefix, self.config.project, self.config.module_id, self.config.sample_id, self.config)
-            self._apply_offsets(self.config)
+            config = self.config
+            self._open_logs(
+                config.file_prefix,
+                config.project,
+                config.module_id,
+                config.sample_id,
+                config,
+            )
+            self._apply_offsets(config)
             self.module.zero_scales()
             time.sleep(1.0)
-            for cycle in range(self.config.cycle_count):
+            for cycle in range(config.cycle_count):
+                current_cycle = cycle + 1
                 if self.progress_callback:
-                    self.progress_callback("Purge", cycle + 1, self.config.cycle_count)
-                self._timed_phase("Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
+                    self.progress_callback("Purge", current_cycle, config.cycle_count)
+                self._timed_phase(
+                    "Purge",
+                    config.purge_time,
+                    (self.FEED, self.WASTE),
+                    config.sample_time,
+                )
                 if self.progress_callback:
-                    self.progress_callback("Filter", cycle + 1, self.config.cycle_count)
-                if self.config.filtration_by_weight:
-                    self._weight_phase("Filter", self.config.filtration_target, 0, (self.FEED, self.FILTRATE), self.config.sample_time, self.config.max_weight_phase_time)
+                    self.progress_callback("Filter", current_cycle, config.cycle_count)
+                if config.filtration_by_weight:
+                    self._weight_phase(
+                        "Filter",
+                        config.filtration_target,
+                        0,
+                        (self.FEED, self.FILTRATE),
+                        config.sample_time,
+                        config.max_weight_phase_time,
+                    )
                 else:
-                    self._timed_phase("Filter", self.config.filtration_target, (self.FEED, self.FILTRATE), self.config.sample_time)
+                    self._timed_phase(
+                        "Filter",
+                        config.filtration_target,
+                        (self.FEED, self.FILTRATE),
+                        config.sample_time,
+                    )
                 if self.progress_callback:
-                    self.progress_callback("Backwash", cycle + 1, self.config.cycle_count)
-                if self.config.backwash_by_weight:
-                    self._weight_phase("Backwash", self.config.backwash_target, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT), self.config.sample_time, self.config.max_weight_phase_time)
+                    self.progress_callback("Backwash", current_cycle, config.cycle_count)
+                if config.backwash_by_weight:
+                    self._weight_phase(
+                        "Backwash",
+                        config.backwash_target,
+                        1,
+                        (self.BACKWASH, self.BACKWASH_EFFLUENT),
+                        config.sample_time,
+                        config.max_weight_phase_time,
+                    )
                 else:
-                    self._timed_phase("Backwash", self.config.backwash_target, (self.BACKWASH, self.BACKWASH_EFFLUENT), self.config.sample_time)
+                    self._timed_phase(
+                        "Backwash",
+                        config.backwash_target,
+                        (self.BACKWASH, self.BACKWASH_EFFLUENT),
+                        config.sample_time,
+                    )
         finally:
             self.stop_test()
 
@@ -244,8 +313,16 @@ class FiltrationTestSystem(_AutomationBase):
         self._timed_phase("Prime", duration, (self.FEED,), 0.1)
 
 
-class CleanTestSystem(_AutomationBase):
-    def __init__(self, module: MEU, config: CleanConfig, log_dir: str = "logs", valve_callback=None, progress_callback=None, prompt_callback: Optional[Callable[[str], bool]] = None) -> None:
+class CleanTestSystem(CleanSequenceMixin, _AutomationBase):
+    def __init__(
+        self,
+        module: MEU,
+        config: CleanConfig,
+        log_dir: str = "logs",
+        valve_callback=None,
+        progress_callback=None,
+        prompt_callback: Optional[Callable[[str], bool]] = None,
+    ) -> None:
         super().__init__(module, log_dir, valve_callback, progress_callback)
         self.config = config
         self.prompt_callback = prompt_callback or (lambda _message: True)
@@ -255,43 +332,43 @@ class CleanTestSystem(_AutomationBase):
         if not self.prompt_callback(message):
             raise AutomationError("Operator cancelled at confirmation prompt")
 
-    def _process_phase(self, step: str, target: float, by_weight: bool, scale_index: int, relays: tuple[int, ...]) -> None:
+    def _process_phase(
+        self,
+        step: str,
+        target: float,
+        by_weight: bool,
+        scale_index: int,
+        relays: tuple[int, ...],
+    ) -> None:
         if by_weight:
-            self._weight_phase(step, target, scale_index, relays, self.config.sample_time, self.config.max_weight_phase_time)
-        else:
-            self._timed_phase(step, target, relays, self.config.sample_time)
+            self._weight_phase(
+                step,
+                target,
+                scale_index,
+                relays,
+                self.config.sample_time,
+                self.config.max_weight_phase_time,
+            )
+            return
+        self._timed_phase(step, target, relays, self.config.sample_time)
 
     def start_test(self) -> None:
         self._stop_event.clear()
         self.close_all_valves()
         try:
-            self._open_logs("Clean", self.config.project, self.config.module_id, self.config.solution, self.config)
-            self._apply_offsets(self.config)
+            config = self.config
+            self._open_logs(
+                "Clean",
+                config.project,
+                config.module_id,
+                config.solution,
+                config,
+            )
+            self._apply_offsets(config)
             self.module.zero_scales()
             time.sleep(1.0)
-            for cycle in range(self.config.cycle_count):
-                self._prompt("Fill the Feed tank with caustic solution, then confirm to continue.")
-                self._timed_phase("Caustic Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("Caustic Filter 1", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Caustic Backwash 1", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
-                self._timed_phase("Caustic Soak", self.config.soak_time, tuple(), self.config.sample_time)
-                self._process_phase("Caustic Filter 2", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Caustic Backwash 2", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
-                self._prompt("Replace the Feed tank contents with DI water, then confirm to continue.")
-                self._timed_phase("DI Rinse 1 Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("DI Rinse 1 Filter", self.config.rinse_forward_target, self.config.rinse_forward_by_weight, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("DI Rinse 1 Backwash", self.config.rinse_backwash_target, self.config.rinse_backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
-                self._prompt("Fill the Feed tank with acid solution, then confirm to continue.")
-                self._timed_phase("Acid Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("Acid Filter 1", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Acid Backwash 1", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
-                self._timed_phase("Acid Soak", self.config.soak_time, tuple(), self.config.sample_time)
-                self._process_phase("Acid Filter 2", self.config.forward_target, self.config.forward_by_weight, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("Acid Backwash 2", self.config.backwash_target, self.config.backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
-                self._prompt("Replace the acid in the Feed tank with DI water, then confirm before DI Rinse 2.")
-                self._timed_phase("DI Rinse 2 Purge", self.config.purge_time, (self.FEED, self.WASTE), self.config.sample_time)
-                self._process_phase("DI Rinse 2 Filter", self.config.rinse_forward_target, self.config.rinse_forward_by_weight, 0, (self.FEED, self.FILTRATE))
-                self._process_phase("DI Rinse 2 Backwash", self.config.rinse_backwash_target, self.config.rinse_backwash_by_weight, 1, (self.BACKWASH, self.BACKWASH_EFFLUENT))
+            for _cycle in range(config.cycle_count):
+                self._run_clean_cycle()
         finally:
             self.stop_test()
 
@@ -299,23 +376,47 @@ class CleanTestSystem(_AutomationBase):
 class BenchmarkTestSystem(_AutomationBase):
     """Passive benchmark logger retained for maintenance and diagnostics."""
 
-    def __init__(self, module: MEU, config: BenchmarkConfig, log_dir: str = "logs", progress_callback=None) -> None:
+    def __init__(
+        self,
+        module: MEU,
+        config: BenchmarkConfig,
+        log_dir: str = "logs",
+        progress_callback=None,
+    ) -> None:
         super().__init__(module, log_dir, progress_callback=progress_callback)
         self.config = config
 
     def start_test(self) -> None:
         self._stop_event.clear()
         try:
-            self._open_logs("BenchmarkPassive", self.config.project, self.config.module_id, self.config.sample_id, self.config)
-            self._apply_offsets(self.config)
+            config = self.config
+            self._open_logs(
+                "BenchmarkPassive",
+                config.project,
+                config.module_id,
+                config.sample_id,
+                config,
+            )
+            self._apply_offsets(config)
             started = time.monotonic()
             count = 0
-            while time.monotonic() - started < self.config.duration:
+            while time.monotonic() - started < config.duration:
                 self._check_cancel()
                 count += 1
                 if self.progress_callback:
                     self.progress_callback("Benchmark Passive", count, 0)
                 self.log_cycle("Benchmark Passive")
-                time.sleep(max(1.0, self.config.interval))
+                time.sleep(max(1.0, config.interval))
         finally:
             self.stop_test()
+
+
+__all__ = [
+    "AutomationError",
+    "BenchmarkTestSystem",
+    "CleanTestSystem",
+    "DATA_HEADER",
+    "FiltrationTestSystem",
+    "_AutomationBase",
+    "_safe_name",
+]
