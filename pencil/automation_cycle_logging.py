@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from typing import Callable, Optional
 
+from .automation_lifecycle import AutomationLifecycleMixin
 from .automation_meu import (
     AutomationError,
     BenchmarkTestSystem as _BenchmarkTestSystem,
@@ -16,8 +17,8 @@ from .data_logging import PSI_TO_KPA, build_data_row, write_header
 from .hardware import MEU
 
 
-class _CycleLoggingMixin:
-    """Add a one-based cycle number to the authoritative MEU CSV schema."""
+class _CycleLoggingMixin(AutomationLifecycleMixin):
+    """Add cycle-aware logging and shared lifecycle behavior."""
 
     def _open_logs(
         self,
@@ -101,36 +102,28 @@ class FiltrationTestSystem(_CycleLoggingMixin, _FiltrationTestSystem):
             config.sample_time,
         )
 
-    def start_test(self) -> None:
-        self._stop_event.clear()
-        self.close_all_valves()
-        try:
-            config = self.config
-            self._open_logs(
-                config.file_prefix,
-                config.project,
-                config.module_id,
-                config.sample_id,
-                config,
+    def _run_cycles(self) -> None:
+        config = self.config
+        for cycle in range(config.cycle_count):
+            self.current_cycle = cycle + 1
+            self._report_progress("Purge", self.current_cycle, config.cycle_count)
+            self._timed_phase(
+                "Purge",
+                config.purge_time,
+                (self.FEED, self.WASTE),
+                config.sample_time,
             )
-            self._apply_offsets(config)
-            self.module.zero_scales()
-            time.sleep(1.0)
-            for cycle in range(config.cycle_count):
-                self.current_cycle = cycle + 1
-                self._report_progress("Purge", self.current_cycle, config.cycle_count)
-                self._timed_phase(
-                    "Purge",
-                    config.purge_time,
-                    (self.FEED, self.WASTE),
-                    config.sample_time,
-                )
-                self._report_progress("Filter", self.current_cycle, config.cycle_count)
-                self._run_filter_phase()
-                self._report_progress("Backwash", self.current_cycle, config.cycle_count)
-                self._run_backwash_phase()
-        finally:
-            self.stop_test()
+            self._report_progress("Filter", self.current_cycle, config.cycle_count)
+            self._run_filter_phase()
+            self._report_progress("Backwash", self.current_cycle, config.cycle_count)
+            self._run_backwash_phase()
+
+    def start_test(self) -> None:
+        self._run_managed(
+            self._run_cycles,
+            prefix=self.config.file_prefix,
+            final_id=self.config.sample_id,
+        )
 
 
 class CleanTestSystem(_CycleLoggingMixin, _CleanTestSystem):
@@ -152,26 +145,17 @@ class CleanTestSystem(_CycleLoggingMixin, _CleanTestSystem):
             prompt_callback,
         )
 
+    def _run_cycles(self) -> None:
+        for cycle in range(self.config.cycle_count):
+            self.current_cycle = cycle + 1
+            self._run_clean_cycle()
+
     def start_test(self) -> None:
-        self._stop_event.clear()
-        self.close_all_valves()
-        try:
-            config = self.config
-            self._open_logs(
-                "Clean",
-                config.project,
-                config.module_id,
-                config.solution,
-                config,
-            )
-            self._apply_offsets(config)
-            self.module.zero_scales()
-            time.sleep(1.0)
-            for cycle in range(config.cycle_count):
-                self.current_cycle = cycle + 1
-                self._run_clean_cycle()
-        finally:
-            self.stop_test()
+        self._run_managed(
+            self._run_cycles,
+            prefix="Clean",
+            final_id=self.config.solution,
+        )
 
 
 class BenchmarkTestSystem(_CycleLoggingMixin, _BenchmarkTestSystem):
@@ -184,29 +168,25 @@ class BenchmarkTestSystem(_CycleLoggingMixin, _BenchmarkTestSystem):
     ) -> None:
         super().__init__(module, config, log_dir, progress_callback)
 
+    def _run_samples(self) -> None:
+        started = time.monotonic()
+        count = 0
+        while time.monotonic() - started < self.config.duration:
+            self._check_cancel()
+            count += 1
+            self.current_cycle = count
+            self._report_progress("Benchmark Passive", count, 0)
+            self.log_cycle("Benchmark Passive")
+            time.sleep(max(1.0, self.config.interval))
+
     def start_test(self) -> None:
-        self._stop_event.clear()
-        try:
-            config = self.config
-            self._open_logs(
-                "BenchmarkPassive",
-                config.project,
-                config.module_id,
-                config.sample_id,
-                config,
-            )
-            self._apply_offsets(config)
-            started = time.monotonic()
-            count = 0
-            while time.monotonic() - started < config.duration:
-                self._check_cancel()
-                count += 1
-                self.current_cycle = count
-                self._report_progress("Benchmark Passive", count, 0)
-                self.log_cycle("Benchmark Passive")
-                time.sleep(max(1.0, config.interval))
-        finally:
-            self.stop_test()
+        self._run_managed(
+            self._run_samples,
+            prefix="BenchmarkPassive",
+            final_id=self.config.sample_id,
+            close_valves=False,
+            tare_scales=False,
+        )
 
 
 __all__ = [
