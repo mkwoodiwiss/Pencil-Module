@@ -9,7 +9,7 @@
 - Focused configuration loading, process lifecycle, Clean sequence, CSV schema, log ownership, and completed-result discovery modules.
 - Focused HMI components for shared identifiers, filtration dialogs, summary formatting, touchscreen entries, and generic widget-tree cloning.
 - Passive serial transport separated from Highland scale protocol handling.
-- Regression coverage for hardware contracts, startup selection, configuration compatibility, process sequencing, logging, HMI composition, completed-run file selection, serial transport, and Highland protocol behavior.
+- Regression coverage for hardware contracts, startup selection, configuration compatibility, process sequencing, logging, HMI composition, completed-run file selection, serial transport, Highland protocol behavior, and USB eject sequencing.
 
 ### Changed
 
@@ -27,6 +27,7 @@
 - Moved serial connection handling into `serial_transport.py`.
 - Moved Highland parsing, cached readings, protocol commands, and base tare behavior into `highland_scale.py`.
 - Retained production-specific `T` tare verification and concurrent dual-scale safeguards in `hardware_runtime.py`.
+- Updated USB export to sync, unmount the partition, and power off the parent USB device before reporting safe removal.
 - Removed obsolete HMI wrapper modules and the duplicate emulation launcher script.
 
 ### Preserved
@@ -43,14 +44,16 @@
 
 ### Validation completed
 
-- 113 total tests completed successfully on the Raspberry Pi, with one intentional full-Tk display test skipped.
+- 113 total tests completed successfully on the Raspberry Pi, with one intentional full-Tk display test skipped, before the USB eject tests were added.
 - `python -m compileall system_control.py pencil` completed successfully.
-- Visual comparison of every process tab and settings dialog completed successfully.
-- Physical Highland scale communication and verified tare completed successfully on both scale ports.
-
-### Physical validation remaining before merge
-
+- Visual comparison of every process tab and settings dialog.
+- Physical Highland scale communication and verified tare on both ports.
 - Relay and final valve mapping.
 - Pressure and RTD channel readings.
-- USB result export.
+- USB result copying and checksum verification.
+
+### Validation required before merge
+
+- Re-run the automated suite including the new USB eject tests.
+- Confirm automatic USB eject and device power-off after export.
 - Complete Flush, Benchmark, Test, Post-Scrub, and Clean wet-process checks.
