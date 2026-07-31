@@ -1,4 +1,4 @@
-"""Hardware interface classes for the MF/UF Membrane Evaluation Unit."""
+"""Hardware interfaces for the MF/UF Membrane Evaluation Unit."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ _WEIGHT_RE = re.compile(r"([ +-]?)\s*([+-]?\d+(?:\.\d+)?)\s*([a-zA-Z]+)")
 
 
 class _RelayWrapper:
-    """Wrap the 8-relay HAT functions with a simple object API."""
+    """Wrap the 8-relay HAT functions with a small object API."""
 
     def __init__(self, stack: int) -> None:
         self.stack = stack
@@ -56,7 +56,6 @@ class _ScaleManager:
         self.stale_after = stale_after
         self.reconnect_after = reconnect_after
 
-        # Compatibility lock only. The worker thread is the sole serial owner.
         self.lock = threading.RLock()
         self._state_lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -99,13 +98,15 @@ class _ScaleManager:
         if not force and now - self._last_open_attempt < 1.0:
             return False
         self._last_open_attempt = now
-        old = self._serial
+
+        old_serial = self._serial
         self._serial = None
-        if old is not None:
+        if old_serial is not None:
             try:
-                old.close()
+                old_serial.close()
             except Exception:
                 pass
+
         try:
             self._serial = serial.Serial(self.port, self.baud, timeout=0.25)
             try:
@@ -120,25 +121,24 @@ class _ScaleManager:
             return False
 
     def _close_serial(self) -> None:
-        ser = self._serial
+        serial_connection = self._serial
         self._serial = None
-        if ser is not None:
+        if serial_connection is not None:
             try:
-                ser.close()
+                serial_connection.close()
             except Exception:
                 pass
 
     def _readline(self) -> bytes:
-        ser = self._serial
-        if ser is None:
+        serial_connection = self._serial
+        if serial_connection is None:
             return b""
-        if hasattr(ser, "readline"):
-            return ser.readline()
-        return ser.read_until(b"\r\n")
+        if hasattr(serial_connection, "readline"):
+            return serial_connection.readline()
+        return serial_connection.read_until(b"\r\n")
 
     def _write(self, command: bytes) -> bool:
-        ser = self._serial
-        if ser is None and not self._open_serial(force=True):
+        if self._serial is None and not self._open_serial(force=True):
             return False
         try:
             self._serial.write(command)
@@ -169,8 +169,6 @@ class _ScaleManager:
                     time.sleep(0.25)
                     continue
 
-                # The worker has just finished a complete receive cycle. Clear
-                # queued pre-tare lines, then send the one documented tare command.
                 try:
                     self._serial.reset_input_buffer()
                 except Exception:
@@ -197,9 +195,6 @@ class _ScaleManager:
                         continue
                     self._record(parsed)
                     _text, value, _unit = parsed
-
-                    # Only lines physically received by this worker after the
-                    # command was transmitted can count toward verification.
                     if time.monotonic() >= command_time and abs(value) <= 0.2:
                         consecutive_zero += 1
                         if consecutive_zero >= 2:
@@ -247,8 +242,7 @@ class _ScaleManager:
                 continue
 
             try:
-                raw = self._readline()
-                parsed = self._parse(raw)
+                parsed = self._parse(self._readline())
                 if parsed is not None:
                     self._record(parsed)
             except Exception as exc:
@@ -267,7 +261,7 @@ class _ScaleManager:
             return time.monotonic() - self._latest_time
 
     def read(self) -> str:
-        """Return the latest valid reading and queue a print request if stale."""
+        """Return the latest valid reading and queue one print request if stale."""
         with self._state_lock:
             text = self._latest_text
             timestamp = self._latest_time
@@ -313,6 +307,9 @@ class _ScaleManager:
 class MEU:
     """Interface to the MF/UF Membrane Evaluation Unit hardware."""
 
+    SCALE_MANAGER_CLASS = _ScaleManager
+    RELAY_WRAPPER_CLASS = _RelayWrapper
+
     def __init__(
         self,
         relay_stack: int = 1,
@@ -322,23 +319,30 @@ class MEU:
         baud: int = 9600,
         read_delay: float = 0.25,
     ) -> None:
-        """Initialize connections to the MEU hardware."""
-        self._effluent_scale = _ScaleManager(effluent_port, baud)
-        self._backwash_scale = _ScaleManager(backwash_port, baud)
+        """Initialize scale, relay, and analog hardware interfaces."""
+        scale_manager_class = self.SCALE_MANAGER_CLASS
+        self._effluent_scale = scale_manager_class(effluent_port, baud)
+        self._backwash_scale = scale_manager_class(backwash_port, baud)
         self.effluent_lock = self._effluent_scale.lock
         self.backwash_lock = self._backwash_scale.lock
         self._read_delay = read_delay
-        self.relay = _RelayWrapper(relay_stack) if lib8relind else None
-        if multiio:
-            try:
-                self.io = multiio.SMmultiio(stack=io_stack, i2c=1)
-            except Exception:  # pragma: no cover
-                self.io = None
-        else:
-            self.io = None
+        self.relay = self.RELAY_WRAPPER_CLASS(relay_stack) if lib8relind else None
+        self.io = self._create_multiio(io_stack)
         self.pressure_offset_bw = 0.0
         self.pressure_offset_in = 0.0
         self.temp_offset = 0.0
+
+    @staticmethod
+    def _create_multiio(io_stack: int):
+        if not multiio:
+            return None
+        try:
+            return multiio.SMmultiio(stack=io_stack, i2c=1)
+        except Exception:  # pragma: no cover - hardware initialization failure
+            return None
+
+    def _scale_manager(self, channel: int):
+        return self._effluent_scale if channel == 0 else self._backwash_scale
 
     @property
     def effluent_ser(self):
@@ -374,19 +378,15 @@ class MEU:
 
     def zero_scales(self) -> bool:
         """Tare both scales and return True only when both verify near zero."""
-        effluent_ok = self.zero_scale(0)
-        backwash_ok = self.zero_scale(1)
-        return effluent_ok and backwash_ok
+        return self.zero_scale(0) and self.zero_scale(1)
 
     def zero_scale(self, channel: int) -> bool:
         """Tare one scale through its serial-owner worker."""
-        manager = self._effluent_scale if channel == 0 else self._backwash_scale
-        return manager.tare()
+        return self._scale_manager(channel).tare()
 
     def scale_health(self, channel: int) -> dict:
         """Return connection and freshness diagnostics for one scale."""
-        manager = self._effluent_scale if channel == 0 else self._backwash_scale
-        return manager.health()
+        return self._scale_manager(channel).health()
 
     def apply_offsets(
         self,
@@ -400,8 +400,7 @@ class MEU:
 
     def read_scale(self, channel: int = 0) -> str:
         """Return the latest healthy cached reading from one scale."""
-        manager = self._effluent_scale if channel == 0 else self._backwash_scale
-        return manager.read()
+        return self._scale_manager(channel).read()
 
     def close(self) -> None:
         """Stop scale workers and close serial ports."""
