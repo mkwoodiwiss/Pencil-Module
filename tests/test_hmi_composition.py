@@ -9,7 +9,6 @@ from pencil.hmi_summary_formatting import SummaryFormattingMixin
 from pencil.hmi_tk_clone_compat import TkCloneCompatibilityMixin
 from pencil.hmi_v2_clone_test_layout import HMI as CloneLayoutHMI
 from pencil.hmi_v2_integrated import HMI
-from pencil.hmi_v2_tk_compat import HMI as LegacyTkCompatHMI
 
 
 class TestHMIComposition(unittest.TestCase):
@@ -27,10 +26,6 @@ class TestHMIComposition(unittest.TestCase):
         self.assertNotIn("pencil.hmi_v2_post_scrub_dialog", module_names)
         self.assertNotIn("pencil.hmi_v2_summary_text", module_names)
         self.assertNotIn("pencil.hmi_v2_tk_compat", module_names)
-
-    def test_legacy_tk_module_delegates_to_extracted_behavior(self):
-        self.assertTrue(issubclass(LegacyTkCompatHMI, TkCloneCompatibilityMixin))
-        self.assertTrue(issubclass(LegacyTkCompatHMI, CloneLayoutHMI))
 
     def test_sample_identifier_rename_leaves_sample_time_unchanged(self):
         text = "Sample Time: 1 s\nSample: ABC"
