@@ -5,9 +5,10 @@ from __future__ import annotations
 import tkinter as tk
 
 from .hmi_v2_layout_fix import HMI as _V2LayoutHMI
+from .hmi_widget_clone import WidgetTreeCloneMixin
 
 
-class HMI(_V2LayoutHMI):
+class HMI(WidgetTreeCloneMixin, _V2LayoutHMI):
     """MEU v2 HMI whose new process panels are exact Test-layout clones."""
 
     CLONE_DELAY_MS = 400
@@ -23,17 +24,6 @@ class HMI(_V2LayoutHMI):
         self._update_post_scrub_summary()
 
         self.after(self.CLONE_DELAY_MS, self._rebuild_new_pages_from_test)
-
-    @staticmethod
-    def _managed_children(parent: tk.Widget) -> list[tk.Widget]:
-        children = []
-        for child in parent.winfo_children():
-            try:
-                if child.winfo_manager():
-                    children.append(child)
-            except tk.TclError:
-                pass
-        return children
 
     def _test_lower_area(self) -> tk.Widget | None:
         top_section = self.pfds.get("test", {}).get("top_section")
@@ -52,113 +42,59 @@ class HMI(_V2LayoutHMI):
             except tk.TclError:
                 pass
 
-    @staticmethod
-    def _copy_widget_options(source: tk.Widget) -> dict:
-        excluded = {
-            "class",
-            "colormap",
-            "container",
-            "command",
-            "image",
-            "menu",
-            "name",
-            "screen",
-            "textvariable",
-            "use",
-            "variable",
-            "visual",
-        }
-        options = {}
-        try:
-            configuration = source.configure()
-        except tk.TclError:
-            return options
-
-        for name in configuration:
-            if name in excluded:
-                continue
-            try:
-                options[name] = source.cget(name)
-            except tk.TclError:
-                pass
-        return options
-
-    @staticmethod
-    def _copy_grid_configuration(source: tk.Widget, target: tk.Widget) -> None:
-        try:
-            columns, rows = source.grid_size()
-        except tk.TclError:
-            return
-
-        for column in range(columns):
-            try:
-                config = source.grid_columnconfigure(column)
-                target.grid_columnconfigure(
-                    column,
-                    minsize=config.get("minsize", 0),
-                    pad=config.get("pad", 0),
-                    weight=config.get("weight", 0),
-                    uniform=config.get("uniform", ""),
-                )
-            except tk.TclError:
-                pass
-
-        for row in range(rows):
-            try:
-                config = source.grid_rowconfigure(row)
-                target.grid_rowconfigure(
-                    row,
-                    minsize=config.get("minsize", 0),
-                    pad=config.get("pad", 0),
-                    weight=config.get("weight", 0),
-                    uniform=config.get("uniform", ""),
-                )
-            except tk.TclError:
-                pass
-
     def _summary_variable_for_clone(self, key: str) -> tk.StringVar:
         index = self._summary_clone_index
         self._summary_clone_index += 1
         if key == "flush":
-            return self.flush_summary_left_var if index == 0 else self.flush_summary_right_var
+            return (
+                self.flush_summary_left_var
+                if index == 0
+                else self.flush_summary_right_var
+            )
         return (
             self.post_scrub_summary_left_var
             if index == 0
             else self.post_scrub_summary_right_var
         )
 
-    def _clone_widget(
+    def _clone_button_command(self, text: str, key: str):
+        if text == "Start":
+            return self._toggle_flush if key == "flush" else self._toggle_post_scrub
+        if text == "Edit Settings":
+            return self._edit_flush_settings if key == "flush" else self._edit_post_scrub_settings
+        if text == "Calibrate":
+            return self.calibrate
+        if text in {"Tare FIL", "Tare EFL"}:
+            return lambda: self.module.zero_scale(0)
+        if text in {"Tare BW EFL", "Tare BW"}:
+            return lambda: self.module.zero_scale(1)
+        return None
+
+    def _create_cloned_widget(
         self,
         source: tk.Widget,
         parent: tk.Widget,
         key: str,
+        options: dict,
     ) -> tk.Widget:
-        options = self._copy_widget_options(source)
-
         if isinstance(source, tk.LabelFrame):
-            target = tk.LabelFrame(parent, **options)
-        elif isinstance(source, tk.Frame):
-            target = tk.Frame(parent, **options)
-        elif isinstance(source, tk.Button):
+            return tk.LabelFrame(parent, **options)
+        if isinstance(source, tk.Frame):
+            return tk.Frame(parent, **options)
+        if isinstance(source, tk.Button):
             text = str(source.cget("text"))
-            command = None
-            if text == "Start":
-                command = self._toggle_flush if key == "flush" else self._toggle_post_scrub
-            elif text == "Edit Settings":
-                command = self._edit_flush_settings if key == "flush" else self._edit_post_scrub_settings
-            elif text == "Calibrate":
-                command = self.calibrate
-            elif text in {"Tare FIL", "Tare EFL"}:
-                command = lambda: self.module.zero_scale(0)
-            elif text in {"Tare BW EFL", "Tare BW"}:
-                command = lambda: self.module.zero_scale(1)
-            target = tk.Button(parent, command=command, **options)
+            target = tk.Button(
+                parent,
+                command=self._clone_button_command(text, key),
+                **options,
+            )
             if text == "Start":
                 if key == "flush":
                     self.start_btn_flush = target
                 else:
                     self.start_btn_post_scrub = target
-        elif isinstance(source, tk.Label):
+            return target
+        if isinstance(source, tk.Label):
             label_options = dict(options)
             try:
                 variable_name = str(source.cget("textvariable"))
@@ -181,42 +117,8 @@ class HMI(_V2LayoutHMI):
                 image_name = ""
             if image_name:
                 label_options["image"] = image_name
-            target = tk.Label(parent, **label_options)
-        else:
-            target = tk.Frame(parent)
-
-        self._copy_grid_configuration(source, target)
-
-        for child in self._managed_children(source):
-            cloned_child = self._clone_widget(child, target, key)
-            manager = child.winfo_manager()
-            try:
-                if manager == "pack":
-                    info = child.pack_info()
-                    info.pop("in", None)
-                    cloned_child.pack(**info)
-                elif manager == "grid":
-                    info = child.grid_info()
-                    info.pop("in", None)
-                    cloned_child.grid(**info)
-                elif manager == "place":
-                    info = child.place_info()
-                    info.pop("in", None)
-                    cloned_child.place(**info)
-            except tk.TclError:
-                pass
-
-        try:
-            if not source.tk.getboolean(source.pack_propagate()):
-                target.pack_propagate(False)
-        except tk.TclError:
-            pass
-        try:
-            if not source.tk.getboolean(source.grid_propagate()):
-                target.grid_propagate(False)
-        except tk.TclError:
-            pass
-        return target
+            return tk.Label(parent, **label_options)
+        return tk.Frame(parent)
 
     def _clone_test_lower_area(self, tab: tk.Widget, key: str) -> None:
         source = self._test_lower_area()
@@ -226,19 +128,7 @@ class HMI(_V2LayoutHMI):
         self._clear_lower_area(tab, key)
         self._summary_clone_index = 0
         target = self._clone_widget(source, tab, key)
-        manager = source.winfo_manager()
-        if manager == "pack":
-            info = source.pack_info()
-            info.pop("in", None)
-            target.pack(**info)
-        elif manager == "grid":
-            info = source.grid_info()
-            info.pop("in", None)
-            target.grid(**info)
-        elif manager == "place":
-            info = source.place_info()
-            info.pop("in", None)
-            target.place(**info)
+        self._apply_geometry(source, target)
 
     def _rebuild_new_pages_from_test(self) -> None:
         try:
