@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import tkinter as tk
 
-from .hmi_v2_exit_spacing import HMI as _V2ExitSpacingHMI
+from .hmi_v2_layout_fix import HMI as _V2LayoutHMI
 
 
-class HMI(_V2ExitSpacingHMI):
+class HMI(_V2LayoutHMI):
     """MEU v2 HMI with Test-identical lower-panel construction."""
 
     def __init__(self, *args, **kwargs) -> None:
