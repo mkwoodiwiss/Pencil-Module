@@ -7,9 +7,13 @@ from pencil.emulation import EmulatedMEU
 
 
 class TestScaleDisplayIntegration(unittest.TestCase):
-    """Integration test using the real Tk HMI with deterministic hardware."""
+    """Optional integration test using the real Tk HMI and Pi display."""
 
     def setUp(self):
+        if os.environ.get("MEU_RUN_TK_INTEGRATION") != "1":
+            self.skipTest(
+                "Full Tk integration is opt-in; set MEU_RUN_TK_INTEGRATION=1"
+            )
         if not os.environ.get("DISPLAY"):
             self.skipTest("Display not available")
 
