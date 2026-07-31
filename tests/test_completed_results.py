@@ -1,5 +1,6 @@
 """Regression tests for exact completed-run result discovery."""
 
+import os
 from pathlib import Path
 import tempfile
 import types
@@ -58,9 +59,9 @@ class TestCompletedResults(unittest.TestCase):
             old_data.write_text("old", encoding="utf-8")
             new_data.write_text("new", encoding="utf-8")
             new_settings.write_text("settings", encoding="utf-8")
-            old_data.touch()
-            new_data.touch()
-            new_settings.touch()
+            os.utime(old_data, (100, 100))
+            os.utime(new_data, (200, 200))
+            os.utime(new_settings, (200, 200))
 
             self.assertEqual(
                 latest_result_pair(root),
