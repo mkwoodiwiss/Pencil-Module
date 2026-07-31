@@ -14,6 +14,7 @@ from pencil import (
     BenchmarkTestSystem,
     CleanConfig,
     CleanTestSystem,
+    EmulatedMEU,
     FiltrationConfig,
     FiltrationTestSystem,
     HMI,
@@ -25,6 +26,7 @@ from pencil import (
 __all__ = [
     "MEU",
     "PencilModule",
+    "EmulatedMEU",
     "FiltrationConfig",
     "FiltrationTestSystem",
     "CleanConfig",
@@ -64,11 +66,25 @@ def _load_defaults(config_path: str) -> dict[str, Any]:
     return defaults
 
 
+def _emulation_requested(environment: dict[str, str] | None = None) -> bool:
+    """Return True only for an explicit MEU_EMULATE_RPI opt-in value."""
+    source = os.environ if environment is None else environment
+    value = source.get("MEU_EMULATE_RPI", "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _create_module():
+    """Create production hardware by default or deterministic emulation on request."""
+    if _emulation_requested():
+        return EmulatedMEU()
+    # PencilModule is retained as the patchable entry-point symbol for older
+    # integrations and tests. It is an alias of the preferred production MEU.
+    return PencilModule()
+
+
 def main() -> None:
     """Start the MF/UF Membrane Evaluation Unit application."""
-    # PencilModule is retained as the patchable entry-point symbol for older
-    # integrations and tests. It is an alias of the preferred MEU class.
-    meu = PencilModule()
+    meu = _create_module()
     config_path = os.path.join(os.path.dirname(__file__), "config.json")
     defaults = _load_defaults(config_path)
     app = HMI(meu, fullscreen=True, defaults=defaults)
