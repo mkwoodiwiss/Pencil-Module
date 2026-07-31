@@ -11,6 +11,8 @@ from .hardware import MEU as _BaseMEU, _ScaleManager
 class _RuntimeScaleManager(_ScaleManager):
     """Highland scale manager with continuous receive and controlled polling fallback."""
 
+    TARE_COMMAND = b"T\r\n"
+
     def __init__(self, *args, **kwargs) -> None:
         self._tare_active = False
         super().__init__(*args, **kwargs)
@@ -22,16 +24,12 @@ class _RuntimeScaleManager(_ScaleManager):
         self._tare_active = True
         try:
             for _attempt in range(int(attempts)):
-                if self._serial is None and not self._open_serial(force=True):
+                if not self._transport.connected and not self._open_serial(force=True):
                     time.sleep(0.2)
                     continue
 
-                try:
-                    self._serial.reset_input_buffer()
-                except Exception:
-                    pass
-
-                if not self._write(b"T\r\n"):
+                self._reset_input_buffer()
+                if not self._write(self.TARE_COMMAND):
                     time.sleep(0.2)
                     continue
 
@@ -49,18 +47,14 @@ class _RuntimeScaleManager(_ScaleManager):
                         and print_requests < 2
                         and now >= next_print_fallback
                     ):
-                        if self._write(b"P\r\n"):
+                        if self._write(self.PRINT_COMMAND):
                             print_requests += 1
                         next_print_fallback = now + 0.75
 
                     try:
-                        raw = self._readline()
-                    except Exception as exc:
-                        self._last_error = repr(exc)
-                        self._close_serial()
+                        parsed = self._parse(self._readline())
+                    except Exception:
                         break
-
-                    parsed = self._parse(raw)
                     if parsed is None:
                         continue
 
@@ -78,7 +72,7 @@ class _RuntimeScaleManager(_ScaleManager):
                 if success:
                     break
 
-                if self._serial is None:
+                if not self._transport.connected:
                     self._open_serial(force=True)
                 time.sleep(0.2)
         finally:
