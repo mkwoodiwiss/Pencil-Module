@@ -4,7 +4,18 @@ import types
 import unittest
 from unittest import mock
 
+from pencil.automation_cycle_logging import (
+    BenchmarkTestSystem as CycleBenchmarkTestSystem,
+    CleanTestSystem as CycleCleanTestSystem,
+    FiltrationTestSystem as CycleFiltrationTestSystem,
+)
 from pencil.automation_lifecycle import AutomationLifecycleMixin
+from pencil.automation_meu import (
+    BenchmarkTestSystem,
+    CleanTestSystem,
+    FiltrationTestSystem,
+    _AutomationBase,
+)
 
 
 class _Harness(AutomationLifecycleMixin):
@@ -92,6 +103,29 @@ class TestAutomationLifecycle(unittest.TestCase):
             )
 
         harness.stop_test.assert_called_once_with()
+
+    def test_base_automation_owns_shared_lifecycle(self):
+        self.assertTrue(issubclass(_AutomationBase, AutomationLifecycleMixin))
+        for system_class in (
+            FiltrationTestSystem,
+            CleanTestSystem,
+            BenchmarkTestSystem,
+            CycleFiltrationTestSystem,
+            CycleCleanTestSystem,
+            CycleBenchmarkTestSystem,
+        ):
+            with self.subTest(system_class=system_class.__name__):
+                self.assertTrue(issubclass(system_class, AutomationLifecycleMixin))
+
+    def test_cycle_variants_inherit_constructor_and_startup_behavior(self):
+        for system_class in (
+            CycleFiltrationTestSystem,
+            CycleCleanTestSystem,
+            CycleBenchmarkTestSystem,
+        ):
+            with self.subTest(system_class=system_class.__name__):
+                self.assertNotIn("__init__", system_class.__dict__)
+                self.assertNotIn("start_test", system_class.__dict__)
 
 
 if __name__ == "__main__":
