@@ -7,6 +7,7 @@ from .hmi_identifier_state import IdentifierStateMixin
 from .hmi_post_scrub_state import PostScrubStateMixin
 from .hmi_summary_formatting import SummaryFormattingMixin
 from .hmi_tk_clone_compat import TkCloneCompatibilityMixin
+from .hmi_touch_entries import TouchEntryMixin
 from .hmi_v2_clone_test_layout import HMI as _CloneLayoutHMI
 
 
@@ -15,6 +16,7 @@ class HMI(
     IdentifierStateMixin,
     PostScrubStateMixin,
     SummaryFormattingMixin,
+    TouchEntryMixin,
     TkCloneCompatibilityMixin,
     _CloneLayoutHMI,
 ):
