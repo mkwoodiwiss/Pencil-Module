@@ -22,13 +22,20 @@ DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority python3 system_control.py
 
 ## Hardware emulation
 
-Run the current HMI without energizing Raspberry Pi hardware:
+Run the production HMI without energizing Raspberry Pi hardware:
 
 ```bash
-python3 scripts/run_emulated_hmi.py
+MEU_EMULATE_RPI=1 python3 system_control.py
 ```
 
-See `RPI_EMULATION.md` for emulator controls and remote-display commands.
+From a remote shell using the Pi display:
+
+```bash
+DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority \
+MEU_EMULATE_RPI=1 python3 system_control.py
+```
+
+See `RPI_EMULATION.md` for emulator controls and validation scope.
 
 ## Runtime dependencies
 
@@ -50,33 +57,62 @@ The Sequent Microsystems packages are installed separately from their vendor rep
 
 ## Release validation
 
-Run the complete test suite against the Pi display:
+Run the complete automated suite:
 
 ```bash
 DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority \
 python3 -m unittest discover -s tests -v
 ```
 
-Compile the production application and scripts:
+The current branch validation result is **113 tests passed with one intentional full-Tk display test skipped**.
+
+Compile the production application:
 
 ```bash
-python3 -m compileall system_control.py pencil scripts
+python3 -m compileall system_control.py pencil
 ```
 
-The tests include simulated hardware and HMI regression coverage. Physical hardware and wet testing are still required before release.
+The automated suite covers configuration, automation lifecycle, clean sequencing, logging, result-file selection, HMI composition, emulation, serial transport, Highland protocol behavior, hardware factories, and public interfaces. Physical hardware and wet-process validation are still required before release.
 
 ## Current code boundaries
 
 - `system_control.py`: production entry point and backend selection
 - `pencil/config_loader.py`: JSON configuration loading
-- `pencil/hardware_runtime.py`: production hardware safeguards
+- `pencil/config_meu.py`: process configuration models and legacy aliases
+- `pencil/automation_lifecycle.py`: shared safe process startup and shutdown
+- `pencil/clean_sequence.py`: authoritative Clean sequence
+- `pencil/log_files.py`: automation file naming and ownership
+- `pencil/completed_results.py`: completed-run result-file selection
+- `pencil/serial_transport.py`: passive serial connection, read, write, reconnect, and error handling
+- `pencil/highland_scale.py`: Highland parsing, command queue, cached readings, and base tare behavior
+- `pencil/hardware.py`: relay, Multi-IO, sensor conversion, and hardware composition
+- `pencil/hardware_runtime.py`: production Highland tare safeguards and dual-scale verification
 - `pencil/emulation.py`: deterministic Raspberry Pi hardware emulator
-- `pencil/automation_cycle_logging.py`: process automation and cycle logging
-- `pencil/hmi_identifier_state.py`: shared v2 identifier coordination
-- `pencil/hmi_filtration_dialogs.py`: shared Test and Post-Scrub settings dialog
+- `pencil/hmi_widget_clone.py`: generic Tk widget-tree cloning mechanics
+- `pencil/hmi_v2_clone_test_layout.py`: Flush and Post-Scrub clone policy
 - `pencil/hmi_v2_integrated.py`: final production HMI composition
 
-The current UI layout, navigation order, labels, colors, sizing, settings behavior, and process workflows are treated as release behavior and should not be changed during cleanup.
+The current UI layout, navigation order, labels, colors, sizing, settings behavior, hardware mapping, and process workflows are treated as release behavior and should not be changed during cleanup.
+
+## Hardware mapping
+
+### Valves
+
+- SV-01, Relay 1: Backwash Supply
+- SV-02, Relay 2: Influent Supply
+- SV-03, Relay 3: Backwash Effluent
+- SV-04, Relay 4: Influent Drain
+- SV-05, Relay 5: Effluent Valve
+
+### Instruments
+
+- Backwash supply pressure: Multi-IO current-input channel 1
+- Influent supply pressure: Multi-IO current-input channel 2
+- Influent temperature: RTD input 1, application channel `read_rtd(0)`
+- Effluent scale: `/dev/ttyAMA3`
+- Backwash scale: `/dev/ttyAMA2`
+
+The pressure driver uses the approved 0 to 30 psi scaling basis. HMI and CSV values are converted to kPa where labeled as kPa.
 
 ## Diagnostic scripts
 
@@ -104,20 +140,17 @@ python3 scripts/relay_test.py
 python3 stress_test_continuous.py 60
 ```
 
-## Hardware mapping
-
-- Backwash tank pressure: Multi-IO current-input channel 1
-- Feed tank pressure: Multi-IO current-input channel 2
-- Feed temperature: RTD input 1
-- Filtrate scale: `/dev/ttyAMA3`
-- Backwash effluent scale: `/dev/ttyAMA2`
-
-The pressure driver uses the approved 0 to 30 psi scaling basis. HMI and new CSV values are converted to kPa where labeled as kPa.
-
 ## Configuration behavior
 
 `config.json` is optional. A missing file uses built-in defaults. Malformed JSON, unreadable files, and valid JSON values that are not objects produce clear startup errors.
 
-## Release notes
+## Remaining release validation
+
+- Visual comparison of every process tab and settings dialog
+- Physical Highland communication and verified tare on both scales
+- Relay and final valve mapping
+- Pressure and RTD channel readings
+- USB result export
+- Complete Flush, Benchmark, Test, Post-Scrub, and Clean wet sequences
 
 See `CHANGELOG.md`, `RELEASE_NOTES_V1.md`, and `RPI_EMULATION.md`.
