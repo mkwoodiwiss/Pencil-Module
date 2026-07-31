@@ -7,12 +7,6 @@ The MEU application can run without Raspberry Pi hardware by using the built-in 
 From the repository root:
 
 ```bash
-python3 scripts/run_emulated_hmi.py
-```
-
-Equivalent direct command:
-
-```bash
 MEU_EMULATE_RPI=1 python3 system_control.py
 ```
 
