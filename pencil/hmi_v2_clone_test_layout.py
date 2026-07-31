@@ -109,6 +109,21 @@ class HMI(_V2LayoutHMI):
             except tk.TclError:
                 pass
 
+    @staticmethod
+    def _copy_propagation_state(source: tk.Widget, target: tk.Widget) -> None:
+        """Copy geometry propagation without assuming Tcl returns numeric text."""
+        try:
+            pack_state = source.tk.getboolean(source.pack_propagate())
+            target.pack_propagate(pack_state)
+        except (tk.TclError, TypeError, ValueError):
+            pass
+
+        try:
+            grid_state = source.tk.getboolean(source.grid_propagate())
+            target.grid_propagate(grid_state)
+        except (tk.TclError, TypeError, ValueError):
+            pass
+
     def _clone_widget(
         self,
         source: tk.Widget,
@@ -159,11 +174,7 @@ class HMI(_V2LayoutHMI):
                     else self.post_scrub_summary_var
                 )
             elif variable_name:
-                try:
-                    label_options["textvariable"] = self.nametowidget(variable_name)
-                except (KeyError, tk.TclError):
-                    # Sensor and cycle labels already share the underlying Tk variable.
-                    label_options["textvariable"] = variable_name
+                label_options["textvariable"] = variable_name
 
             try:
                 image_name = str(source.cget("image"))
@@ -196,16 +207,7 @@ class HMI(_V2LayoutHMI):
             except tk.TclError:
                 pass
 
-        try:
-            if not bool(int(source.pack_propagate())):
-                target.pack_propagate(False)
-        except (tk.TclError, ValueError):
-            pass
-        try:
-            if not bool(int(source.grid_propagate())):
-                target.grid_propagate(False)
-        except (tk.TclError, ValueError):
-            pass
+        self._copy_propagation_state(source, target)
         return target
 
     def _clone_test_lower_area(self, tab: tk.Widget, key: str) -> None:
