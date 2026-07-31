@@ -64,7 +64,7 @@ DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority \
 python3 -m unittest discover -s tests -v
 ```
 
-The last confirmed branch result was **113 total tests, all successful, with one intentional full-Tk display test skipped**. USB eject tests were added afterward and require the next Raspberry Pi run.
+The current confirmed branch result is **117 tests passed, with one intentional full-Tk display test skipped**.
 
 Compile the production application:
 
@@ -80,7 +80,8 @@ Completed physical checks:
 - Physical Highland communication and verified tare on both scales
 - Relay and final valve mapping
 - Pressure and RTD channel readings
-- USB file copy and checksum verification
+- USB result copying and checksum verification
+- Automatic USB unmount, device power-off, and safe eject
 
 ## Current code boundaries
 
@@ -155,7 +156,6 @@ python3 stress_test_continuous.py 60
 
 ## Remaining release validation
 
-- Confirm USB automatic eject after verified export
 - Complete Flush, Benchmark, Test, Post-Scrub, and Clean wet sequences
 
 See `CHANGELOG.md`, `RELEASE_NOTES_V1.md`, and `RPI_EMULATION.md`.
