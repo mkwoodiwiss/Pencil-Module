@@ -41,15 +41,15 @@
 - Existing CSV column order and kPa conversion factor.
 - Public `MEU`, `PencilModule`, HMI, automation, and internal `_ScaleManager` compatibility imports.
 
-### Automated validation completed
+### Validation completed
 
 - 113 total tests completed successfully on the Raspberry Pi, with one intentional full-Tk display test skipped.
 - `python -m compileall system_control.py pencil` completed successfully.
+- Visual comparison of every process tab and settings dialog completed successfully.
+- Physical Highland scale communication and verified tare completed successfully on both scale ports.
 
-### Physical validation required before merge
+### Physical validation remaining before merge
 
-- Visual comparison of every process tab and settings dialog.
-- Physical Highland scale communication and verified tare on both ports.
 - Relay and final valve mapping.
 - Pressure and RTD channel readings.
 - USB result export.
