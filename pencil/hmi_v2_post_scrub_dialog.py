@@ -45,6 +45,11 @@ class HMI(_V2TkCompatHMI):
             self.post_scrub_bw_use_time_var.set(True)
 
     def _edit_post_scrub_settings(self) -> None:
+        """Open Post-Scrub through the exact same wrapper used by Test."""
+        self._open_settings_dialog(self._build_post_scrub_settings_dialog)
+
+    def _build_post_scrub_settings_dialog(self) -> None:
+        """Build the same eight-row settings form as Test with Post-Scrub variables."""
         variable_names = (
             "post_scrub_filt_target_weight_var",
             "post_scrub_filt_target_time_var",
