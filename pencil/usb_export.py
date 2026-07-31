@@ -20,6 +20,7 @@ class USBDrive:
     mount_point: Path
     label: str
     device: str = ""
+    parent_device: str = ""
 
     @property
     def free_bytes(self) -> int:
@@ -38,7 +39,7 @@ def _mounted_removable_drives() -> list[USBDrive]:
     """Return mounted removable filesystems reported by lsblk."""
     try:
         result = subprocess.run(
-            ["lsblk", "-J", "-o", "NAME,PATH,LABEL,RM,TYPE,MOUNTPOINTS"],
+            ["lsblk", "-J", "-o", "NAME,PATH,PKNAME,LABEL,RM,TYPE,MOUNTPOINTS"],
             check=True,
             capture_output=True,
             text=True,
@@ -52,8 +53,19 @@ def _mounted_removable_drives() -> list[USBDrive]:
 
     drives: list[USBDrive] = []
 
-    def visit(node: dict, removable_parent: bool = False) -> None:
+    def visit(
+        node: dict,
+        removable_parent: bool = False,
+        inherited_parent_device: str = "",
+    ) -> None:
         removable = bool(node.get("rm")) or removable_parent
+        device = node.get("path") or ""
+        node_type = node.get("type") or ""
+        parent_name = node.get("pkname") or ""
+        parent_device = f"/dev/{parent_name}" if parent_name else inherited_parent_device
+        if node_type == "disk" and device:
+            parent_device = device
+
         mount_points = node.get("mountpoints") or []
         if isinstance(mount_points, str):
             mount_points = [mount_points]
@@ -64,11 +76,12 @@ def _mounted_removable_drives() -> list[USBDrive]:
                         USBDrive(
                             mount_point=Path(mount),
                             label=node.get("label") or Path(mount).name or "USB Drive",
-                            device=node.get("path") or "",
+                            device=device,
+                            parent_device=parent_device or device,
                         )
                     )
         for child in node.get("children") or []:
-            visit(child, removable)
+            visit(child, removable, parent_device)
 
     for device in payload.get("blockdevices") or []:
         visit(device)
@@ -126,13 +139,44 @@ def test_name_from_files(files: Iterable[os.PathLike[str] | str]) -> str:
     return _safe_folder_name(stem)
 
 
+def _run_command(command: list[str], timeout: float = 15.0) -> bool:
+    """Run one removable-media command and return whether it succeeded."""
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except Exception:
+        return False
+    return result.returncode == 0
+
+
+def safely_eject_drive(drive: USBDrive) -> bool:
+    """Unmount the filesystem and power off its parent USB block device."""
+    unmounted = False
+    if drive.device:
+        unmounted = _run_command(["udisksctl", "unmount", "-b", drive.device])
+    if not unmounted:
+        unmounted = _run_command(["umount", str(drive.mount_point)])
+    if not unmounted:
+        return False
+
+    power_device = drive.parent_device or drive.device
+    if not power_device:
+        return True
+    return _run_command(["udisksctl", "power-off", "-b", power_device])
+
+
 def export_test_results(
     files: Iterable[os.PathLike[str] | str],
     drive: USBDrive,
     folder_name: str | None = None,
     unmount: bool = True,
 ) -> ExportResult:
-    """Copy result files to a USB drive, verify checksums, then optionally unmount."""
+    """Copy result files to a USB drive, verify checksums, then optionally eject."""
     sources = tuple(Path(path).resolve() for path in files)
     if not sources:
         raise USBExportError("No test-result files were provided.")
@@ -173,18 +217,5 @@ def export_test_results(
     except Exception:
         pass
 
-    unmounted = False
-    if unmount and drive.device:
-        try:
-            result = subprocess.run(
-                ["udisksctl", "unmount", "-b", drive.device],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-            unmounted = result.returncode == 0
-        except Exception:
-            unmounted = False
-
-    return ExportResult(destination, tuple(copied), True, unmounted)
+    ejected = safely_eject_drive(drive) if unmount else False
+    return ExportResult(destination, tuple(copied), True, ejected)

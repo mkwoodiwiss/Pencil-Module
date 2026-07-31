@@ -1,12 +1,10 @@
-"""Final summary-text corrections for the MEU v2 process tabs."""
+"""Final summary formatting for MEU v2 process tabs."""
 
 from __future__ import annotations
 
-from .hmi_v2_post_scrub_dialog import HMI as _PostScrubDialogHMI
 
-
-class HMI(_PostScrubDialogHMI):
-    """Keep Flush and Post-Scrub summaries consistent with Test."""
+class SummaryFormattingMixin:
+    """Keep process summaries consistent and use explicit Sample ID labels."""
 
     def _update_flush_summary(self) -> None:
         left = (
@@ -54,5 +52,36 @@ class HMI(_PostScrubDialogHMI):
         if hasattr(self, "post_scrub_summary_var"):
             self.post_scrub_summary_var.set(f"{left}\n{right}")
 
+    def _update_test_summary(self) -> None:
+        super()._update_test_summary()
+        self._rename_summary_sample_fields(
+            "test_summary_var",
+            "_test_summary_left",
+            "_test_summary_right",
+        )
 
-__all__ = ["HMI"]
+    def _update_benchmark_summary(self) -> None:
+        super()._update_benchmark_summary()
+        self._rename_summary_sample_fields(
+            "benchmark_summary_var",
+            "_benchmark_summary_left",
+            "_benchmark_summary_right",
+        )
+
+    @staticmethod
+    def _rename_identifier_sample_line(text: str) -> str:
+        lines = str(text).splitlines()
+        for index in range(len(lines) - 1, -1, -1):
+            if lines[index].startswith("Sample: "):
+                lines[index] = "Sample ID: " + lines[index][len("Sample: ") :]
+                break
+        return "\n".join(lines)
+
+    def _rename_summary_sample_fields(self, *variable_names: str) -> None:
+        for variable_name in variable_names:
+            variable = getattr(self, variable_name, None)
+            if variable is not None:
+                variable.set(self._rename_identifier_sample_line(variable.get()))
+
+
+__all__ = ["SummaryFormattingMixin"]

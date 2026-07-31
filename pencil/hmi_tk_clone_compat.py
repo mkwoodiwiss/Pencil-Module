@@ -1,14 +1,12 @@
-"""Tk 8.6 compatibility for MEU v2 Test-layout cloning."""
+"""Tk 8.6 compatibility behavior for cloned MEU layouts."""
 
 from __future__ import annotations
 
 import tkinter as tk
 
-from .hmi_v2_clone_test_layout import HMI as _CloneLayoutHMI
 
-
-class HMI(_CloneLayoutHMI):
-    """Use direct Tcl propagation queries while cloning nested Test widgets."""
+class TkCloneCompatibilityMixin:
+    """Query geometry propagation directly through Tcl while cloning widgets."""
 
     def _clone_widget(
         self,
@@ -38,4 +36,4 @@ class HMI(_CloneLayoutHMI):
             source.grid_propagate = original_grid_propagate
 
 
-__all__ = ["HMI"]
+__all__ = ["TkCloneCompatibilityMixin"]

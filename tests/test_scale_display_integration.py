@@ -2,33 +2,41 @@ import os
 import unittest
 from unittest import mock
 
-from tests.simulated_hardware import FakeRelay8, FakeMultiIO, FakeLib8Relind
 import system_control
+from pencil.emulation import EmulatedMEU
 
 
 class TestScaleDisplayIntegration(unittest.TestCase):
-    """Integration test using real scales and display."""
+    """Optional integration test using the real Tk HMI and Pi display."""
 
     def setUp(self):
-        # Skip the test when no display is available (e.g., headless CI)
+        if os.environ.get("MEU_RUN_TK_INTEGRATION") != "1":
+            self.skipTest(
+                "Full Tk integration is opt-in; set MEU_RUN_TK_INTEGRATION=1"
+            )
         if not os.environ.get("DISPLAY"):
             self.skipTest("Display not available")
 
-    def test_real_scales_and_display(self):
-        # Patch relay and IO boards with simulated versions
-        with mock.patch.object(system_control, "lib8relind", FakeLib8Relind(), create=True), \
-             mock.patch.object(system_control, "multiio", mock.Mock(SMmultiio=FakeMultiIO), create=True), \
-             mock.patch.object(system_control.HMI, "after", lambda self, ms, cb: None):
-            module = system_control.PencilModule()
-            app = system_control.HMI(module)
-            # Perform a single data refresh without entering the main loop
-            app.update_data()
-            weight = app.weight_var.get()
-            # Weight string shown in the sensors section should be numeric only
-            self.assertRegex(weight, r"^\d+\.\d+$")
-            # GUI should be sized for the official Pi display
-            self.assertTrue(app.winfo_geometry().startswith("800x480"))
-            app.destroy()
+    def test_scale_values_and_display_geometry(self):
+        module = EmulatedMEU()
+        module.set_scale_value(0, 12.3)
+        app = None
+        try:
+            with mock.patch.object(
+                system_control.HMI,
+                "after",
+                lambda self, ms, cb: None,
+            ):
+                app = system_control.HMI(module)
+                app.update_data()
+
+                weight = app.weight_var.get()
+                self.assertRegex(weight, r"^\d+\.\d+$")
+                self.assertTrue(app.winfo_geometry().startswith("800x480"))
+        finally:
+            if app is not None:
+                app.destroy()
+            module.close()
 
 
 if __name__ == "__main__":

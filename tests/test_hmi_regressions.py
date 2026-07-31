@@ -5,7 +5,7 @@ import unittest
 from unittest import mock
 
 import pencil
-from pencil import hmi_final
+from pencil import hmi_final, hmi_v2_integrated
 
 
 class _FakeWidget:
@@ -114,7 +114,7 @@ class _IdentifierHarness:
 
 class TestFinalHMIRegressions(unittest.TestCase):
     def test_public_api_exports_final_hmi(self):
-        self.assertIs(pencil.HMI, hmi_final.HMI)
+        self.assertIs(pencil.HMI, hmi_v2_integrated.HMI)
 
     def test_map_callback_ignores_non_widget_targets(self):
         instance = object.__new__(hmi_final.HMI)
