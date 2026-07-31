@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from tkinter import ttk
 
-from .hmi_v2 import HMI as _V2HMI
+from .hmi_v2_navigation import HMI as _V2NavigationHMI
 
 
-class HMI(_V2HMI):
+class HMI(_V2NavigationHMI):
     """MEU v2 HMI with safe ttk.Notebook append handling during startup."""
 
     def __init__(self, *args, **kwargs) -> None:
