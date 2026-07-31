@@ -64,7 +64,7 @@ DISPLAY=:0 XAUTHORITY=/home/waterarc/.Xauthority \
 python3 -m unittest discover -s tests -v
 ```
 
-The current branch validation result is **113 tests passed with one intentional full-Tk display test skipped**.
+The current branch validation result is **113 total tests, all successful, with one intentional full-Tk display test skipped**.
 
 Compile the production application:
 
