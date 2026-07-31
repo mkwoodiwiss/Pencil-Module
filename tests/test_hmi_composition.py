@@ -27,6 +27,15 @@ class TestHMIComposition(unittest.TestCase):
         self.assertNotIn("pencil.hmi_v2_summary_text", module_names)
         self.assertNotIn("pencil.hmi_v2_tk_compat", module_names)
 
+    def test_clone_layout_delegates_summary_formatting(self):
+        self.assertNotIn("_update_flush_summary", CloneLayoutHMI.__dict__)
+        self.assertNotIn("_update_post_scrub_summary", CloneLayoutHMI.__dict__)
+        self.assertIs(HMI._update_flush_summary, SummaryFormattingMixin._update_flush_summary)
+        self.assertIs(
+            HMI._update_post_scrub_summary,
+            SummaryFormattingMixin._update_post_scrub_summary,
+        )
+
     def test_sample_identifier_rename_leaves_sample_time_unchanged(self):
         text = "Sample Time: 1 s\nSample: ABC"
         self.assertEqual(
