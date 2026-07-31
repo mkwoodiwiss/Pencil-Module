@@ -6,7 +6,8 @@ from .hmi_filtration_dialogs import FiltrationSettingsDialogMixin
 from .hmi_identifier_state import IdentifierStateMixin
 from .hmi_post_scrub_state import PostScrubStateMixin
 from .hmi_summary_formatting import SummaryFormattingMixin
-from .hmi_v2_tk_compat import HMI as _V2TkCompatHMI
+from .hmi_tk_clone_compat import TkCloneCompatibilityMixin
+from .hmi_v2_clone_test_layout import HMI as _CloneLayoutHMI
 
 
 class HMI(
@@ -14,7 +15,8 @@ class HMI(
     IdentifierStateMixin,
     PostScrubStateMixin,
     SummaryFormattingMixin,
-    _V2TkCompatHMI,
+    TkCloneCompatibilityMixin,
+    _CloneLayoutHMI,
 ):
     """Final v2 HMI assembled from focused behavior components."""
 
