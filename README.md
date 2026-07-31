@@ -4,6 +4,10 @@ This repository contains the Python control application for the **MF/UF Membrane
 
 The MEU is a bench-scale membrane evaluation system used to assess microfiltration and ultrafiltration membrane performance through Flush, Benchmark, Test, Post-Scrub, and Clean sequences. It records process pressures, temperature, scale weights, test settings, cycle status, and timestamps where logging is enabled.
 
+## Returning to the project
+
+Read `CODE_HANDOFF.md` before making changes after a long absence or transferring the project to another developer. It explains the architecture, approved hardware mappings, safety invariants, compatibility names, validation expectations, and which module owns each type of behavior.
+
 ## Production startup
 
 Install the Sequent Microsystems hardware drivers, then run:
@@ -158,4 +162,4 @@ python3 stress_test_continuous.py 60
 
 - Complete Flush, Benchmark, Test, Post-Scrub, and Clean wet sequences
 
-See `CHANGELOG.md`, `RELEASE_NOTES_V1.md`, and `RPI_EMULATION.md`.
+See `CODE_HANDOFF.md`, `CHANGELOG.md`, `RELEASE_NOTES_V1.md`, and `RPI_EMULATION.md`.
