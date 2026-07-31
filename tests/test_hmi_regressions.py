@@ -179,49 +179,142 @@ class TestFinalHMIRegressions(unittest.TestCase):
         self.assertEqual(second.backgrounds, ["lightgray"])
         self.assertEqual(second.active_backgrounds, ["lightgray"])
         self.assertEqual(missing_state.backgrounds, ["lightgray"])
+        self.assertEqual(missing_state.active_backgrounds, ["lightgray"])
         instance._update_lines.assert_called_once_with()
 
-    def test_settings_window_disables_and_restores_valve_buttons(self):
-        harness = _SettingsHarness()
+    def test_valve_sync_tolerates_missing_runtime_state(self):
+        instance = types.SimpleNamespace(
+            _update_lines=mock.Mock(side_effect=AttributeError("screen closed"))
+        )
+
+        hmi_final.HMI._sync_all_valve_buttons(instance)
+
+        instance._update_lines.assert_called_once_with()
+
+    def test_touchscreen_toggle_matches_active_and_normal_colors(self):
+        instance = object.__new__(hmi_final.HMI)
+        first = _FakeButton()
+        second = _FakeButton()
+        instance.solenoid_states = [False]
+        instance.pfds = {
+            "test": {"solenoid_buttons": [first]},
+            "clean": {"solenoid_buttons": [second]},
+        }
+
+        def parent_toggle(target, channel):
+            target.solenoid_states[channel] = not target.solenoid_states[channel]
+
+        with mock.patch.object(
+            hmi_final._ThemedHMI,
+            "toggle_solenoid",
+            autospec=True,
+            side_effect=parent_toggle,
+        ) as parent:
+            hmi_final.HMI.toggle_solenoid(instance, 0)
+
+        parent.assert_called_once_with(instance, 0)
+        self.assertEqual(first.backgrounds, ["green"])
+        self.assertEqual(first.active_backgrounds, ["green"])
+        self.assertEqual(second.backgrounds, ["green"])
+        self.assertEqual(second.active_backgrounds, ["green"])
+
+    def test_settings_dialog_disables_valves_and_is_styled(self):
+        instance = _SettingsHarness()
         window = _FakeToplevel()
 
-        harness._register_settings_window(window)
+        def open_dialog():
+            instance.children.append(window)
 
-        self.assertIn("disabled", harness.button.states)
+        with mock.patch.object(hmi_final.tk, "Toplevel", _FakeToplevel):
+            instance._open_settings_dialog(open_dialog)
+
+        self.assertEqual(instance.button.states, ["disabled", "disabled"])
+        instance._style_settings_window.assert_called_once_with(window)
+        self.assertIn(window, instance._open_settings_windows)
+
+    def test_valves_restore_after_last_settings_dialog_closes(self):
+        instance = _SettingsHarness()
+        first = _FakeToplevel()
+        second = _FakeToplevel()
+        instance._register_settings_window(first)
+        instance._register_settings_window(second)
+
+        first.destroy()
+        self.assertEqual(instance.button.states, ["disabled", "disabled"])
+
+        second.destroy()
+        self.assertEqual(instance.button.states[-1], "normal")
+        instance._sync_all_valve_buttons.assert_called_once_with()
+
+    def test_settings_dialog_close_does_not_enable_valves_during_run(self):
+        instance = _SettingsHarness()
+        instance.is_running = True
+        window = _FakeToplevel()
+        instance._register_settings_window(window)
+
         window.destroy()
-        self.assertEqual(harness.button.states[-1], "normal")
-        harness._sync_all_valve_buttons.assert_called_once_with()
 
-    def test_open_settings_dialog_registers_new_toplevel(self):
-        harness = _SettingsHarness()
-        window = _FakeToplevel()
-        harness.children = []
+        self.assertNotIn("normal", instance.button.states)
+        instance._sync_all_valve_buttons.assert_not_called()
 
-        def builder():
-            harness.children.append(window)
+    def test_shared_identifiers_propagate_across_matching_tabs(self):
+        instance = _IdentifierHarness()
+        instance._install_shared_identifier_sync()
 
-        harness._open_settings_dialog(builder)
+        self.assertEqual(instance.benchmark_project_var.get(), "project-a")
+        self.assertEqual(instance.clean_project_var.get(), "project-a")
+        self.assertEqual(instance.benchmark_module_id_var.get(), "module-a")
+        self.assertEqual(instance.clean_module_id_var.get(), "module-a")
+        self.assertEqual(instance.benchmark_sample_id_var.get(), "sample-a")
 
-        harness._style_settings_window.assert_called_once_with(window)
-        self.assertIn("disabled", harness.button.states)
+        instance.clean_project_var.set("project-b")
+        instance.clean_module_id_var.set("module-b")
+        instance.benchmark_sample_id_var.set("sample-b")
 
-    def test_identifier_sync_updates_all_members(self):
-        harness = _IdentifierHarness()
-        harness._install_shared_identifier_sync()
+        self.assertEqual(instance.project_var.get(), "project-b")
+        self.assertEqual(instance.benchmark_project_var.get(), "project-b")
+        self.assertEqual(instance.module_id_var.get(), "module-b")
+        self.assertEqual(instance.benchmark_module_id_var.get(), "module-b")
+        self.assertEqual(instance.sample_id_var.get(), "sample-b")
 
-        harness.project_var.set("project-b")
+    def test_summary_identifier_values_are_ellipsized_without_changing_source(self):
+        long_value = "project-name-that-is-too-long"
+        text = f"Filter: 10 s\nProject: {long_value}\nModule: short\nSample: sample-name-that-is-too-long"
 
-        self.assertEqual(harness.benchmark_project_var.get(), "project-b")
-        self.assertEqual(harness.clean_project_var.get(), "project-b")
-        harness._refresh_identifier_summaries.assert_called()
+        result = _IdentifierHarness._truncate_summary_text(text)
 
-    def test_summary_truncation_preserves_short_values(self):
-        harness = _IdentifierHarness()
-        self.assertEqual(harness._ellipsize("short", 10), "short")
+        self.assertIn("Project: project-name-...", result)
+        self.assertIn("Module: short", result)
+        self.assertIn("Sample: sample-name-t...", result)
+        self.assertEqual(long_value, "project-name-that-is-too-long")
 
-    def test_summary_truncation_ellipsizes_long_values(self):
-        harness = _IdentifierHarness()
-        self.assertEqual(harness._ellipsize("abcdefghijkl", 8), "abcde...")
+    def test_pressure_conversion_uses_exact_kpa_factor(self):
+        self.assertAlmostEqual(hmi_final.HMI._psi_to_kpa(1.0), 6.894757293168)
+        self.assertAlmostEqual(hmi_final.HMI._psi_to_kpa(30.0), 206.84271879504)
+
+    def test_completion_bypasses_themed_duplicate_dialog(self):
+        instance = object.__new__(hmi_final.HMI)
+        mro = hmi_final.HMI.__mro__
+        themed_index = mro.index(hmi_final._ThemedHMI)
+        original_completion_class = next(
+            cls
+            for cls in mro[themed_index + 1 :]
+            if "_test_finished" in cls.__dict__
+        )
+
+        with mock.patch.object(
+            hmi_final._ThemedHMI,
+            "_test_finished",
+            autospec=True,
+        ) as themed_completion, mock.patch.object(
+            original_completion_class,
+            "_test_finished",
+            autospec=True,
+        ) as original_completion:
+            hmi_final.HMI._test_finished(instance)
+
+        themed_completion.assert_not_called()
+        original_completion.assert_called_once_with(instance)
 
 
 if __name__ == "__main__":
