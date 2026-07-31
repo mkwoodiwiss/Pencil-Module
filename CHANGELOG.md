@@ -44,16 +44,15 @@
 
 ### Validation completed
 
-- 113 total tests completed successfully on the Raspberry Pi, with one intentional full-Tk display test skipped, before the USB eject tests were added.
+- 117 tests completed successfully on the Raspberry Pi, with one intentional full-Tk display test skipped.
 - `python -m compileall system_control.py pencil` completed successfully.
 - Visual comparison of every process tab and settings dialog.
 - Physical Highland scale communication and verified tare on both ports.
 - Relay and final valve mapping.
 - Pressure and RTD channel readings.
 - USB result copying and checksum verification.
+- Automatic USB unmount, device power-off, and safe eject.
 
 ### Validation required before merge
 
-- Re-run the automated suite including the new USB eject tests.
-- Confirm automatic USB eject and device power-off after export.
 - Complete Flush, Benchmark, Test, Post-Scrub, and Clean wet-process checks.
