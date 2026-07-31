@@ -12,7 +12,7 @@ from .automation_meu import (
     FiltrationTestSystem as _FiltrationTestSystem,
 )
 from .config_meu import BenchmarkConfig, CleanConfig, FiltrationConfig
-from .data_logging import build_data_row, write_header
+from .data_logging import PSI_TO_KPA, build_data_row, write_header
 from .hardware import MEU
 
 
@@ -352,6 +352,7 @@ class BenchmarkTestSystem(_CycleLoggingMixin, _BenchmarkTestSystem):
 
 __all__ = [
     "AutomationError",
+    "PSI_TO_KPA",
     "FiltrationTestSystem",
     "CleanTestSystem",
     "BenchmarkTestSystem",
