@@ -118,8 +118,6 @@ class ResultsManager(tk.Toplevel):
             self.grab_set()
         except Exception:
             pass
-        # Some Pi window managers reposition a Toplevel while decorating it.
-        # Reapply the screen-centered geometry after the window is mapped.
         self.after_idle(self._center_on_screen)
         self.after(150, self.refresh_drives)
 
@@ -195,7 +193,7 @@ class ResultsManager(tk.Toplevel):
             return
         drive = self.drives[index]
         self._set_busy(True)
-        self.status_var.set("Copying and verifying results. Do not remove the USB drive...")
+        self.status_var.set("Copying, verifying, and ejecting. Do not remove the USB drive...")
 
         def worker() -> None:
             try:
@@ -207,8 +205,8 @@ class ResultsManager(tk.Toplevel):
                 message = f"Unexpected export error: {exc}"
                 self.after(0, lambda message=message: self._export_failed(message))
             else:
-                unmounted = result.unmounted
-                self.after(0, lambda unmounted=unmounted: self._export_complete(unmounted))
+                ejected = result.unmounted
+                self.after(0, lambda ejected=ejected: self._export_complete(ejected))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -216,18 +214,18 @@ class ResultsManager(tk.Toplevel):
         self._set_busy(False)
         self.status_var.set(f"EXPORT FAILED\n{message}\nThe local files are unchanged.")
 
-    def _export_complete(self, unmounted: bool) -> None:
+    def _export_complete(self, ejected: bool) -> None:
         self._set_busy(False)
         self.refresh_button.config(state="disabled")
         self.export_button.config(state="disabled")
         self.done_button.config(text="Done", state="normal")
-        if unmounted:
+        if ejected:
             self.status_var.set(
-                "EXPORT COMPLETE\nFiles copied and verified. The USB drive was safely unmounted and can be removed."
+                "EXPORT COMPLETE\nFiles copied and verified. The USB drive was safely ejected and can be removed."
             )
         else:
             self.status_var.set(
-                "EXPORT COMPLETE\nFiles copied and verified. Wait for drive activity to stop before removing the USB drive."
+                "EXPORT COMPLETE\nFiles copied and verified, but automatic eject failed. Use the operating system eject control before removing the drive."
             )
 
     def _close(self) -> None:
